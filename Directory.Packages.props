@@ -36,7 +36,7 @@
     <PackageVersion Include="MassTransit" Version="8.2.1" />
     <PackageVersion Include="Savorboard.CAP.InMemoryMessageQueue" Version="8.2.0" />
     <PackageVersion Include="WolverineFx" Version="6.24.7" />
-    <PackageVersion Include="DotNetCore.CAP" Version="8.2.0" />
+    <PackageVersion Include="DotNetCore.CAP" Version="10.0.2" />
     <PackageVersion Include="DotNetCore.CAP.InMemoryStorage" Version="8.2.0" />
     <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="8.0.0" />
     <PackageVersion Include="RabbitMQ.Client" Version="7.1.1" />
