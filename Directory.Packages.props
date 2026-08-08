@@ -45,7 +45,7 @@
     <PackageVersion Include="StackExchange.Redis" Version="2.8.0" />
     <PackageVersion Include="Confluent.Kafka" Version="2.3.0" />
     <PackageVersion Include="Azure.Messaging.ServiceBus" Version="7.17.4" />
-    <PackageVersion Include="AWSSDK.SQS" Version="3.7.300.73" />
+    <PackageVersion Include="AWSSDK.SQS" Version="4.0.100.7" />
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="4.8.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="4.8.0" />
     <PackageVersion Include="BenchmarkDotNet" Version="0.13.12">
