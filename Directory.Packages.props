@@ -71,7 +71,7 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageVersion>
-    <PackageVersion Include="coverlet.collector" Version="6.0.1" />
+    <PackageVersion Include="coverlet.collector" Version="10.0.1" />
     <PackageVersion Include="Moq" Version="4.20.70" />
     <PackageVersion Include="NSubstitute" Version="5.1.0" />
     <PackageVersion Include="FsCheck.Xunit" Version="3.0.0-rc3" />
