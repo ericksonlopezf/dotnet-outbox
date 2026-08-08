@@ -29,7 +29,7 @@
     <PackageVersion Include="Microsoft.Extensions.ObjectPool" Version="10.0.10" />
     <PackageVersion Include="Npgsql" Version="9.0.0" />
     <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.10" />
-    <PackageVersion Include="MySqlConnector" Version="2.3.6" />
+    <PackageVersion Include="MySqlConnector" Version="2.6.1" />
     <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.0" />
     <PackageVersion Include="NServiceBus" Version="10.2.8" />
     <PackageVersion Include="Oracle.ManagedDataAccess.Core" Version="23.4.0" />
