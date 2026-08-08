@@ -49,10 +49,10 @@ secrets.json
 
 # Benchmarks
 BenchmarkDotNet.Artifacts/
-benchmarks/results/
 
 # Audit
 AUDIT.md
+REVIEW.md
 
 # Mutation Testing
 StrykerOutput/

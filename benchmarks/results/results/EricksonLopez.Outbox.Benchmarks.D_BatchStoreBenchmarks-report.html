@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+<meta charset='utf-8' />
+<title>EricksonLopez.Outbox.Benchmarks.D_BatchStoreBenchmarks-20260806-183220</title>
+
+<style type="text/css">
+	table { border-collapse: collapse; display: block; width: 100%; overflow: auto; }
+	td, th { padding: 6px 13px; border: 1px solid #ddd; text-align: right; }
+	tr { background-color: #fff; border-top: 1px solid #ccc; }
+	tr:nth-child(even) { background: #f8f8f8; }
+</style>
+</head>
+<body>
+<pre><code>
+BenchmarkDotNet v0.13.12, Windows 11 (10.0.26200.8875)
+Unknown processor
+.NET SDK 10.0.302
+  [Host]     : .NET 10.0.10 (10.0.1026.32716), X64 RyuJIT AVX-512F+CD+BW+DQ+VL+VBMI
+  Job-XTCYIO : .NET 10.0.10 (10.0.1026.32716), X64 RyuJIT AVX-512F+CD+BW+DQ+VL+VBMI
+</code></pre>
+<pre><code></code></pre>
+
+<table>
+<thead><tr><th>Method                        </th><th>Job </th><th>Toolchain       </th><th>IterationCount</th><th>WarmupCount</th><th>BatchSize</th><th>Mean    </th><th>Min     </th><th>Max     </th><th>P50     </th><th>P95     </th><th>Op/s </th><th>Gen0</th><th>Gen1</th><th>Allocated</th>
+</tr>
+</thead><tbody><tr><td>EricksonLopezOutbox_StoreAsync_Batch</td><td>Job-XTCYIO</td><td>Default</td><td>15</td><td>10</td><td>1</td><td>248.6 ns</td><td>246.9 ns</td><td>251.3 ns</td><td>248.2 ns</td><td>250.6 ns</td><td>4,022,793.6</td><td>0.0067</td><td>-</td><td>344 B</td>
+</tr><tr><td>EricksonLopezOutbox_StoreAsync_Batch</td><td>Job-FWMHQE</td><td>InProcessEmitToolchain</td><td>Default</td><td>Default</td><td>1</td><td>280.2 ns</td><td>277.0 ns</td><td>282.6 ns</td><td>280.5 ns</td><td>282.0 ns</td><td>3,569,167.3</td><td>0.0067</td><td>-</td><td>344 B</td>
+</tr><tr><td>EricksonLopezOutbox_StoreAsync_Batch</td><td>Job-XTCYIO</td><td>Default</td><td>15</td><td>10</td><td>100</td><td>17,752.4 ns</td><td>17,653.2 ns</td><td>17,903.0 ns</td><td>17,747.4 ns</td><td>17,859.1 ns</td><td>56,330.4</td><td>0.6714</td><td>0.0305</td><td>34640 B</td>
+</tr><tr><td>EricksonLopezOutbox_StoreAsync_Batch</td><td>Job-FWMHQE</td><td>InProcessEmitToolchain</td><td>Default</td><td>Default</td><td>100</td><td>21,354.8 ns</td><td>21,058.1 ns</td><td>21,599.1 ns</td><td>21,385.6 ns</td><td>21,558.6 ns</td><td>46,827.9</td><td>0.6714</td><td>0.0305</td><td>34640 B</td>
+</tr><tr><td>EricksonLopezOutbox_StoreAsync_Batch</td><td>Job-XTCYIO</td><td>Default</td><td>15</td><td>10</td><td>1000</td><td>183,893.7 ns</td><td>182,561.1 ns</td><td>185,742.2 ns</td><td>183,752.6 ns</td><td>185,466.1 ns</td><td>5,437.9</td><td>6.8359</td><td>2.9297</td><td>351026 B</td>
+</tr><tr><td>EricksonLopezOutbox_StoreAsync_Batch</td><td>Job-FWMHQE</td><td>InProcessEmitToolchain</td><td>Default</td><td>Default</td><td>1000</td><td>215,339.5 ns</td><td>213,595.4 ns</td><td>218,027.1 ns</td><td>215,551.5 ns</td><td>217,281.6 ns</td><td>4,643.8</td><td>6.8359</td><td>5.8594</td><td>350955 B</td>
+</tr><tr><td>EricksonLopezOutbox_StoreAsync_Batch</td><td>Job-XTCYIO</td><td>Default</td><td>15</td><td>10</td><td>10000</td><td>1,869,030.1 ns</td><td>1,853,772.5 ns</td><td>1,889,067.6 ns</td><td>1,866,295.9 ns</td><td>1,887,890.4 ns</td><td>535.0</td><td>68.3594</td><td>62.5000</td><td>3518593 B</td>
+</tr><tr><td>EricksonLopezOutbox_StoreAsync_Batch</td><td>Job-FWMHQE</td><td>InProcessEmitToolchain</td><td>Default</td><td>Default</td><td>10000</td><td>2,169,871.1 ns</td><td>2,144,290.2 ns</td><td>2,217,231.2 ns</td><td>2,170,711.7 ns</td><td>2,217,137.5 ns</td><td>460.9</td><td>66.4063</td><td>58.5938</td><td>3518509 B</td>
+</tr></tbody></table>
+</body>
+</html>

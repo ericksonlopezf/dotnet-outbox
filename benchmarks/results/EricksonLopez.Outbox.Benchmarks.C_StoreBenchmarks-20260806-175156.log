@@ -1,0 +1,506 @@
+// Validating benchmarks:
+// ***** BenchmarkRunner: Start   *****
+// ***** Found 8 benchmark(s) in total *****
+// ***** Building 2 exe(s) in Parallel: Start   *****
+// ***** Done, took 00:00:03 (3.83 sec)   *****
+// Found 8 benchmarks:
+//   C_StoreBenchmarks.MassTransit_InMemory_Publish: Job-ZYOFQR(InvocationCount=1, IterationCount=15, UnrollFactor=1, WarmupCount=10)
+//   C_StoreBenchmarks.Wolverine_InMemory_Publish: Job-ZYOFQR(InvocationCount=1, IterationCount=15, UnrollFactor=1, WarmupCount=10)
+//   C_StoreBenchmarks.EricksonLopezOutbox_StoreAsync_Single: Job-ZYOFQR(InvocationCount=1, IterationCount=15, UnrollFactor=1, WarmupCount=10)
+//   C_StoreBenchmarks.EricksonLopezOutbox_StoreAsync_Fluent: Job-ZYOFQR(InvocationCount=1, IterationCount=15, UnrollFactor=1, WarmupCount=10)
+//   C_StoreBenchmarks.MassTransit_InMemory_Publish: MediumRun(Toolchain=InProcessEmitToolchain, InvocationCount=1, IterationCount=15, LaunchCount=2, UnrollFactor=1, WarmupCount=10)
+//   C_StoreBenchmarks.Wolverine_InMemory_Publish: MediumRun(Toolchain=InProcessEmitToolchain, InvocationCount=1, IterationCount=15, LaunchCount=2, UnrollFactor=1, WarmupCount=10)
+//   C_StoreBenchmarks.EricksonLopezOutbox_StoreAsync_Single: MediumRun(Toolchain=InProcessEmitToolchain, InvocationCount=1, IterationCount=15, LaunchCount=2, UnrollFactor=1, WarmupCount=10)
+//   C_StoreBenchmarks.EricksonLopezOutbox_StoreAsync_Fluent: MediumRun(Toolchain=InProcessEmitToolchain, InvocationCount=1, IterationCount=15, LaunchCount=2, UnrollFactor=1, WarmupCount=10)
+
+Setup power plan (GUID: 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c FriendlyName: Alto rendimiento)
+// **************************
+// Benchmark: C_StoreBenchmarks.MassTransit_InMemory_Publish: Job-ZYOFQR(InvocationCount=1, IterationCount=15, UnrollFactor=1, WarmupCount=10)
+// *** Execute ***
+// Launch: 1 / 1
+// Execute: dotnet 093702ad-6631-41a2-8df2-5564e518d934.dll --anonymousPipes 3880 1648 --benchmarkName EricksonLopez.Outbox.Benchmarks.C_StoreBenchmarks.MassTransit_InMemory_Publish --job "InvocationCount=1, IterationCount=15, UnrollFactor=1, WarmupCount=10" --benchmarkId 0 in D:\DevData\ericksonlopez.dev\dotnet-outbox\benchmarks\EricksonLopez.Outbox.Benchmarks\bin\Release\net10.0\093702ad-6631-41a2-8df2-5564e518d934\bin\Release\net10.0
+// BeforeAnythingElse
+
+// Benchmark Process Environment Information:
+// BenchmarkDotNet v0.13.12
+// Runtime=.NET 10.0.10 (10.0.1026.32716), X64 RyuJIT AVX-512F+CD+BW+DQ+VL+VBMI
+// GC=Concurrent Workstation
+// HardwareIntrinsics=AVX-512F+CD+BW+DQ+VL+VBMI,AES,BMI1,BMI2,FMA,LZCNT,PCLMUL,POPCNT,AvxVnni VectorSize=256
+// Job: Job-APHZCC(InvocationCount=1, IterationCount=15, UnrollFactor=1, WarmupCount=10)
+
+info: Wolverine.Runtime.WolverineRuntime[0]
+      Exporting Open Telemetry metrics from Wolverine with name Wolverine:EricksonLopez.Outbox.Benchmarks, version 6.24.7.0
+info: MassTransit[0]
+      Bus started: loopback://localhost/
+info: Wolverine.Runtime.WolverineRuntime[0]
+      Starting Wolverine messaging for application assembly EricksonLopez.Outbox.Benchmarks, Version=1.0.0.0, Culture=neutral, PublicKeyToken=6eb6d5a0ed018d27
+fail: Wolverine.Runtime.WolverineRuntime[0]
+      Failed to start the Wolverine messaging
+      System.InvalidOperationException: Wolverine is running in TypeLoadMode.Dynamic, which compiles handler/middleware code at runtime, but no IAssemblyGenerator (Roslyn) is registered. Core WolverineFx no longer ships the runtime compiler. Either add the 'WolverineFx.RuntimeCompilation' NuGet package (it auto-registers when referenced, or call opts.UseRuntimeCompilation() in UseWolverine(...)), or pre-generate code with 'dotnet run -- codegen write' and set opts.CodeGeneration.TypeLoadMode = TypeLoadMode.Static. See https://wolverinefx.net/guide/codegen.html (GH-2876).
+         at Wolverine.Runtime.WolverineRuntime.logCodeGenerationConfiguration() in /home/runner/work/wolverine/wolverine/src/Wolverine/Runtime/WolverineRuntime.HostService.cs:line 319
+         at Wolverine.Runtime.WolverineRuntime.StartAsync(CancellationToken cancellationToken) in /home/runner/work/wolverine/wolverine/src/Wolverine/Runtime/WolverineRuntime.HostService.cs:line 71
+fail: Microsoft.Extensions.Hosting.Internal.Host[11]
+      Hosting failed to start
+      System.InvalidOperationException: Wolverine is running in TypeLoadMode.Dynamic, which compiles handler/middleware code at runtime, but no IAssemblyGenerator (Roslyn) is registered. Core WolverineFx no longer ships the runtime compiler. Either add the 'WolverineFx.RuntimeCompilation' NuGet package (it auto-registers when referenced, or call opts.UseRuntimeCompilation() in UseWolverine(...)), or pre-generate code with 'dotnet run -- codegen write' and set opts.CodeGeneration.TypeLoadMode = TypeLoadMode.Static. See https://wolverinefx.net/guide/codegen.html (GH-2876).
+         at Wolverine.Runtime.WolverineRuntime.logCodeGenerationConfiguration() in /home/runner/work/wolverine/wolverine/src/Wolverine/Runtime/WolverineRuntime.HostService.cs:line 319
+         at Wolverine.Runtime.WolverineRuntime.StartAsync(CancellationToken cancellationToken) in /home/runner/work/wolverine/wolverine/src/Wolverine/Runtime/WolverineRuntime.HostService.cs:line 71
+         at Microsoft.Extensions.Hosting.Internal.Host.<StartAsync>b__14_1(IHostedService service, CancellationToken token)
+
+         at Microsoft.Extensions.Hosting.Internal.Host.ForeachService[T](IEnumerable`1 services, CancellationToken token, Boolean concurrent, Boolean abortOnFirstException, List`1 exceptions, Func`3 operation)
+System.Reflection.TargetInvocationException: Exception has been thrown by the target of an invocation.
+ ---> System.InvalidOperationException: Wolverine is running in TypeLoadMode.Dynamic, which compiles handler/middleware code at runtime, but no IAssemblyGenerator (Roslyn) is registered. Core WolverineFx no longer ships the runtime compiler. Either add the 'WolverineFx.RuntimeCompilation' NuGet package (it auto-registers when referenced, or call opts.UseRuntimeCompilation() in UseWolverine(...)), or pre-generate code with 'dotnet run -- codegen write' and set opts.CodeGeneration.TypeLoadMode = TypeLoadMode.Static. See https://wolverinefx.net/guide/codegen.html (GH-2876).
+   at Wolverine.Runtime.WolverineRuntime.logCodeGenerationConfiguration() in /home/runner/work/wolverine/wolverine/src/Wolverine/Runtime/WolverineRuntime.HostService.cs:line 319
+   at Wolverine.Runtime.WolverineRuntime.StartAsync(CancellationToken cancellationToken) in /home/runner/work/wolverine/wolverine/src/Wolverine/Runtime/WolverineRuntime.HostService.cs:line 71
+   at Microsoft.Extensions.Hosting.Internal.Host.<StartAsync>b__14_1(IHostedService service, CancellationToken token)
+   at Microsoft.Extensions.Hosting.Internal.Host.ForeachService[T](IEnumerable`1 services, CancellationToken token, Boolean concurrent, Boolean abortOnFirstException, List`1 exceptions, Func`3 operation)
+   at Microsoft.Extensions.Hosting.Internal.Host.<StartAsync>g__LogAndRethrow|14_3(<>c__DisplayClass14_0&)
+   at Microsoft.Extensions.Hosting.Internal.Host.StartAsync(CancellationToken cancellationToken)
+   at EricksonLopez.Outbox.Benchmarks.C_StoreBenchmarks.Setup() in D:\DevData\ericksonlopez.dev\dotnet-outbox\benchmarks\EricksonLopez.Outbox.Benchmarks\C_StoreBenchmarks.cs:line 62
+   at BenchmarkDotNet.Engines.EngineFactory.CreateReadyToRun(EngineParameters engineParameters)
+   at BenchmarkDotNet.Autogenerated.Runnable_0.Run(IHost host, String benchmarkName) in D:\DevData\ericksonlopez.dev\dotnet-outbox\benchmarks\EricksonLopez.Outbox.Benchmarks\bin\Release\net10.0\093702ad-6631-41a2-8df2-5564e518d934\093702ad-6631-41a2-8df2-5564e518d934.notcs:line 179
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeDirectByRefWithFewArgs(Object obj, Span`1 copyOfArgs, BindingFlags invokeAttr)
+   --- End of inner exception stack trace ---
+   at System.Reflection.MethodBaseInvoker.InvokeDirectByRefWithFewArgs(Object obj, Span`1 copyOfArgs, BindingFlags invokeAttr)
+   at System.Reflection.MethodBaseInvoker.InvokeWithFewArgs(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+   at System.Reflection.RuntimeMethodInfo.Invoke(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+   at System.Reflection.MethodBase.Invoke(Object obj, Object[] parameters)
+   at BenchmarkDotNet.Autogenerated.UniqueProgramName.AfterAssemblyLoadingAttached(String[] args) in D:\DevData\ericksonlopez.dev\dotnet-outbox\benchmarks\EricksonLopez.Outbox.Benchmarks\bin\Release\net10.0\093702ad-6631-41a2-8df2-5564e518d934\093702ad-6631-41a2-8df2-5564e518d934.notcs:line 57
+// AfterAll
+No Workload Results were obtained from the run.
+// Benchmark Process 55160 has exited with code -1.
+
+// ** Remained 7 (87.5 %) benchmark(s) to run. Estimated finish 2026-08-06 17:52 (0h 0m from now) **
+Setup power plan (GUID: 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c FriendlyName: Alto rendimiento)
+// **************************
+// Benchmark: C_StoreBenchmarks.Wolverine_InMemory_Publish: Job-ZYOFQR(InvocationCount=1, IterationCount=15, UnrollFactor=1, WarmupCount=10)
+// *** Execute ***
+// Launch: 1 / 1
+// Execute: dotnet 093702ad-6631-41a2-8df2-5564e518d934.dll --anonymousPipes 2108 3396 --benchmarkName EricksonLopez.Outbox.Benchmarks.C_StoreBenchmarks.Wolverine_InMemory_Publish --job "InvocationCount=1, IterationCount=15, UnrollFactor=1, WarmupCount=10" --benchmarkId 1 in D:\DevData\ericksonlopez.dev\dotnet-outbox\benchmarks\EricksonLopez.Outbox.Benchmarks\bin\Release\net10.0\093702ad-6631-41a2-8df2-5564e518d934\bin\Release\net10.0
+// BeforeAnythingElse
+
+// Benchmark Process Environment Information:
+// BenchmarkDotNet v0.13.12
+// Runtime=.NET 10.0.10 (10.0.1026.32716), X64 RyuJIT AVX-512F+CD+BW+DQ+VL+VBMI
+// GC=Concurrent Workstation
+// HardwareIntrinsics=AVX-512F+CD+BW+DQ+VL+VBMI,AES,BMI1,BMI2,FMA,LZCNT,PCLMUL,POPCNT,AvxVnni VectorSize=256
+// Job: Job-YCAQOH(InvocationCount=1, IterationCount=15, UnrollFactor=1, WarmupCount=10)
+
+info: Wolverine.Runtime.WolverineRuntime[0]
+      Exporting Open Telemetry metrics from Wolverine with name Wolverine:EricksonLopez.Outbox.Benchmarks, version 6.24.7.0
+info: MassTransit[0]
+      Bus started: loopback://localhost/
+info: Wolverine.Runtime.WolverineRuntime[0]
+      Starting Wolverine messaging for application assembly EricksonLopez.Outbox.Benchmarks, Version=1.0.0.0, Culture=neutral, PublicKeyToken=6eb6d5a0ed018d27
+fail: Wolverine.Runtime.WolverineRuntime[0]
+      Failed to start the Wolverine messaging
+      System.InvalidOperationException: Wolverine is running in TypeLoadMode.Dynamic, which compiles handler/middleware code at runtime, but no IAssemblyGenerator (Roslyn) is registered. Core WolverineFx no longer ships the runtime compiler. Either add the 'WolverineFx.RuntimeCompilation' NuGet package (it auto-registers when referenced, or call opts.UseRuntimeCompilation() in UseWolverine(...)), or pre-generate code with 'dotnet run -- codegen write' and set opts.CodeGeneration.TypeLoadMode = TypeLoadMode.Static. See https://wolverinefx.net/guide/codegen.html (GH-2876).
+         at Wolverine.Runtime.WolverineRuntime.logCodeGenerationConfiguration() in /home/runner/work/wolverine/wolverine/src/Wolverine/Runtime/WolverineRuntime.HostService.cs:line 319
+         at Wolverine.Runtime.WolverineRuntime.StartAsync(CancellationToken cancellationToken) in /home/runner/work/wolverine/wolverine/src/Wolverine/Runtime/WolverineRuntime.HostService.cs:line 71
+fail: Microsoft.Extensions.Hosting.Internal.Host[11]
+      Hosting failed to start
+      System.InvalidOperationException: Wolverine is running in TypeLoadMode.Dynamic, which compiles handler/middleware code at runtime, but no IAssemblyGenerator (Roslyn) is registered. Core WolverineFx no longer ships the runtime compiler. Either add the 'WolverineFx.RuntimeCompilation' NuGet package (it auto-registers when referenced, or call opts.UseRuntimeCompilation() in UseWolverine(...)), or pre-generate code with 'dotnet run -- codegen write' and set opts.CodeGeneration.TypeLoadMode = TypeLoadMode.Static. See https://wolverinefx.net/guide/codegen.html (GH-2876).
+         at Wolverine.Runtime.WolverineRuntime.logCodeGenerationConfiguration() in /home/runner/work/wolverine/wolverine/src/Wolverine/Runtime/WolverineRuntime.HostService.cs:line 319
+         at Wolverine.Runtime.WolverineRuntime.StartAsync(CancellationToken cancellationToken) in /home/runner/work/wolverine/wolverine/src/Wolverine/Runtime/WolverineRuntime.HostService.cs:line 71
+         at Microsoft.Extensions.Hosting.Internal.Host.<StartAsync>b__14_1(IHostedService service, CancellationToken token)
+         at Microsoft.Extensions.Hosting.Internal.Host.ForeachService[T](IEnumerable`1 services, CancellationToken token, Boolean concurrent, Boolean abortOnFirstException, List`1 exceptions, Func`3 operation)
+
+System.Reflection.TargetInvocationException: Exception has been thrown by the target of an invocation.
+ ---> System.InvalidOperationException: Wolverine is running in TypeLoadMode.Dynamic, which compiles handler/middleware code at runtime, but no IAssemblyGenerator (Roslyn) is registered. Core WolverineFx no longer ships the runtime compiler. Either add the 'WolverineFx.RuntimeCompilation' NuGet package (it auto-registers when referenced, or call opts.UseRuntimeCompilation() in UseWolverine(...)), or pre-generate code with 'dotnet run -- codegen write' and set opts.CodeGeneration.TypeLoadMode = TypeLoadMode.Static. See https://wolverinefx.net/guide/codegen.html (GH-2876).
+   at Wolverine.Runtime.WolverineRuntime.logCodeGenerationConfiguration() in /home/runner/work/wolverine/wolverine/src/Wolverine/Runtime/WolverineRuntime.HostService.cs:line 319
+   at Wolverine.Runtime.WolverineRuntime.StartAsync(CancellationToken cancellationToken) in /home/runner/work/wolverine/wolverine/src/Wolverine/Runtime/WolverineRuntime.HostService.cs:line 71
+   at Microsoft.Extensions.Hosting.Internal.Host.<StartAsync>b__14_1(IHostedService service, CancellationToken token)
+   at Microsoft.Extensions.Hosting.Internal.Host.ForeachService[T](IEnumerable`1 services, CancellationToken token, Boolean concurrent, Boolean abortOnFirstException, List`1 exceptions, Func`3 operation)
+   at Microsoft.Extensions.Hosting.Internal.Host.<StartAsync>g__LogAndRethrow|14_3(<>c__DisplayClass14_0&)
+   at Microsoft.Extensions.Hosting.Internal.Host.StartAsync(CancellationToken cancellationToken)
+   at EricksonLopez.Outbox.Benchmarks.C_StoreBenchmarks.Setup() in D:\DevData\ericksonlopez.dev\dotnet-outbox\benchmarks\EricksonLopez.Outbox.Benchmarks\C_StoreBenchmarks.cs:line 62
+   at BenchmarkDotNet.Engines.EngineFactory.CreateReadyToRun(EngineParameters engineParameters)
+   at BenchmarkDotNet.Autogenerated.Runnable_1.Run(IHost host, String benchmarkName) in D:\DevData\ericksonlopez.dev\dotnet-outbox\benchmarks\EricksonLopez.Outbox.Benchmarks\bin\Release\net10.0\093702ad-6631-41a2-8df2-5564e518d934\093702ad-6631-41a2-8df2-5564e518d934.notcs:line 344
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeDirectByRefWithFewArgs(Object obj, Span`1 copyOfArgs, BindingFlags invokeAttr)
+   --- End of inner exception stack trace ---
+   at System.Reflection.MethodBaseInvoker.InvokeDirectByRefWithFewArgs(Object obj, Span`1 copyOfArgs, BindingFlags invokeAttr)
+   at System.Reflection.MethodBaseInvoker.InvokeWithFewArgs(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+   at System.Reflection.RuntimeMethodInfo.Invoke(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+   at System.Reflection.MethodBase.Invoke(Object obj, Object[] parameters)
+   at BenchmarkDotNet.Autogenerated.UniqueProgramName.AfterAssemblyLoadingAttached(String[] args) in D:\DevData\ericksonlopez.dev\dotnet-outbox\benchmarks\EricksonLopez.Outbox.Benchmarks\bin\Release\net10.0\093702ad-6631-41a2-8df2-5564e518d934\093702ad-6631-41a2-8df2-5564e518d934.notcs:line 57
+// AfterAll
+No Workload Results were obtained from the run.
+// Benchmark Process 75660 has exited with code -1.
+
+// ** Remained 6 (75.0 %) benchmark(s) to run. Estimated finish 2026-08-06 17:52 (0h 0m from now) **
+Setup power plan (GUID: 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c FriendlyName: Alto rendimiento)
+// **************************
+// Benchmark: C_StoreBenchmarks.EricksonLopezOutbox_StoreAsync_Single: Job-ZYOFQR(InvocationCount=1, IterationCount=15, UnrollFactor=1, WarmupCount=10)
+// *** Execute ***
+// Launch: 1 / 1
+// Execute: dotnet 093702ad-6631-41a2-8df2-5564e518d934.dll --anonymousPipes 2768 4232 --benchmarkName EricksonLopez.Outbox.Benchmarks.C_StoreBenchmarks.EricksonLopezOutbox_StoreAsync_Single --job "InvocationCount=1, IterationCount=15, UnrollFactor=1, WarmupCount=10" --benchmarkId 2 in D:\DevData\ericksonlopez.dev\dotnet-outbox\benchmarks\EricksonLopez.Outbox.Benchmarks\bin\Release\net10.0\093702ad-6631-41a2-8df2-5564e518d934\bin\Release\net10.0
+// BeforeAnythingElse
+
+// Benchmark Process Environment Information:
+// BenchmarkDotNet v0.13.12
+// Runtime=.NET 10.0.10 (10.0.1026.32716), X64 RyuJIT AVX-512F+CD+BW+DQ+VL+VBMI
+// GC=Concurrent Workstation
+// HardwareIntrinsics=AVX-512F+CD+BW+DQ+VL+VBMI,AES,BMI1,BMI2,FMA,LZCNT,PCLMUL,POPCNT,AvxVnni VectorSize=256
+// Job: Job-TPRLLD(InvocationCount=1, IterationCount=15, UnrollFactor=1, WarmupCount=10)
+
+info: Wolverine.Runtime.WolverineRuntime[0]
+      Exporting Open Telemetry metrics from Wolverine with name Wolverine:EricksonLopez.Outbox.Benchmarks, version 6.24.7.0
+info: MassTransit[0]
+      Bus started: loopback://localhost/
+info: Wolverine.Runtime.WolverineRuntime[0]
+      Starting Wolverine messaging for application assembly EricksonLopez.Outbox.Benchmarks, Version=1.0.0.0, Culture=neutral, PublicKeyToken=6eb6d5a0ed018d27
+fail: Wolverine.Runtime.WolverineRuntime[0]
+      Failed to start the Wolverine messaging
+      System.InvalidOperationException: Wolverine is running in TypeLoadMode.Dynamic, which compiles handler/middleware code at runtime, but no IAssemblyGenerator (Roslyn) is registered. Core WolverineFx no longer ships the runtime compiler. Either add the 'WolverineFx.RuntimeCompilation' NuGet package (it auto-registers when referenced, or call opts.UseRuntimeCompilation() in UseWolverine(...)), or pre-generate code with 'dotnet run -- codegen write' and set opts.CodeGeneration.TypeLoadMode = TypeLoadMode.Static. See https://wolverinefx.net/guide/codegen.html (GH-2876).
+         at Wolverine.Runtime.WolverineRuntime.logCodeGenerationConfiguration() in /home/runner/work/wolverine/wolverine/src/Wolverine/Runtime/WolverineRuntime.HostService.cs:line 319
+         at Wolverine.Runtime.WolverineRuntime.StartAsync(CancellationToken cancellationToken) in /home/runner/work/wolverine/wolverine/src/Wolverine/Runtime/WolverineRuntime.HostService.cs:line 71
+fail: Microsoft.Extensions.Hosting.Internal.Host[11]
+      Hosting failed to start
+      System.InvalidOperationException: Wolverine is running in TypeLoadMode.Dynamic, which compiles handler/middleware code at runtime, but no IAssemblyGenerator (Roslyn) is registered. Core WolverineFx no longer ships the runtime compiler. Either add the 'WolverineFx.RuntimeCompilation' NuGet package (it auto-registers when referenced, or call opts.UseRuntimeCompilation() in UseWolverine(...)), or pre-generate code with 'dotnet run -- codegen write' and set opts.CodeGeneration.TypeLoadMode = TypeLoadMode.Static. See https://wolverinefx.net/guide/codegen.html (GH-2876).
+         at Wolverine.Runtime.WolverineRuntime.logCodeGenerationConfiguration() in /home/runner/work/wolverine/wolverine/src/Wolverine/Runtime/WolverineRuntime.HostService.cs:line 319
+         at Wolverine.Runtime.WolverineRuntime.StartAsync(CancellationToken cancellationToken) in /home/runner/work/wolverine/wolverine/src/Wolverine/Runtime/WolverineRuntime.HostService.cs:line 71
+         at Microsoft.Extensions.Hosting.Internal.Host.<StartAsync>b__14_1(IHostedService service, CancellationToken token)
+         at Microsoft.Extensions.Hosting.Internal.Host.ForeachService[T](IEnumerable`1 services, CancellationToken token, Boolean concurrent, Boolean abortOnFirstException, List`1 exceptions, Func`3 operation)
+
+System.Reflection.TargetInvocationException: Exception has been thrown by the target of an invocation.
+ ---> System.InvalidOperationException: Wolverine is running in TypeLoadMode.Dynamic, which compiles handler/middleware code at runtime, but no IAssemblyGenerator (Roslyn) is registered. Core WolverineFx no longer ships the runtime compiler. Either add the 'WolverineFx.RuntimeCompilation' NuGet package (it auto-registers when referenced, or call opts.UseRuntimeCompilation() in UseWolverine(...)), or pre-generate code with 'dotnet run -- codegen write' and set opts.CodeGeneration.TypeLoadMode = TypeLoadMode.Static. See https://wolverinefx.net/guide/codegen.html (GH-2876).
+   at Wolverine.Runtime.WolverineRuntime.logCodeGenerationConfiguration() in /home/runner/work/wolverine/wolverine/src/Wolverine/Runtime/WolverineRuntime.HostService.cs:line 319
+   at Wolverine.Runtime.WolverineRuntime.StartAsync(CancellationToken cancellationToken) in /home/runner/work/wolverine/wolverine/src/Wolverine/Runtime/WolverineRuntime.HostService.cs:line 71
+   at Microsoft.Extensions.Hosting.Internal.Host.<StartAsync>b__14_1(IHostedService service, CancellationToken token)
+   at Microsoft.Extensions.Hosting.Internal.Host.ForeachService[T](IEnumerable`1 services, CancellationToken token, Boolean concurrent, Boolean abortOnFirstException, List`1 exceptions, Func`3 operation)
+   at Microsoft.Extensions.Hosting.Internal.Host.<StartAsync>g__LogAndRethrow|14_3(<>c__DisplayClass14_0&)
+   at Microsoft.Extensions.Hosting.Internal.Host.StartAsync(CancellationToken cancellationToken)
+   at EricksonLopez.Outbox.Benchmarks.C_StoreBenchmarks.Setup() in D:\DevData\ericksonlopez.dev\dotnet-outbox\benchmarks\EricksonLopez.Outbox.Benchmarks\C_StoreBenchmarks.cs:line 62
+   at BenchmarkDotNet.Engines.EngineFactory.CreateReadyToRun(EngineParameters engineParameters)
+   at BenchmarkDotNet.Autogenerated.Runnable_2.Run(IHost host, String benchmarkName) in D:\DevData\ericksonlopez.dev\dotnet-outbox\benchmarks\EricksonLopez.Outbox.Benchmarks\bin\Release\net10.0\093702ad-6631-41a2-8df2-5564e518d934\093702ad-6631-41a2-8df2-5564e518d934.notcs:line 509
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeDirectByRefWithFewArgs(Object obj, Span`1 copyOfArgs, BindingFlags invokeAttr)
+   --- End of inner exception stack trace ---
+   at System.Reflection.MethodBaseInvoker.InvokeDirectByRefWithFewArgs(Object obj, Span`1 copyOfArgs, BindingFlags invokeAttr)
+   at System.Reflection.MethodBaseInvoker.InvokeWithFewArgs(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+   at System.Reflection.RuntimeMethodInfo.Invoke(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+   at System.Reflection.MethodBase.Invoke(Object obj, Object[] parameters)
+   at BenchmarkDotNet.Autogenerated.UniqueProgramName.AfterAssemblyLoadingAttached(String[] args) in D:\DevData\ericksonlopez.dev\dotnet-outbox\benchmarks\EricksonLopez.Outbox.Benchmarks\bin\Release\net10.0\093702ad-6631-41a2-8df2-5564e518d934\093702ad-6631-41a2-8df2-5564e518d934.notcs:line 57
+// AfterAll
+No Workload Results were obtained from the run.
+// Benchmark Process 58168 has exited with code -1.
+
+// ** Remained 5 (62.5 %) benchmark(s) to run. Estimated finish 2026-08-06 17:52 (0h 0m from now) **
+Setup power plan (GUID: 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c FriendlyName: Alto rendimiento)
+// **************************
+// Benchmark: C_StoreBenchmarks.EricksonLopezOutbox_StoreAsync_Fluent: Job-ZYOFQR(InvocationCount=1, IterationCount=15, UnrollFactor=1, WarmupCount=10)
+// *** Execute ***
+// Launch: 1 / 1
+// Execute: dotnet 093702ad-6631-41a2-8df2-5564e518d934.dll --anonymousPipes 4300 2916 --benchmarkName EricksonLopez.Outbox.Benchmarks.C_StoreBenchmarks.EricksonLopezOutbox_StoreAsync_Fluent --job "InvocationCount=1, IterationCount=15, UnrollFactor=1, WarmupCount=10" --benchmarkId 3 in D:\DevData\ericksonlopez.dev\dotnet-outbox\benchmarks\EricksonLopez.Outbox.Benchmarks\bin\Release\net10.0\093702ad-6631-41a2-8df2-5564e518d934\bin\Release\net10.0
+// BeforeAnythingElse
+
+// Benchmark Process Environment Information:
+// BenchmarkDotNet v0.13.12
+// Runtime=.NET 10.0.10 (10.0.1026.32716), X64 RyuJIT AVX-512F+CD+BW+DQ+VL+VBMI
+// GC=Concurrent Workstation
+// HardwareIntrinsics=AVX-512F+CD+BW+DQ+VL+VBMI,AES,BMI1,BMI2,FMA,LZCNT,PCLMUL,POPCNT,AvxVnni VectorSize=256
+// Job: Job-JNDDSP(InvocationCount=1, IterationCount=15, UnrollFactor=1, WarmupCount=10)
+
+info: Wolverine.Runtime.WolverineRuntime[0]
+      Exporting Open Telemetry metrics from Wolverine with name Wolverine:EricksonLopez.Outbox.Benchmarks, version 6.24.7.0
+info: MassTransit[0]
+      Bus started: loopback://localhost/
+info: Wolverine.Runtime.WolverineRuntime[0]
+      Starting Wolverine messaging for application assembly EricksonLopez.Outbox.Benchmarks, Version=1.0.0.0, Culture=neutral, PublicKeyToken=6eb6d5a0ed018d27
+fail: Wolverine.Runtime.WolverineRuntime[0]
+      Failed to start the Wolverine messaging
+      System.InvalidOperationException: Wolverine is running in TypeLoadMode.Dynamic, which compiles handler/middleware code at runtime, but no IAssemblyGenerator (Roslyn) is registered. Core WolverineFx no longer ships the runtime compiler. Either add the 'WolverineFx.RuntimeCompilation' NuGet package (it auto-registers when referenced, or call opts.UseRuntimeCompilation() in UseWolverine(...)), or pre-generate code with 'dotnet run -- codegen write' and set opts.CodeGeneration.TypeLoadMode = TypeLoadMode.Static. See https://wolverinefx.net/guide/codegen.html (GH-2876).
+         at Wolverine.Runtime.WolverineRuntime.logCodeGenerationConfiguration() in /home/runner/work/wolverine/wolverine/src/Wolverine/Runtime/WolverineRuntime.HostService.cs:line 319
+         at Wolverine.Runtime.WolverineRuntime.StartAsync(CancellationToken cancellationToken) in /home/runner/work/wolverine/wolverine/src/Wolverine/Runtime/WolverineRuntime.HostService.cs:line 71
+fail: Microsoft.Extensions.Hosting.Internal.Host[11]
+      Hosting failed to start
+      System.InvalidOperationException: Wolverine is running in TypeLoadMode.Dynamic, which compiles handler/middleware code at runtime, but no IAssemblyGenerator (Roslyn) is registered. Core WolverineFx no longer ships the runtime compiler. Either add the 'WolverineFx.RuntimeCompilation' NuGet package (it auto-registers when referenced, or call opts.UseRuntimeCompilation() in UseWolverine(...)), or pre-generate code with 'dotnet run -- codegen write' and set opts.CodeGeneration.TypeLoadMode = TypeLoadMode.Static. See https://wolverinefx.net/guide/codegen.html (GH-2876).
+         at Wolverine.Runtime.WolverineRuntime.logCodeGenerationConfiguration() in /home/runner/work/wolverine/wolverine/src/Wolverine/Runtime/WolverineRuntime.HostService.cs:line 319
+         at Wolverine.Runtime.WolverineRuntime.StartAsync(CancellationToken cancellationToken) in /home/runner/work/wolverine/wolverine/src/Wolverine/Runtime/WolverineRuntime.HostService.cs:line 71
+         at Microsoft.Extensions.Hosting.Internal.Host.<StartAsync>b__14_1(IHostedService service, CancellationToken token)
+         at Microsoft.Extensions.Hosting.Internal.Host.ForeachService[T](IEnumerable`1 services, CancellationToken token, Boolean concurrent, Boolean abortOnFirstException, List`1 exceptions, Func`3 operation)
+
+System.Reflection.TargetInvocationException: Exception has been thrown by the target of an invocation.
+ ---> System.InvalidOperationException: Wolverine is running in TypeLoadMode.Dynamic, which compiles handler/middleware code at runtime, but no IAssemblyGenerator (Roslyn) is registered. Core WolverineFx no longer ships the runtime compiler. Either add the 'WolverineFx.RuntimeCompilation' NuGet package (it auto-registers when referenced, or call opts.UseRuntimeCompilation() in UseWolverine(...)), or pre-generate code with 'dotnet run -- codegen write' and set opts.CodeGeneration.TypeLoadMode = TypeLoadMode.Static. See https://wolverinefx.net/guide/codegen.html (GH-2876).
+   at Wolverine.Runtime.WolverineRuntime.logCodeGenerationConfiguration() in /home/runner/work/wolverine/wolverine/src/Wolverine/Runtime/WolverineRuntime.HostService.cs:line 319
+   at Wolverine.Runtime.WolverineRuntime.StartAsync(CancellationToken cancellationToken) in /home/runner/work/wolverine/wolverine/src/Wolverine/Runtime/WolverineRuntime.HostService.cs:line 71
+   at Microsoft.Extensions.Hosting.Internal.Host.<StartAsync>b__14_1(IHostedService service, CancellationToken token)
+   at Microsoft.Extensions.Hosting.Internal.Host.ForeachService[T](IEnumerable`1 services, CancellationToken token, Boolean concurrent, Boolean abortOnFirstException, List`1 exceptions, Func`3 operation)
+   at Microsoft.Extensions.Hosting.Internal.Host.<StartAsync>g__LogAndRethrow|14_3(<>c__DisplayClass14_0&)
+   at Microsoft.Extensions.Hosting.Internal.Host.StartAsync(CancellationToken cancellationToken)
+   at EricksonLopez.Outbox.Benchmarks.C_StoreBenchmarks.Setup() in D:\DevData\ericksonlopez.dev\dotnet-outbox\benchmarks\EricksonLopez.Outbox.Benchmarks\C_StoreBenchmarks.cs:line 62
+   at BenchmarkDotNet.Engines.EngineFactory.CreateReadyToRun(EngineParameters engineParameters)
+   at BenchmarkDotNet.Autogenerated.Runnable_3.Run(IHost host, String benchmarkName) in D:\DevData\ericksonlopez.dev\dotnet-outbox\benchmarks\EricksonLopez.Outbox.Benchmarks\bin\Release\net10.0\093702ad-6631-41a2-8df2-5564e518d934\093702ad-6631-41a2-8df2-5564e518d934.notcs:line 674
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeDirectByRefWithFewArgs(Object obj, Span`1 copyOfArgs, BindingFlags invokeAttr)
+   --- End of inner exception stack trace ---
+   at System.Reflection.MethodBaseInvoker.InvokeDirectByRefWithFewArgs(Object obj, Span`1 copyOfArgs, BindingFlags invokeAttr)
+   at System.Reflection.MethodBaseInvoker.InvokeWithFewArgs(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+   at System.Reflection.RuntimeMethodInfo.Invoke(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+   at System.Reflection.MethodBase.Invoke(Object obj, Object[] parameters)
+   at BenchmarkDotNet.Autogenerated.UniqueProgramName.AfterAssemblyLoadingAttached(String[] args) in D:\DevData\ericksonlopez.dev\dotnet-outbox\benchmarks\EricksonLopez.Outbox.Benchmarks\bin\Release\net10.0\093702ad-6631-41a2-8df2-5564e518d934\093702ad-6631-41a2-8df2-5564e518d934.notcs:line 57
+// AfterAll
+No Workload Results were obtained from the run.
+// Benchmark Process 94980 has exited with code -1.
+
+// ** Remained 4 (50.0 %) benchmark(s) to run. Estimated finish 2026-08-06 17:52 (0h 0m from now) **
+Setup power plan (GUID: 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c FriendlyName: Alto rendimiento)
+// **************************
+// Benchmark: C_StoreBenchmarks.MassTransit_InMemory_Publish: MediumRun(Toolchain=InProcessEmitToolchain, InvocationCount=1, IterationCount=15, LaunchCount=2, UnrollFactor=1, WarmupCount=10)
+// *** Execute ***
+// Launch: 1 / 2
+
+// Benchmark Process Environment Information:
+// BenchmarkDotNet v0.13.12
+// Runtime=.NET 10.0.10 (10.0.1026.32716), X64 RyuJIT AVX-512F+CD+BW+DQ+VL+VBMI
+// GC=Concurrent Workstation
+// HardwareIntrinsics=AVX-512F+CD+BW+DQ+VL+VBMI,AES,BMI1,BMI2,FMA,LZCNT,PCLMUL,POPCNT,AvxVnni VectorSize=256
+// Job: Job-DLOXWE(Toolchain=InProcessEmitToolchain, InvocationCount=1, IterationCount=15, LaunchCount=2, UnrollFactor=1, WarmupCount=10)
+
+
+System.Reflection.TargetInvocationException: Exception has been thrown by the target of an invocation.
+ ---> System.InvalidOperationException: Wolverine is running in TypeLoadMode.Dynamic, which compiles handler/middleware code at runtime, but no IAssemblyGenerator (Roslyn) is registered. Core WolverineFx no longer ships the runtime compiler. Either add the 'WolverineFx.RuntimeCompilation' NuGet package (it auto-registers when referenced, or call opts.UseRuntimeCompilation() in UseWolverine(...)), or pre-generate code with 'dotnet run -- codegen write' and set opts.CodeGeneration.TypeLoadMode = TypeLoadMode.Static. See https://wolverinefx.net/guide/codegen.html (GH-2876).
+   at Wolverine.Runtime.WolverineRuntime.logCodeGenerationConfiguration() in /home/runner/work/wolverine/wolverine/src/Wolverine/Runtime/WolverineRuntime.HostService.cs:line 319
+   at Wolverine.Runtime.WolverineRuntime.StartAsync(CancellationToken cancellationToken) in /home/runner/work/wolverine/wolverine/src/Wolverine/Runtime/WolverineRuntime.HostService.cs:line 71
+   at Microsoft.Extensions.Hosting.Internal.Host.<StartAsync>b__14_1(IHostedService service, CancellationToken token)
+   at Microsoft.Extensions.Hosting.Internal.Host.ForeachService[T](IEnumerable`1 services, CancellationToken token, Boolean concurrent, Boolean abortOnFirstException, List`1 exceptions, Func`3 operation)
+   at Microsoft.Extensions.Hosting.Internal.Host.<StartAsync>g__LogAndRethrow|14_3(<>c__DisplayClass14_0&)
+   at Microsoft.Extensions.Hosting.Internal.Host.StartAsync(CancellationToken cancellationToken)
+   at EricksonLopez.Outbox.Benchmarks.C_StoreBenchmarks.Setup() in D:\DevData\ericksonlopez.dev\dotnet-outbox\benchmarks\EricksonLopez.Outbox.Benchmarks\C_StoreBenchmarks.cs:line 62
+   at BenchmarkDotNet.Engines.EngineFactory.CreateReadyToRun(EngineParameters engineParameters)
+   at BenchmarkDotNet.Autogenerated.Runnable_0.Run(BenchmarkCase benchmarkCase, IHost host)
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeDirectByRefWithFewArgs(Object obj, Span`1 copyOfArgs, BindingFlags invokeAttr)
+   --- End of inner exception stack trace ---
+   at System.Reflection.MethodBaseInvoker.InvokeDirectByRefWithFewArgs(Object obj, Span`1 copyOfArgs, BindingFlags invokeAttr)
+   at System.Reflection.MethodBaseInvoker.InvokeWithFewArgs(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+   at System.Reflection.RuntimeMethodInfo.Invoke(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+   at System.Reflection.MethodBase.Invoke(Object obj, Object[] parameters)
+   at BenchmarkDotNet.Toolchains.InProcess.Emit.Implementation.RunnableProgram.Run(BenchmarkId benchmarkId, Assembly partitionAssembly, BenchmarkCase benchmarkCase, IHost host)
+Executable D:\DevData\ericksonlopez.dev\dotnet-outbox\benchmarks\EricksonLopez.Outbox.Benchmarks\bin\Release\net10.0\bfbbd605-1ab7-4b06-8fb9-f980aa4540feEmitted.dll not found
+ExitCode != 0 and no results reported
+No Workload Results were obtained from the run.
+
+// ** Remained 3 (37.5 %) benchmark(s) to run. Estimated finish 2026-08-06 17:52 (0h 0m from now) **
+Setup power plan (GUID: 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c FriendlyName: Alto rendimiento)
+// **************************
+// Benchmark: C_StoreBenchmarks.Wolverine_InMemory_Publish: MediumRun(Toolchain=InProcessEmitToolchain, InvocationCount=1, IterationCount=15, LaunchCount=2, UnrollFactor=1, WarmupCount=10)
+// *** Execute ***
+// Launch: 1 / 2
+
+// Benchmark Process Environment Information:
+// BenchmarkDotNet v0.13.12
+// Runtime=.NET 10.0.10 (10.0.1026.32716), X64 RyuJIT AVX-512F+CD+BW+DQ+VL+VBMI
+// GC=Concurrent Workstation
+// HardwareIntrinsics=AVX-512F+CD+BW+DQ+VL+VBMI,AES,BMI1,BMI2,FMA,LZCNT,PCLMUL,POPCNT,AvxVnni VectorSize=256
+// Job: Job-DLOXWE(Toolchain=InProcessEmitToolchain, InvocationCount=1, IterationCount=15, LaunchCount=2, UnrollFactor=1, WarmupCount=10)
+
+
+System.Reflection.TargetInvocationException: Exception has been thrown by the target of an invocation.
+ ---> System.InvalidOperationException: Wolverine is running in TypeLoadMode.Dynamic, which compiles handler/middleware code at runtime, but no IAssemblyGenerator (Roslyn) is registered. Core WolverineFx no longer ships the runtime compiler. Either add the 'WolverineFx.RuntimeCompilation' NuGet package (it auto-registers when referenced, or call opts.UseRuntimeCompilation() in UseWolverine(...)), or pre-generate code with 'dotnet run -- codegen write' and set opts.CodeGeneration.TypeLoadMode = TypeLoadMode.Static. See https://wolverinefx.net/guide/codegen.html (GH-2876).
+   at Wolverine.Runtime.WolverineRuntime.logCodeGenerationConfiguration() in /home/runner/work/wolverine/wolverine/src/Wolverine/Runtime/WolverineRuntime.HostService.cs:line 319
+   at Wolverine.Runtime.WolverineRuntime.StartAsync(CancellationToken cancellationToken) in /home/runner/work/wolverine/wolverine/src/Wolverine/Runtime/WolverineRuntime.HostService.cs:line 71
+   at Microsoft.Extensions.Hosting.Internal.Host.<StartAsync>b__14_1(IHostedService service, CancellationToken token)
+   at Microsoft.Extensions.Hosting.Internal.Host.ForeachService[T](IEnumerable`1 services, CancellationToken token, Boolean concurrent, Boolean abortOnFirstException, List`1 exceptions, Func`3 operation)
+   at Microsoft.Extensions.Hosting.Internal.Host.<StartAsync>g__LogAndRethrow|14_3(<>c__DisplayClass14_0&)
+   at Microsoft.Extensions.Hosting.Internal.Host.StartAsync(CancellationToken cancellationToken)
+   at EricksonLopez.Outbox.Benchmarks.C_StoreBenchmarks.Setup() in D:\DevData\ericksonlopez.dev\dotnet-outbox\benchmarks\EricksonLopez.Outbox.Benchmarks\C_StoreBenchmarks.cs:line 62
+   at BenchmarkDotNet.Engines.EngineFactory.CreateReadyToRun(EngineParameters engineParameters)
+   at BenchmarkDotNet.Autogenerated.Runnable_1.Run(BenchmarkCase benchmarkCase, IHost host)
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeDirectByRefWithFewArgs(Object obj, Span`1 copyOfArgs, BindingFlags invokeAttr)
+   --- End of inner exception stack trace ---
+   at System.Reflection.MethodBaseInvoker.InvokeDirectByRefWithFewArgs(Object obj, Span`1 copyOfArgs, BindingFlags invokeAttr)
+   at System.Reflection.MethodBaseInvoker.InvokeWithFewArgs(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+   at System.Reflection.RuntimeMethodInfo.Invoke(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+   at System.Reflection.MethodBase.Invoke(Object obj, Object[] parameters)
+   at BenchmarkDotNet.Toolchains.InProcess.Emit.Implementation.RunnableProgram.Run(BenchmarkId benchmarkId, Assembly partitionAssembly, BenchmarkCase benchmarkCase, IHost host)
+Executable D:\DevData\ericksonlopez.dev\dotnet-outbox\benchmarks\EricksonLopez.Outbox.Benchmarks\bin\Release\net10.0\bfbbd605-1ab7-4b06-8fb9-f980aa4540feEmitted.dll not found
+ExitCode != 0 and no results reported
+No Workload Results were obtained from the run.
+
+// ** Remained 2 (25.0 %) benchmark(s) to run. Estimated finish 2026-08-06 17:52 (0h 0m from now) **
+Setup power plan (GUID: 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c FriendlyName: Alto rendimiento)
+// **************************
+// Benchmark: C_StoreBenchmarks.EricksonLopezOutbox_StoreAsync_Single: MediumRun(Toolchain=InProcessEmitToolchain, InvocationCount=1, IterationCount=15, LaunchCount=2, UnrollFactor=1, WarmupCount=10)
+// *** Execute ***
+// Launch: 1 / 2
+
+// Benchmark Process Environment Information:
+// BenchmarkDotNet v0.13.12
+// Runtime=.NET 10.0.10 (10.0.1026.32716), X64 RyuJIT AVX-512F+CD+BW+DQ+VL+VBMI
+// GC=Concurrent Workstation
+// HardwareIntrinsics=AVX-512F+CD+BW+DQ+VL+VBMI,AES,BMI1,BMI2,FMA,LZCNT,PCLMUL,POPCNT,AvxVnni VectorSize=256
+// Job: Job-DLOXWE(Toolchain=InProcessEmitToolchain, InvocationCount=1, IterationCount=15, LaunchCount=2, UnrollFactor=1, WarmupCount=10)
+
+
+System.Reflection.TargetInvocationException: Exception has been thrown by the target of an invocation.
+ ---> System.InvalidOperationException: Wolverine is running in TypeLoadMode.Dynamic, which compiles handler/middleware code at runtime, but no IAssemblyGenerator (Roslyn) is registered. Core WolverineFx no longer ships the runtime compiler. Either add the 'WolverineFx.RuntimeCompilation' NuGet package (it auto-registers when referenced, or call opts.UseRuntimeCompilation() in UseWolverine(...)), or pre-generate code with 'dotnet run -- codegen write' and set opts.CodeGeneration.TypeLoadMode = TypeLoadMode.Static. See https://wolverinefx.net/guide/codegen.html (GH-2876).
+   at Wolverine.Runtime.WolverineRuntime.logCodeGenerationConfiguration() in /home/runner/work/wolverine/wolverine/src/Wolverine/Runtime/WolverineRuntime.HostService.cs:line 319
+   at Wolverine.Runtime.WolverineRuntime.StartAsync(CancellationToken cancellationToken) in /home/runner/work/wolverine/wolverine/src/Wolverine/Runtime/WolverineRuntime.HostService.cs:line 71
+   at Microsoft.Extensions.Hosting.Internal.Host.<StartAsync>b__14_1(IHostedService service, CancellationToken token)
+   at Microsoft.Extensions.Hosting.Internal.Host.ForeachService[T](IEnumerable`1 services, CancellationToken token, Boolean concurrent, Boolean abortOnFirstException, List`1 exceptions, Func`3 operation)
+   at Microsoft.Extensions.Hosting.Internal.Host.<StartAsync>g__LogAndRethrow|14_3(<>c__DisplayClass14_0&)
+   at Microsoft.Extensions.Hosting.Internal.Host.StartAsync(CancellationToken cancellationToken)
+   at EricksonLopez.Outbox.Benchmarks.C_StoreBenchmarks.Setup() in D:\DevData\ericksonlopez.dev\dotnet-outbox\benchmarks\EricksonLopez.Outbox.Benchmarks\C_StoreBenchmarks.cs:line 62
+   at BenchmarkDotNet.Engines.EngineFactory.CreateReadyToRun(EngineParameters engineParameters)
+   at BenchmarkDotNet.Autogenerated.Runnable_2.Run(BenchmarkCase benchmarkCase, IHost host)
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeDirectByRefWithFewArgs(Object obj, Span`1 copyOfArgs, BindingFlags invokeAttr)
+   --- End of inner exception stack trace ---
+   at System.Reflection.MethodBaseInvoker.InvokeDirectByRefWithFewArgs(Object obj, Span`1 copyOfArgs, BindingFlags invokeAttr)
+   at System.Reflection.MethodBaseInvoker.InvokeWithFewArgs(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+   at System.Reflection.RuntimeMethodInfo.Invoke(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+   at System.Reflection.MethodBase.Invoke(Object obj, Object[] parameters)
+   at BenchmarkDotNet.Toolchains.InProcess.Emit.Implementation.RunnableProgram.Run(BenchmarkId benchmarkId, Assembly partitionAssembly, BenchmarkCase benchmarkCase, IHost host)
+Executable D:\DevData\ericksonlopez.dev\dotnet-outbox\benchmarks\EricksonLopez.Outbox.Benchmarks\bin\Release\net10.0\bfbbd605-1ab7-4b06-8fb9-f980aa4540feEmitted.dll not found
+ExitCode != 0 and no results reported
+No Workload Results were obtained from the run.
+
+// ** Remained 1 (12.5 %) benchmark(s) to run. Estimated finish 2026-08-06 17:52 (0h 0m from now) **
+Setup power plan (GUID: 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c FriendlyName: Alto rendimiento)
+// **************************
+// Benchmark: C_StoreBenchmarks.EricksonLopezOutbox_StoreAsync_Fluent: MediumRun(Toolchain=InProcessEmitToolchain, InvocationCount=1, IterationCount=15, LaunchCount=2, UnrollFactor=1, WarmupCount=10)
+// *** Execute ***
+// Launch: 1 / 2
+
+// Benchmark Process Environment Information:
+// BenchmarkDotNet v0.13.12
+// Runtime=.NET 10.0.10 (10.0.1026.32716), X64 RyuJIT AVX-512F+CD+BW+DQ+VL+VBMI
+// GC=Concurrent Workstation
+// HardwareIntrinsics=AVX-512F+CD+BW+DQ+VL+VBMI,AES,BMI1,BMI2,FMA,LZCNT,PCLMUL,POPCNT,AvxVnni VectorSize=256
+// Job: Job-DLOXWE(Toolchain=InProcessEmitToolchain, InvocationCount=1, IterationCount=15, LaunchCount=2, UnrollFactor=1, WarmupCount=10)
+
+
+System.Reflection.TargetInvocationException: Exception has been thrown by the target of an invocation.
+ ---> System.InvalidOperationException: Wolverine is running in TypeLoadMode.Dynamic, which compiles handler/middleware code at runtime, but no IAssemblyGenerator (Roslyn) is registered. Core WolverineFx no longer ships the runtime compiler. Either add the 'WolverineFx.RuntimeCompilation' NuGet package (it auto-registers when referenced, or call opts.UseRuntimeCompilation() in UseWolverine(...)), or pre-generate code with 'dotnet run -- codegen write' and set opts.CodeGeneration.TypeLoadMode = TypeLoadMode.Static. See https://wolverinefx.net/guide/codegen.html (GH-2876).
+   at Wolverine.Runtime.WolverineRuntime.logCodeGenerationConfiguration() in /home/runner/work/wolverine/wolverine/src/Wolverine/Runtime/WolverineRuntime.HostService.cs:line 319
+   at Wolverine.Runtime.WolverineRuntime.StartAsync(CancellationToken cancellationToken) in /home/runner/work/wolverine/wolverine/src/Wolverine/Runtime/WolverineRuntime.HostService.cs:line 71
+   at Microsoft.Extensions.Hosting.Internal.Host.<StartAsync>b__14_1(IHostedService service, CancellationToken token)
+   at Microsoft.Extensions.Hosting.Internal.Host.ForeachService[T](IEnumerable`1 services, CancellationToken token, Boolean concurrent, Boolean abortOnFirstException, List`1 exceptions, Func`3 operation)
+   at Microsoft.Extensions.Hosting.Internal.Host.<StartAsync>g__LogAndRethrow|14_3(<>c__DisplayClass14_0&)
+   at Microsoft.Extensions.Hosting.Internal.Host.StartAsync(CancellationToken cancellationToken)
+   at EricksonLopez.Outbox.Benchmarks.C_StoreBenchmarks.Setup() in D:\DevData\ericksonlopez.dev\dotnet-outbox\benchmarks\EricksonLopez.Outbox.Benchmarks\C_StoreBenchmarks.cs:line 62
+   at BenchmarkDotNet.Engines.EngineFactory.CreateReadyToRun(EngineParameters engineParameters)
+   at BenchmarkDotNet.Autogenerated.Runnable_3.Run(BenchmarkCase benchmarkCase, IHost host)
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeDirectByRefWithFewArgs(Object obj, Span`1 copyOfArgs, BindingFlags invokeAttr)
+   --- End of inner exception stack trace ---
+   at System.Reflection.MethodBaseInvoker.InvokeDirectByRefWithFewArgs(Object obj, Span`1 copyOfArgs, BindingFlags invokeAttr)
+   at System.Reflection.MethodBaseInvoker.InvokeWithFewArgs(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+   at System.Reflection.RuntimeMethodInfo.Invoke(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+   at System.Reflection.MethodBase.Invoke(Object obj, Object[] parameters)
+   at BenchmarkDotNet.Toolchains.InProcess.Emit.Implementation.RunnableProgram.Run(BenchmarkId benchmarkId, Assembly partitionAssembly, BenchmarkCase benchmarkCase, IHost host)
+Executable D:\DevData\ericksonlopez.dev\dotnet-outbox\benchmarks\EricksonLopez.Outbox.Benchmarks\bin\Release\net10.0\bfbbd605-1ab7-4b06-8fb9-f980aa4540feEmitted.dll not found
+ExitCode != 0 and no results reported
+No Workload Results were obtained from the run.
+
+// ** Remained 0 (0.0 %) benchmark(s) to run. Estimated finish 2026-08-06 17:52 (0h 0m from now) **
+Successfully reverted power plan (GUID: 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c FriendlyName: Alto rendimiento)
+// ***** BenchmarkRunner: Finish  *****
+
+// * Export *
+  benchmarks\results\results\EricksonLopez.Outbox.Benchmarks.C_StoreBenchmarks-report.csv
+  benchmarks\results\results\EricksonLopez.Outbox.Benchmarks.C_StoreBenchmarks-report-github.md
+  benchmarks\results\results\EricksonLopez.Outbox.Benchmarks.C_StoreBenchmarks-report.html
+  benchmarks\results\results\EricksonLopez.Outbox.Benchmarks.C_StoreBenchmarks-report-full-compressed.json
+  benchmarks\results\results\EricksonLopez.Outbox.Benchmarks.C_StoreBenchmarks-report-default.md
+
+// * Detailed results *
+C_StoreBenchmarks.MassTransit_InMemory_Publish: Job-ZYOFQR(InvocationCount=1, IterationCount=15, UnrollFactor=1, WarmupCount=10)
+Runtime = .NET 10.0.10 (10.0.1026.32716), X64 RyuJIT AVX-512F+CD+BW+DQ+VL+VBMI; GC = Concurrent Workstation
+There are not any results runs
+
+C_StoreBenchmarks.Wolverine_InMemory_Publish: Job-ZYOFQR(InvocationCount=1, IterationCount=15, UnrollFactor=1, WarmupCount=10)
+Runtime = .NET 10.0.10 (10.0.1026.32716), X64 RyuJIT AVX-512F+CD+BW+DQ+VL+VBMI; GC = Concurrent Workstation
+There are not any results runs
+
+C_StoreBenchmarks.EricksonLopezOutbox_StoreAsync_Single: Job-ZYOFQR(InvocationCount=1, IterationCount=15, UnrollFactor=1, WarmupCount=10)
+Runtime = .NET 10.0.10 (10.0.1026.32716), X64 RyuJIT AVX-512F+CD+BW+DQ+VL+VBMI; GC = Concurrent Workstation
+There are not any results runs
+
+C_StoreBenchmarks.EricksonLopezOutbox_StoreAsync_Fluent: Job-ZYOFQR(InvocationCount=1, IterationCount=15, UnrollFactor=1, WarmupCount=10)
+Runtime = .NET 10.0.10 (10.0.1026.32716), X64 RyuJIT AVX-512F+CD+BW+DQ+VL+VBMI; GC = Concurrent Workstation
+There are not any results runs
+
+C_StoreBenchmarks.MassTransit_InMemory_Publish: MediumRun(Toolchain=InProcessEmitToolchain, InvocationCount=1, IterationCount=15, LaunchCount=2, UnrollFactor=1, WarmupCount=10)
+Runtime = ; GC = 
+There are not any results runs
+
+C_StoreBenchmarks.Wolverine_InMemory_Publish: MediumRun(Toolchain=InProcessEmitToolchain, InvocationCount=1, IterationCount=15, LaunchCount=2, UnrollFactor=1, WarmupCount=10)
+Runtime = ; GC = 
+There are not any results runs
+
+C_StoreBenchmarks.EricksonLopezOutbox_StoreAsync_Single: MediumRun(Toolchain=InProcessEmitToolchain, InvocationCount=1, IterationCount=15, LaunchCount=2, UnrollFactor=1, WarmupCount=10)
+Runtime = ; GC = 
+There are not any results runs
+
+C_StoreBenchmarks.EricksonLopezOutbox_StoreAsync_Fluent: MediumRun(Toolchain=InProcessEmitToolchain, InvocationCount=1, IterationCount=15, LaunchCount=2, UnrollFactor=1, WarmupCount=10)
+Runtime = ; GC = 
+There are not any results runs
+
+// * Summary *
+
+BenchmarkDotNet v0.13.12, Windows 11 (10.0.26200.8875)
+Unknown processor
+.NET SDK 10.0.302
+  [Host]     : .NET 10.0.10 (10.0.1026.32716), X64 RyuJIT AVX-512F+CD+BW+DQ+VL+VBMI
+  Job-ZYOFQR : .NET 10.0.10 (10.0.1026.32716), X64 RyuJIT AVX-512F+CD+BW+DQ+VL+VBMI
+
+InvocationCount=1  IterationCount=15  UnrollFactor=1  
+WarmupCount=10  Error=NA  RatioSD=?  
+
+| Method                                | Job        | Toolchain              | LaunchCount | Mean | Min | Max | Ratio | Alloc Ratio |
+|-------------------------------------- |----------- |----------------------- |------------ |-----:|----:|----:|------:|------------:|
+| MassTransit_InMemory_Publish          | Job-ZYOFQR | Default                | Default     |   NA |  NA |  NA |     ? |           ? |
+| Wolverine_InMemory_Publish            | Job-ZYOFQR | Default                | Default     |   NA |  NA |  NA |     ? |           ? |
+| EricksonLopezOutbox_StoreAsync_Single | Job-ZYOFQR | Default                | Default     |   NA |  NA |  NA |     ? |           ? |
+| EricksonLopezOutbox_StoreAsync_Fluent | Job-ZYOFQR | Default                | Default     |   NA |  NA |  NA |     ? |           ? |
+|                                       |            |                        |             |      |     |     |       |             |
+| MassTransit_InMemory_Publish          | MediumRun  | InProcessEmitToolchain | 2           |   NA |  NA |  NA |     ? |           ? |
+| Wolverine_InMemory_Publish            | MediumRun  | InProcessEmitToolchain | 2           |   NA |  NA |  NA |     ? |           ? |
+| EricksonLopezOutbox_StoreAsync_Single | MediumRun  | InProcessEmitToolchain | 2           |   NA |  NA |  NA |     ? |           ? |
+| EricksonLopezOutbox_StoreAsync_Fluent | MediumRun  | InProcessEmitToolchain | 2           |   NA |  NA |  NA |     ? |           ? |
+
+Benchmarks with issues:
+  C_StoreBenchmarks.MassTransit_InMemory_Publish: Job-ZYOFQR(InvocationCount=1, IterationCount=15, UnrollFactor=1, WarmupCount=10)
+  C_StoreBenchmarks.Wolverine_InMemory_Publish: Job-ZYOFQR(InvocationCount=1, IterationCount=15, UnrollFactor=1, WarmupCount=10)
+  C_StoreBenchmarks.EricksonLopezOutbox_StoreAsync_Single: Job-ZYOFQR(InvocationCount=1, IterationCount=15, UnrollFactor=1, WarmupCount=10)
+  C_StoreBenchmarks.EricksonLopezOutbox_StoreAsync_Fluent: Job-ZYOFQR(InvocationCount=1, IterationCount=15, UnrollFactor=1, WarmupCount=10)
+  C_StoreBenchmarks.MassTransit_InMemory_Publish: MediumRun(Toolchain=InProcessEmitToolchain, InvocationCount=1, IterationCount=15, LaunchCount=2, UnrollFactor=1, WarmupCount=10)
+  C_StoreBenchmarks.Wolverine_InMemory_Publish: MediumRun(Toolchain=InProcessEmitToolchain, InvocationCount=1, IterationCount=15, LaunchCount=2, UnrollFactor=1, WarmupCount=10)
+  C_StoreBenchmarks.EricksonLopezOutbox_StoreAsync_Single: MediumRun(Toolchain=InProcessEmitToolchain, InvocationCount=1, IterationCount=15, LaunchCount=2, UnrollFactor=1, WarmupCount=10)
+  C_StoreBenchmarks.EricksonLopezOutbox_StoreAsync_Fluent: MediumRun(Toolchain=InProcessEmitToolchain, InvocationCount=1, IterationCount=15, LaunchCount=2, UnrollFactor=1, WarmupCount=10)
+
+// * Warnings *
+BaselineCustomAnalyzer
+  Summary -> A question mark '?' symbol indicates that it was not possible to compute the (Ratio, RatioSD, Alloc Ratio) column(s) because the baseline value is too close to zero.
+Environment
+  Summary -> Detected error exit code from one of the benchmarks. It might be caused by following antivirus software:
+        - Malwarebytes (C:\Program Files\Malwarebytes\Anti-Malware\MBAMWsc.exe)
+        - Windows Defender (windowsdefender://)
+Use InProcessEmitToolchain or InProcessNoEmitToolchain to avoid new process creation.
+
+
+// * Hints *
+HideColumnsAnalyser
+  Summary -> Hidden columns: Error, RatioSD
+
+// * Legends *
+  Mean        : Arithmetic mean of all measurements
+  Min         : Minimum
+  Max         : Maximum
+  Ratio       : Mean of the ratio distribution ([Current]/[Baseline])
+  Alloc Ratio : Allocated memory ratio distribution ([Current]/[Baseline])
+  1 ns        : 1 Nanosecond (0.000000001 sec)
+
+// * Diagnostic Output - MemoryDiagnoser *
+
+
+// ***** BenchmarkRunner: End *****
+Run time: 00:00:07 (7.39 sec), executed benchmarks: 4
+
+Global total time: 00:00:11 (11.4 sec), executed benchmarks: 4
+// * Artifacts cleanup *
+Artifacts cleanup is finished
