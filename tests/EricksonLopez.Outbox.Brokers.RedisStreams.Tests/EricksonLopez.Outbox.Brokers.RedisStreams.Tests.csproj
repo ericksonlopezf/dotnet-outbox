@@ -1,0 +1,38 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <NuGetAudit>false</NuGetAudit>
+    <NoWarn>$(NoWarn);CA1305;CS0618;CS1591</NoWarn>
+  <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="coverlet.collector" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="AwesomeAssertions" />
+    <PackageReference Include="Moq" />
+    <PackageReference Include="NSubstitute" />
+    <PackageReference Include="AutoFixture" />
+    <PackageReference Include="AutoFixture.AutoNSubstitute" />
+    <PackageReference Include="FsCheck.Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\EricksonLopez.Outbox.Brokers.RedisStreams\EricksonLopez.Outbox.Brokers.RedisStreams.csproj" />
+    <!-- Reference the main test project for any test utilities (e.g. Testcontainers configurations, common fakes) if needed -->
+    <!-- Some files might use common utilities from EricksonLopez.Outbox.Tests, so referencing it is usually required -->
+    <ProjectReference Include="..\EricksonLopez.Outbox.Tests\EricksonLopez.Outbox.Tests.csproj" />
+  </ItemGroup>
+
+</Project>
+
+

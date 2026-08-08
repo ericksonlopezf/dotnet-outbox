@@ -1,0 +1,106 @@
+name: NativeAOT Smoke Test
+
+# ─── Purpose ────────────────────────────────────────────────────────────────
+# This workflow validates that EricksonLopez.Outbox packages are genuinely
+# NativeAOT-compatible, not just declared as such via IsAotCompatible=true.
+#
+# The smoke test:
+#   1. Restores and builds the solution in Release mode.
+#   2. Publishes the AotTests console app with PublishAot=true. If any
+#      referenced API uses reflection, MakeGenericType, or Expression.Compile
+#      without the [RequiresDynamicCode] / [RequiresUnreferencedCode] guards,
+#      ILC will emit IL2026 / IL3050 warnings — which we treat as errors.
+#   3. Runs the published native binary and asserts a zero exit code.
+#
+# Triggered on:
+#   • Every push / PR to main and develop (blocking gate)
+#   • Manual dispatch for debugging
+# ────────────────────────────────────────────────────────────────────────────
+
+on:
+  # Called from ci.yml for every push/PR — blocking gate
+  workflow_call:
+    secrets:
+      SNK_KEY:
+        description: "Base64-encoded Strong Name key (.snk) for assembly signing"
+        required: false
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+
+jobs:
+  aot-smoke-test:
+    name: NativeAOT Smoke Test
+    # linux-latest is the fastest and cheapest runner for NativeAOT cross-compilation.
+    # NativeAOT on Linux requires the native linker (lld is pre-installed on ubuntu-latest).
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Restore Strong Name key
+        env:
+          SNK_KEY: ${{ secrets.SNK_KEY }}
+        run: |
+          if [ -n "$SNK_KEY" ]; then
+            echo "$SNK_KEY" | tr -d '\n\r ' | base64 --decode > EricksonLopez.Outbox.snk
+          fi
+
+      - name: Install NativeAOT prerequisites (clang, lld, zlib)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends clang lld zlib1g-dev
+
+      - name: Restore dependencies
+        run: dotnet restore EricksonLopez.Outbox.slnx
+
+      - name: Build (Release)
+        run: dotnet build EricksonLopez.Outbox.slnx --no-restore --configuration Release
+
+      # ─── Publish with AOT ────────────────────────────────────────────────
+      # TreatWarningsAsErrors=true ensures that any IL2026 / IL3050 warning
+      # from the ILC trimmer is treated as a hard build error — not just a hint.
+      # This is the primary validation gate for NativeAOT compatibility.
+      - name: Publish AotSmokeTest (NativeAOT)
+        run: >
+          dotnet publish
+          tests/EricksonLopez.Outbox.AotTests/EricksonLopez.Outbox.AotTests.csproj
+          --configuration Release
+          --runtime linux-x64
+          --self-contained
+          -p:TreatWarningsAsErrors=true
+          -p:WarningLevel=5
+          --output ./aot-output
+        env:
+          DOTNET_EnableAotCompilationWarningsAsErrors: true
+
+      # ─── Run the native binary ───────────────────────────────────────────
+      # Verifies the published binary executes correctly with the expected
+      # smoke-test assertions. A non-zero exit code from the binary fails this step.
+      - name: Run NativeAOT binary
+        run: |
+          chmod +x ./aot-output/EricksonLopez.Outbox.AotTests
+          ./aot-output/EricksonLopez.Outbox.AotTests
+          echo "Exit code: $?"
+
+      # ─── Upload binary for debugging if needed ────────────────────────────
+      - name: Upload AOT artifacts (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aot-output-${{ github.run_id }}
+          path: ./aot-output/
+          retention-days: 7

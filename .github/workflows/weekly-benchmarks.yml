@@ -1,0 +1,125 @@
+name: Weekly Benchmarks (Deep Review)
+
+# ─── Purpose ─────────────────────────────────────────────────────────────────
+# Runs a deep BenchmarkDotNet review across multiple frameworks (.NET 8, 9, and 10)
+# every week. This runs the Default Job configuration (not 'short') to get 
+# statistically rigorous results without blocking the developer's day-to-day PRs.
+# ─────────────────────────────────────────────────────────────────────────────
+
+on:
+  schedule:
+    # Runs every Sunday at 2:00 AM UTC
+    - cron: '0 2 * * 0'
+  workflow_dispatch:
+    inputs:
+      benchmark-filter:
+        description: "BenchmarkDotNet filter glob (e.g. '*Dispatcher*', '*' for all)"
+        required: false
+        default: "*"
+        type: string
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+
+jobs:
+  benchmark:
+    name: Weekly Performance Benchmarks
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: outbox_user
+          POSTGRES_PASSWORD: outbox_password
+          POSTGRES_DB: outbox_db
+        ports:
+          - 5432:5432
+      rabbitmq:
+        image: rabbitmq:3-management-alpine
+        ports:
+          - 5672:5672
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET (multi-version for cross-TFM benchmarks)
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            9.0.x
+            10.0.x
+
+      - name: Restore Strong Name key
+        env:
+          SNK_KEY: ${{ secrets.SNK_KEY }}
+        run: |
+          if [ -n "$SNK_KEY" ]; then
+            echo "$SNK_KEY" | tr -d '\n\r ' | base64 --decode > EricksonLopez.Outbox.snk
+          fi
+
+      - name: Restore dependencies
+        run: dotnet restore EricksonLopez.Outbox.slnx
+
+      - name: Build (Release)
+        run: dotnet build EricksonLopez.Outbox.slnx --no-restore --configuration Release
+
+      # ─── Run BenchmarkDotNet ─────────────────────────────────────────────
+      # --runtimes net8.0 net9.0 net10.0: runs each benchmark on .NET 8, 9, and 10
+      # NOTICE: '--job short' is REMOVED to perform the Default Job (Deep Review)
+      - name: Run benchmarks
+        run: >
+          dotnet run
+          --project benchmarks/EricksonLopez.Outbox.Benchmarks/EricksonLopez.Outbox.Benchmarks.csproj
+          --configuration Release
+          --framework net10.0
+          --
+          --filter "${{ inputs.benchmark-filter || '*' }}"
+          --runtimes net8.0 net9.0 net10.0
+          --exporters json markdown
+          --artifacts ./benchmarks/results
+
+      - name: Upload benchmark results as artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: weekly-benchmark-results-${{ github.run_id }}
+          path: benchmarks/results/
+          retention-days: 90
+
+      - name: Commit benchmark results
+        if: success()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add benchmarks/results/
+          if git diff --staged --quiet; then
+            echo "No benchmark result changes to commit."
+          else
+            git commit -m "chore(benchmarks): update weekly performance baseline [skip ci]
+
+          Run: ${{ github.run_id }}
+          Trigger: Weekly Schedule
+          Runtime: .NET 8.0 + .NET 9.0 + .NET 10.0 (Deep Review)
+          "
+            git push
+          fi
+
+      - name: Post benchmark summary to Step Summary
+        if: always()
+        run: |
+          FOUND=0
+          for SUMMARY in $(find benchmarks/results -name "*.md" 2>/dev/null | sort); do
+            echo "## $(basename $SUMMARY)" >> "$GITHUB_STEP_SUMMARY"
+            cat "$SUMMARY" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            FOUND=1
+          done
+          if [ $FOUND -eq 0 ]; then
+            echo "### ⚠️ No benchmark markdown results found" >> "$GITHUB_STEP_SUMMARY"
+          fi

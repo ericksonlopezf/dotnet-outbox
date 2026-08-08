@@ -1,0 +1,55 @@
+# ─── Codecov Configuration ───────────────────────────────────────────────────
+# Full documentation: https://docs.codecov.com/docs/codecov-yaml
+# Validate this file: curl -X POST --data-binary @.codecov.yml https://codecov.io/validate
+# ─────────────────────────────────────────────────────────────────────────────
+
+codecov:
+  # Notify Codecov of the CI result after tests complete
+  max_report_age: true
+  require_ci_to_pass: true
+
+coverage:
+  precision: 2
+  round: down
+  range: "70...100"
+
+  status:
+    # ─── Project coverage: overall target ─────────────────────────────────────
+    project:
+      default:
+        # Require 99% line coverage project-wide (threshold: 1% tolerance)
+        target: 99%
+        threshold: 1%
+        if_ci_failed: error
+        only_pulls: false
+
+    # ─── Patch coverage: new code in PRs ──────────────────────────────────────
+    patch:
+      default:
+        # Any new code added in a PR must be 90% covered.
+        # Stricter than project (99%) is impractical for short patches; 90% is
+        # a reasonable gate that prevents obviously-untested code from landing.
+        target: 90%
+        threshold: 5%
+        if_ci_failed: error
+
+comment:
+  # Post a coverage report comment on every PR
+  layout: "reach,diff,flags,files"
+  behavior: default
+  require_changes: false  # Always comment, even if coverage doesn't change
+  require_base: false     # Comment even on first PR against base
+
+# ─── Path exclusions ─────────────────────────────────────────────────────────
+# Exclude test projects, benchmarks, samples, and generated code from coverage
+# metrics (they do not represent shippable production code).
+ignore:
+  - "tests/**/*"
+  - "benchmarks/**/*"
+  - "samples/**/*"
+  - "src/EricksonLopez.Outbox.Analyzers/**/*"
+  - "src/EricksonLopez.Outbox.SourceGenerators/**/*"
+  - "src/EricksonLopez.Outbox.Testing/**/*"
+  - "**/*.g.cs"              # Source-generated files
+  - "**/GeneratedFiles/**"   # Roslyn generator output directories
+  - "**/*JsonSerializerContext*"

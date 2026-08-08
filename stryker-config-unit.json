@@ -1,0 +1,47 @@
+{
+  "stryker-config": {
+    "thresholds": {
+      "high": 100,
+      "low": 98,
+      "break": 95
+    },
+    "solution": "EricksonLopez.Outbox.slnx",
+    "mutate": [
+      "!**/Testing/**/*.cs",
+      "!**/*.g.cs",
+      "!**/*Generator.cs",
+      "!**/Generated/**/*.cs",
+      "!**/SourceGenerators/**/*.cs",
+      "!**/EricksonLopez.Outbox.Analyzers/**/*.cs",
+      "!**/*Analyzer.cs",
+      "!**/*CodeFixProviders.cs"
+    ],
+    "test-projects": [
+      "tests/EricksonLopez.Outbox.Tests/EricksonLopez.Outbox.Tests.csproj"
+    ],
+    "reporters": [
+      "html",
+      "json",
+      "cleartext",
+      "progress"
+    ],
+    "ignore-mutations": [
+      "string"
+    ],
+    "ignore-methods": [
+      "Log*",
+      "LogDebug",
+      "LogInformation",
+      "LogWarning",
+      "LogError",
+      "PollerError",
+      "ConfigureAwait",
+      "ThrowIfNull",
+      "ThrowIfNullOrWhiteSpace",
+      "ThrowIfNullOrEmpty",
+      "ReturnArrayToPool",
+      "RecordMetrics",
+      "RecordMessageDispatched"
+    ]
+  }
+}

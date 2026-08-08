@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>EricksonLopez.Outbox Benchmarks. Provides high-performance, Zero-Reflection, NativeAOT-ready transactional outbox capabilities.</Description>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Optimize>true</Optimize>
+    <IsPackable>false</IsPackable>
+    <!-- Benchmarks must always run Release; this prevents accidental Debug runs -->
+    <Configuration Condition="'$(Configuration)' == ''">Release</Configuration>
+    <!-- CA1822: BenchmarkDotNet requires instance methods for [Benchmark] -->
+    <!-- CS1587: Top-level statement XML comment placement -->
+    <NoWarn>$(NoWarn);CA1822;CS1587;CS1591;NU1608</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BenchmarkDotNet" />
+    <PackageReference Include="BenchmarkDotNet.Diagnostics.Windows" Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
+    <PackageReference Include="Dapper" />
+    <PackageReference Include="MassTransit" />
+    <PackageReference Include="NServiceBus" />
+    <PackageReference Include="Savorboard.CAP.InMemoryMessageQueue" />
+    <PackageReference Include="WolverineFx" />
+    <PackageReference Include="DotNetCore.CAP" />
+    <PackageReference Include="DotNetCore.CAP.InMemoryStorage" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
+    <PackageReference Include="Npgsql" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\EricksonLopez.Outbox\EricksonLopez.Outbox.csproj" />
+    <ProjectReference Include="..\..\src\EricksonLopez.Outbox.Storage.PostgreSql\EricksonLopez.Outbox.Storage.PostgreSql.csproj" />
+  </ItemGroup>
+</Project>

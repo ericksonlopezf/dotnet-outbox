@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>Roslyn Analyzers for EricksonLopez.Outbox. Provides compile-time validation, diagnostics, and code fixes to ensure correct usage of the transactional outbox pattern.</Description>
+    <PackageTags>$(PackageTags);roslyn;analyzers;diagnostics;code-fixes</PackageTags>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+    <!-- RS1032: Suppress false-positive about DiagnosticDescriptor constructor overloads.
+         RS2008: Removed Ã¢â‚¬â€ AnalyzerReleaseTracking.md + AnalyzerReleaseTracking.Unshipped.md
+                 are now present as AdditionalFiles, enabling proper IDE diagnostic history.
+         CS1591: XML doc warnings suppressed for analyzer internals. -->
+    <NoWarn>RS1032;CS1591</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- RS2008: AnalyzerReleases files must be declared as AdditionalFiles so the
+         Roslyn tooling picks them up for diagnostic history display in IDEs and nuget.org.
+         IMPORTANT: filenames must be exactly AnalyzerReleases.Shipped.md and
+         AnalyzerReleases.Unshipped.md (case-sensitive). -->
+    <AdditionalFiles Include="AnalyzerReleases.Shipped.md" />
+    <AdditionalFiles Include="AnalyzerReleases.Unshipped.md" />
+  </ItemGroup>
+</Project>
