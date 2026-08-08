@@ -82,7 +82,7 @@ jobs:
         run: dotnet restore EricksonLopez.Outbox.slnx
 
       - name: Setup Java (for SonarScanner)
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v5
         with:
           java-version: '17'
           distribution: 'zulu'
