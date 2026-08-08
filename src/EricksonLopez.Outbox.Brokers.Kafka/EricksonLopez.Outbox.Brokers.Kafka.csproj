@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>Kafka message broker transport for EricksonLopez.Outbox. Delivers high-performance, Zero-Reflection, NativeAOT-ready event publishing to Apache Kafka.</Description>
+    <PackageTags>$(PackageTags);kafka;apache-kafka;broker</PackageTags>
+    <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Confluent.Kafka" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\EricksonLopez.Outbox\EricksonLopez.Outbox.csproj" />
+  </ItemGroup>
+
+</Project>

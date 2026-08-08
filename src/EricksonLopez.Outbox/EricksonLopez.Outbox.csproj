@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>Core library for EricksonLopez.Outbox. Provides a modern, high-performance, Zero-Reflection, NativeAOT-ready implementation of the transactional outbox pattern for .NET.</Description>
+    <!-- ISSUE-PKG3: Multi-targeting policy (reviewed 2026-08):
+         Framework versions follow the official Microsoft .NET Support Policy:
+         https://dotnet.microsoft.com/platform/support/policy/dotnet-core
+         net9.0 is included for its full 24-month STS window and will be removed
+         after its official EOL date, not before.
+         - net8.0: LTS (EOL November 10, 2026) — keep until EOL
+         - net9.0: STS (EOL November 10, 2026) — keep until EOL; 24-month support window per updated Microsoft policy
+         - net10.0: LTS (EOL November 2028) — included since GA release
+         Next review: November 2026. Both net8.0 and net9.0 EOL on same date.
+         At that point, drop both and add net9.0 was never "May 2026" — that was an earlier
+         draft STS estimate before Microsoft updated the STS window to 24 months. -->
+    <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsAotCompatible>true</IsAotCompatible>
+    <IsTrimmable>true</IsTrimmable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" />
+    <PackageReference Include="Microsoft.Extensions.ObjectPool" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="EricksonLopez.Outbox.Tests, PublicKey=0024000004800000940000000602000000240000525341310004000001000100e5321dcbca5857b0c95798669e2a454fb2af678912a0e85e9ca4df583a93cef1d9017f7f1d9cf81a3eaf0c911f270c2c3f773a5fc1a05ee561d25e772dde116297d54bda8d04d1d594d0f277ffa5e4372100426e664d4818bbc2608dd15f81949ab1f578e45e502cfaafea33b6e1e0905f812ba61b64e29461b1b71a9330bcc7" />
+    <InternalsVisibleTo Include="EricksonLopez.Outbox.AotTests, PublicKey=0024000004800000940000000602000000240000525341310004000001000100e5321dcbca5857b0c95798669e2a454fb2af678912a0e85e9ca4df583a93cef1d9017f7f1d9cf81a3eaf0c911f270c2c3f773a5fc1a05ee561d25e772dde116297d54bda8d04d1d594d0f277ffa5e4372100426e664d4818bbc2608dd15f81949ab1f578e45e502cfaafea33b6e1e0905f812ba61b64e29461b1b71a9330bcc7" />
+    <InternalsVisibleTo Include="EricksonLopez.Outbox.Storage.PostgreSql.Tests, PublicKey=0024000004800000940000000602000000240000525341310004000001000100e5321dcbca5857b0c95798669e2a454fb2af678912a0e85e9ca4df583a93cef1d9017f7f1d9cf81a3eaf0c911f270c2c3f773a5fc1a05ee561d25e772dde116297d54bda8d04d1d594d0f277ffa5e4372100426e664d4818bbc2608dd15f81949ab1f578e45e502cfaafea33b6e1e0905f812ba61b64e29461b1b71a9330bcc7" />
+  </ItemGroup>
+
+</Project>

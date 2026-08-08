@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  build-and-test:
+    uses: ./.github/workflows/dotnet-build-test.yml
+    with:
+      artifact-name: test-results
+    secrets:
+      SNK_KEY: ${{ secrets.SNK_KEY }}
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  # ─── NativeAOT Smoke Test ─────────────────────────────────────────────────
+  # Validates that IsAotCompatible=true is not just a declaration — the
+  # packages actually compile and run under NativeAOT (PublishAot=true).
+  # ─── NativeAOT Smoke Test ─────────────────────────────────────────────────
+  # Validates that IsAotCompatible=true is not just a declaration — the
+  # packages actually compile and run under NativeAOT (PublishAot=true).
+  # Runs in parallel with build-and-test to keep CI wall-clock time minimal.
+  # See .github/workflows/aot-smoke-test.yml for the full implementation.
+  aot-smoke-test:
+    uses: ./.github/workflows/aot-smoke-test.yml
+    secrets:
+      SNK_KEY: ${{ secrets.SNK_KEY }}

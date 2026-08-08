@@ -1,0 +1,80 @@
+# ─── Dependabot Automatic Dependency Updates ───────────────────────────────────
+# Automatically creates PRs for outdated NuGet packages and GitHub Actions.
+#
+# Strategy:
+#   - NuGet: weekly check on Mondays, targeting `main` branch.
+#     PRs are created per-ecosystem with a limit of 10 open PRs to avoid noise.
+#   - GitHub Actions: monthly check to keep action versions fresh.
+#     Actions are scoped to the .github/workflows directory only.
+#
+# Security note:
+#   Dependabot PRs from external contributors are automatically sandboxed by GitHub
+#   and do not have access to repository secrets. Review NuGet version bumps against
+#   the changelog of the updated package before merging.
+# ───────────────────────────────────────────────────────────────────────────────
+
+version: 2
+
+updates:
+
+  # ─── NuGet packages ──────────────────────────────────────────────────────────
+  - package-ecosystem: "nuget"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/New_York"
+    target-branch: "main"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "nuget"
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+    groups:
+      # Group all Microsoft.Extensions.* updates into a single PR
+      microsoft-extensions:
+        patterns:
+          - "Microsoft.Extensions.*"
+      # Group all System.* updates into a single PR
+      system-libs:
+        patterns:
+          - "System.*"
+      # Group Dapper updates
+      dapper:
+        patterns:
+          - "Dapper*"
+      # Group Test/Benchmarking updates
+      testing:
+        patterns:
+          - "xunit*"
+          - "xunit.*"
+          - "BenchmarkDotNet*"
+      # Group Stryker updates
+      stryker:
+        patterns:
+          - "dotnet-stryker*"
+          - "Stryker*"
+      # Group Roslyn/CodeAnalysis updates (affects analyzer build)
+      roslyn:
+        patterns:
+          - "Microsoft.CodeAnalysis*"
+
+  # ─── GitHub Actions ──────────────────────────────────────────────────────────
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/New_York"
+    target-branch: "main"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "chore(ci)"
+      include: "scope"
