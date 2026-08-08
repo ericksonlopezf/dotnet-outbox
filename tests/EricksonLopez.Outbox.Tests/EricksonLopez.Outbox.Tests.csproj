@@ -23,7 +23,6 @@
     <PackageReference Include="Microsoft.Extensions.Logging" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="NSubstitute" />
-    <PackageReference Include="Moq" />
     <PackageReference Include="FsCheck.Xunit" />
     <PackageReference Include="AutoFixture" />
     <PackageReference Include="AutoFixture.AutoNSubstitute" />

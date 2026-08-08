@@ -73,6 +73,8 @@ public class I_CompetitorBenchmarks
             => Task.FromResult(new MediumMessage { DbId = "1", Content = "{}", Added = DateTime.Now, Origin = content });
 
         public Task<int> DeleteExpiresAsync(string table, DateTime timeout, int batchCount = 1000, CancellationToken token = default) => Task.FromResult(0);
+        public Task<int> DeletePublishedMessageAsync(long maxId) => Task.FromResult(0);
+        public Task<int> DeleteReceivedMessageAsync(long maxId) => Task.FromResult(0);
         public Task<IEnumerable<MediumMessage>> GetPublishedMessagesOfNeedRetry(TimeSpan timeout) => Task.FromResult(System.Linq.Enumerable.Empty<MediumMessage>());
         public Task<IEnumerable<MediumMessage>> GetReceivedMessagesOfNeedRetry(TimeSpan timeout) => Task.FromResult(System.Linq.Enumerable.Empty<MediumMessage>());
         public Task ScheduleMessagesOfDelayedAsync(Func<object, IEnumerable<MediumMessage>, Task> scheduleTask, CancellationToken token = default) => Task.CompletedTask;
