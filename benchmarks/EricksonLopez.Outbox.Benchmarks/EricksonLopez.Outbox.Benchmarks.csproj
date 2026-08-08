@@ -19,6 +19,7 @@
     <PackageReference Include="BenchmarkDotNet.Diagnostics.Windows" Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
     <PackageReference Include="Dapper" />
     <PackageReference Include="MassTransit" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
     <PackageReference Include="NServiceBus" />
     <PackageReference Include="Savorboard.CAP.InMemoryMessageQueue" />
     <PackageReference Include="WolverineFx" />
