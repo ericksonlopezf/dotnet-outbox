@@ -1,0 +1,42 @@
+{
+  "stryker-config": {
+    "concurrency": 2,
+    "thresholds": {
+      "high": 100,
+      "low": 98,
+      "break": 95
+    },
+    "mutate": [
+      "**/*.cs",
+      "!**/Testing/**/*.cs",
+      "!**/*.g.cs",
+      "!**/*Generator.cs",
+      "!**/Generated/**/*.cs"
+    ],
+
+    "reporters": [
+      "html",
+      "json",
+      "cleartext",
+      "progress"
+    ],
+    "ignore-mutations": [
+      "string"
+    ],
+    "ignore-methods": [
+      "Log*",
+      "LogDebug",
+      "LogInformation",
+      "LogWarning",
+      "LogError",
+      "PollerError",
+      "ConfigureAwait",
+      "ThrowIfNull",
+      "ThrowIfNullOrWhiteSpace",
+      "ThrowIfNullOrEmpty",
+      "ReturnArrayToPool",
+      "RecordMetrics",
+      "RecordMessageDispatched"
+    ]
+  }
+}

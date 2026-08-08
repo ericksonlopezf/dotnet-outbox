@@ -1,0 +1,141 @@
+name: Benchmarks (Baseline Capture)
+
+# ─── Purpose ─────────────────────────────────────────────────────────────────
+# Runs BenchmarkDotNet benchmarks and commits the resulting markdown reports
+# to benchmarks/results/ to establish a regression baseline.
+#
+# Results are committed back to the triggering branch so that the repo always
+# has an up-to-date performance baseline for comparison.
+# ─────────────────────────────────────────────────────────────────────────────
+
+on:
+  workflow_dispatch:
+    inputs:
+      benchmark-filter:
+        description: "BenchmarkDotNet filter glob (e.g. '*Dispatcher*', '*' for all)"
+        required: false
+        default: "*"
+        type: string
+      commit-results:
+        description: "Commit benchmark results back to the branch"
+        required: false
+        default: "true"
+        type: choice
+        options:
+          - "true"
+          - "false"
+  push:
+    tags:
+      - "v*"
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+
+jobs:
+  benchmark:
+    name: Performance Benchmarks
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: outbox_user
+          POSTGRES_PASSWORD: outbox_password
+          POSTGRES_DB: outbox_db
+        ports:
+          - 5432:5432
+      rabbitmq:
+        image: rabbitmq:3-management-alpine
+        ports:
+          - 5672:5672
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET (multi-version for cross-TFM benchmarks)
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Restore Strong Name key
+        env:
+          SNK_KEY: ${{ secrets.SNK_KEY }}
+        run: |
+          if [ -n "$SNK_KEY" ]; then
+            echo "$SNK_KEY" | tr -d '\n\r ' | base64 --decode > EricksonLopez.Outbox.snk
+          fi
+
+      - name: Restore dependencies
+        run: dotnet restore EricksonLopez.Outbox.slnx
+
+      - name: Build (Release)
+        run: dotnet build EricksonLopez.Outbox.slnx --no-restore --configuration Release
+
+      # ─── Run BenchmarkDotNet ─────────────────────────────────────────────
+      # --runtimes net8.0 net10.0: runs each benchmark on both .NET 8 and .NET 10
+      # --job short: 3 warmup + 3 measurement iterations for fast CI runs
+      # --exporters json markdown: exports both machine-readable and human-readable results
+      # --artifacts ./benchmarks/results: writes reports directly to the tracked directory
+      - name: Run benchmarks
+        run: >
+          dotnet run
+          --project benchmarks/EricksonLopez.Outbox.Benchmarks/EricksonLopez.Outbox.Benchmarks.csproj
+          --configuration Release
+          --framework net10.0
+          --
+          --filter "${{ inputs.benchmark-filter || '*' }}"
+          --job short
+          --runtimes net8.0 net10.0
+          --exporters json markdown
+          --artifacts ./benchmarks/results
+
+      - name: Upload benchmark results as artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results-${{ github.run_id }}
+          path: benchmarks/results/
+          retention-days: 90
+
+      # ─── Commit results back to the branch ───────────────────────────────
+      # Commits the markdown results to benchmarks/results/ so they are
+      # tracked in version control and visible without downloading artifacts.
+      - name: Commit benchmark results
+        if: ${{ inputs.commit-results != 'false' && success() }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add benchmarks/results/
+          if git diff --staged --quiet; then
+            echo "No benchmark result changes to commit."
+          else
+            git commit -m "chore(benchmarks): update performance baseline [skip ci]
+
+          Run: ${{ github.run_id }}
+          Trigger: ${{ github.event_name }}
+          Runtime: .NET 8.0 + .NET 10.0
+          Filter: ${{ inputs.benchmark-filter || '*' }}
+          "
+            git push
+          fi
+
+      - name: Post benchmark summary to Step Summary
+        if: always()
+        run: |
+          FOUND=0
+          for SUMMARY in $(find benchmarks/results -name "*.md" 2>/dev/null | sort); do
+            echo "## $(basename $SUMMARY)" >> "$GITHUB_STEP_SUMMARY"
+            cat "$SUMMARY" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            FOUND=1
+          done
+          if [ $FOUND -eq 0 ]; then
+            echo "### ⚠️ No benchmark markdown results found" >> "$GITHUB_STEP_SUMMARY"
+          fi

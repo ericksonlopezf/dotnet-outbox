@@ -1,0 +1,43 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/EricksonLopez.Outbox.Analyzers/EricksonLopez.Outbox.Analyzers.csproj" />
+    <Project Path="src/EricksonLopez.Outbox.Brokers.AwsSqs/EricksonLopez.Outbox.Brokers.AwsSqs.csproj" />
+    <Project Path="src/EricksonLopez.Outbox.Brokers.AzureServiceBus/EricksonLopez.Outbox.Brokers.AzureServiceBus.csproj" />
+    <Project Path="src/EricksonLopez.Outbox.Brokers.GooglePubSub/EricksonLopez.Outbox.Brokers.GooglePubSub.csproj" />
+    <Project Path="src/EricksonLopez.Outbox.Brokers.Kafka/EricksonLopez.Outbox.Brokers.Kafka.csproj" />
+    <Project Path="src/EricksonLopez.Outbox.Brokers.Nats/EricksonLopez.Outbox.Brokers.Nats.csproj" />
+    <Project Path="src/EricksonLopez.Outbox.Brokers.RabbitMQ/EricksonLopez.Outbox.Brokers.RabbitMQ.csproj" />
+    <Project Path="src/EricksonLopez.Outbox.Brokers.RedisStreams/EricksonLopez.Outbox.Brokers.RedisStreams.csproj" />
+
+    <Project Path="src/EricksonLopez.Outbox.EntityFrameworkCore/EricksonLopez.Outbox.EntityFrameworkCore.csproj" />
+    <Project Path="src/EricksonLopez.Outbox.MassTransit/EricksonLopez.Outbox.MassTransit.csproj" />
+    <Project Path="src/EricksonLopez.Outbox.SourceGenerators/EricksonLopez.Outbox.SourceGenerators.csproj" />
+    <Project Path="src/EricksonLopez.Outbox.Storage.MySql/EricksonLopez.Outbox.Storage.MySql.csproj" />
+    <Project Path="src/EricksonLopez.Outbox.Storage.Oracle/EricksonLopez.Outbox.Storage.Oracle.csproj" />
+    <Project Path="src/EricksonLopez.Outbox.Storage.PostgreSql/EricksonLopez.Outbox.Storage.PostgreSql.csproj" />
+    <Project Path="src/EricksonLopez.Outbox.Storage.Sqlite/EricksonLopez.Outbox.Storage.Sqlite.csproj" />
+    <Project Path="src/EricksonLopez.Outbox.Storage.SqlServer/EricksonLopez.Outbox.Storage.SqlServer.csproj" />
+    <Project Path="src/EricksonLopez.Outbox/EricksonLopez.Outbox.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/EricksonLopez.Outbox.AotTests/EricksonLopez.Outbox.AotTests.csproj" />
+    <Project Path="tests/EricksonLopez.Outbox.Brokers.AwsSqs.Tests/EricksonLopez.Outbox.Brokers.AwsSqs.Tests.csproj" />
+    <Project Path="tests/EricksonLopez.Outbox.Brokers.AzureServiceBus.Tests/EricksonLopez.Outbox.Brokers.AzureServiceBus.Tests.csproj" />
+    <Project Path="tests/EricksonLopez.Outbox.Brokers.GooglePubSub.Tests/EricksonLopez.Outbox.Brokers.GooglePubSub.Tests.csproj" />
+    <Project Path="tests/EricksonLopez.Outbox.Brokers.Kafka.Tests/EricksonLopez.Outbox.Brokers.Kafka.Tests.csproj" />
+    <Project Path="tests/EricksonLopez.Outbox.Brokers.Nats.Tests/EricksonLopez.Outbox.Brokers.Nats.Tests.csproj" />
+    <Project Path="tests/EricksonLopez.Outbox.Brokers.RabbitMQ.Tests/EricksonLopez.Outbox.Brokers.RabbitMQ.Tests.csproj" />
+    <Project Path="tests/EricksonLopez.Outbox.Brokers.RedisStreams.Tests/EricksonLopez.Outbox.Brokers.RedisStreams.Tests.csproj" />
+    <Project Path="tests/EricksonLopez.Outbox.EntityFrameworkCore.Tests/EricksonLopez.Outbox.EntityFrameworkCore.Tests.csproj" />
+    <Project Path="tests/EricksonLopez.Outbox.IntegrationTests/EricksonLopez.Outbox.IntegrationTests.csproj" />
+    <Project Path="tests/EricksonLopez.Outbox.Storage.MySql.Tests/EricksonLopez.Outbox.Storage.MySql.Tests.csproj" />
+    <Project Path="tests/EricksonLopez.Outbox.Storage.Oracle.Tests/EricksonLopez.Outbox.Storage.Oracle.Tests.csproj" />
+    <Project Path="tests/EricksonLopez.Outbox.Storage.PostgreSql.Tests/EricksonLopez.Outbox.Storage.PostgreSql.Tests.csproj" />
+    <Project Path="tests/EricksonLopez.Outbox.Storage.Sqlite.Tests/EricksonLopez.Outbox.Storage.Sqlite.Tests.csproj" />
+    <Project Path="tests/EricksonLopez.Outbox.Storage.SqlServer.Tests/EricksonLopez.Outbox.Storage.SqlServer.Tests.csproj" />
+    <Project Path="tests/EricksonLopez.Outbox.Tests/EricksonLopez.Outbox.Tests.csproj" />
+  </Folder>
+  <Folder Name="/benchmarks/">
+    <Project Path="benchmarks/EricksonLopez.Outbox.Benchmarks/EricksonLopez.Outbox.Benchmarks.csproj" />
+  </Folder>
+</Solution>

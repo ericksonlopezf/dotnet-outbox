@@ -1,0 +1,213 @@
+name: Publish NuGet
+
+# ─── Triggers ─────────────────────────────────────────────────────────────────
+# 1. Automatic: Triggered by Release Please when a release PR is merged.
+#    The workflow_dispatch input 'version' will be set to the new SemVer.
+# 2. Manual: Also triggered by pushing a 'v*.*.*' tag manually (legacy support).
+# 3. Manual dispatch: Via GitHub UI for debugging.
+#
+# Automatic versioning flow:
+#   Commit with Conventional prefix (e.g. 'feat:') →
+#   release-please.yml creates/updates Release PR →
+#   Maintainer merges Release PR →
+#   release-please creates GitHub Release + tag vX.Y.Z →
+#   release-please triggers this workflow via workflow_dispatch →
+#   Pack → Sign → Attest → Publish to NuGet.org
+# ─────────────────────────────────────────────────────────────────────────────────
+
+on:
+  push:
+    tags:
+      - "v*.*.*"           # Legacy: manual tag push still works
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to publish (e.g. 1.2.3 — without 'v' prefix)"
+        required: false
+        type: string
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+
+jobs:
+  publish:
+    name: Pack & Publish
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write        # Required for Sigstore OIDC attestation
+      contents: write        # Required for GitHub Release creation
+      attestations: write    # Required for actions/attest-build-provenance
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: outbox_user
+          POSTGRES_PASSWORD: outbox_password
+          POSTGRES_DB: outbox_db
+        ports:
+          - 5432:5432
+      rabbitmq:
+        image: rabbitmq:3-management-alpine
+        ports:
+          - 5672:5672
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # ─── Resolve version ──────────────────────────────────────────────────────
+      # Priority: workflow_dispatch input → git tag → fallback to Directory.Build.props
+      - name: Resolve version
+        id: version
+        run: |
+          if [ -n "${{ inputs.version }}" ]; then
+            echo "VERSION=${{ inputs.version }}" >> $GITHUB_OUTPUT
+            echo "Resolved version from workflow_dispatch input: ${{ inputs.version }}"
+          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+            echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+            echo "Resolved version from git tag: $VERSION"
+          else
+            VERSION=$(grep -oP '(?<=<VersionPrefix>)[^<]+' Directory.Build.props)
+            echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+            echo "Resolved version from Directory.Build.props: $VERSION"
+          fi
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      # ─── Strong Name key ──────────────────────────────────────────────────────
+      # The private .snk is stored as a base64-encoded GitHub Secret (SNK_KEY).
+      # The public key is committed as public.snk. If SNK_KEY is not set (e.g.,
+      # in a fork), the build succeeds without signing (conditional in Directory.Build.props).
+      - name: Restore Strong Name key
+        env:
+          SNK_KEY: ${{ secrets.SNK_KEY }}
+        run: |
+          if [ -n "$SNK_KEY" ]; then
+            echo "$SNK_KEY" | tr -d '\n\r ' | base64 --decode > EricksonLopez.Outbox.snk
+          fi
+
+      - name: Restore
+        run: dotnet restore EricksonLopez.Outbox.slnx
+
+      - name: Build (Release)
+        run: dotnet build EricksonLopez.Outbox.slnx --no-restore --configuration Release
+
+      # ─── Full test suite before publish ──────────────────────────────────────
+      # Never publish without a passing test suite.
+      - name: Run tests before publish
+        run: |
+          dotnet test EricksonLopez.Outbox.slnx \
+            --no-build \
+            --configuration Release \
+            --logger "trx" \
+            --results-directory ./test-results \
+            --collect:"XPlat Code Coverage" \
+            -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
+
+      - name: Upload coverage to Codecov (publish gate)
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: "**/coverage.opencover.xml"
+          fail_ci_if_error: false
+          flags: publish-gate
+          name: codecov-publish
+
+      # ─── Pack all packages ────────────────────────────────────────────────────
+      - name: Pack All Packages
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          PACK_ARGS="--no-build --configuration Release --output ./nupkgs -p:VersionPrefix=$VERSION"
+          dotnet pack EricksonLopez.Outbox.slnx $PACK_ARGS
+          echo "Packed packages:"
+          ls -la ./nupkgs/
+
+      # ─── Sigstore Provenance Attestation ─────────────────────────────────────
+      # Generates a cryptographically signed provenance attestation for every .nupkg
+      # using Sigstore's keyless signing via GitHub's OIDC token. The attestation
+      # proves that the packages were built from THIS repository's workflow and not
+      # tampered with after the build. Consumers can verify via:
+      #   gh attestation verify <package.nupkg> --repo ericksonlopez/dotnet-outbox
+      #
+      # Why v2: attest-build-provenance@v2 uses the SLSA v1.0 predicate format
+      # (vs v0.2 in v1), which is the current standard for SLSA Build L2/L3
+      # provenance and is supported by NuGet.org's new provenance verification.
+      - name: Generate Sigstore Provenance Attestation
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: './nupkgs/*.nupkg'
+
+      # ─── NuGet.org publish via OIDC ──────────────────────────────────────────
+      # Uses NuGet Trusted Publishing (OIDC) — no long-lived API keys stored.
+      # The NuGet/login action exchanges GitHub's OIDC token for a short-lived
+      # NuGet API token scoped to this specific repository and workflow.
+      - name: NuGet login (OIDC)
+        uses: NuGet/login@v1
+        id: login
+        with:
+          user: ericksonlopez
+
+      - name: Push to NuGet.org
+        run: >
+          dotnet nuget push ./nupkgs/*.nupkg
+          --api-key ${{ steps.login.outputs.NUGET_API_KEY }}
+          --source https://api.nuget.org/v3/index.json
+          --skip-duplicate
+
+      # ─── GitHub Release ───────────────────────────────────────────────────────
+      # When triggered by a tag push, create the GitHub Release with assets.
+      # When triggered by Release Please workflow_dispatch, the release is already
+      # created by release-please-action — this step is skipped.
+      - name: Create GitHub Release (tag-triggered only)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.VERSION }}
+          name: Release ${{ steps.version.outputs.VERSION }}
+          generate_release_notes: false
+          body: |
+            ## Ecosystem Packages in this release
+
+            | Package | Version |
+            |---------|---------|
+            | `EricksonLopez.Outbox` | `${{ steps.version.outputs.VERSION }}` |
+            | `EricksonLopez.Outbox.EntityFrameworkCore` | `${{ steps.version.outputs.VERSION }}` |
+            | `EricksonLopez.Outbox.Storage.PostgreSql` | `${{ steps.version.outputs.VERSION }}` |
+            | `EricksonLopez.Outbox.Storage.SqlServer` | `${{ steps.version.outputs.VERSION }}` |
+            | `EricksonLopez.Outbox.Storage.MySql` | `${{ steps.version.outputs.VERSION }}` |
+            | `EricksonLopez.Outbox.Storage.Oracle` | `${{ steps.version.outputs.VERSION }}` |
+            | `EricksonLopez.Outbox.Storage.Sqlite` | `${{ steps.version.outputs.VERSION }}` |
+            | `EricksonLopez.Outbox.Brokers.RabbitMQ` | `${{ steps.version.outputs.VERSION }}` |
+            | `EricksonLopez.Outbox.Brokers.Kafka` | `${{ steps.version.outputs.VERSION }}` |
+            | `EricksonLopez.Outbox.Brokers.AwsSqs` | `${{ steps.version.outputs.VERSION }}` |
+            | `EricksonLopez.Outbox.Brokers.AzureServiceBus` | `${{ steps.version.outputs.VERSION }}` |
+            | `EricksonLopez.Outbox.Brokers.GooglePubSub` | `${{ steps.version.outputs.VERSION }}` |
+            | `EricksonLopez.Outbox.Brokers.Nats` | `${{ steps.version.outputs.VERSION }}` |
+            | `EricksonLopez.Outbox.Brokers.RedisStreams` | `${{ steps.version.outputs.VERSION }}` |
+            | `EricksonLopez.Outbox.MassTransit` | `${{ steps.version.outputs.VERSION }}` |
+            | `EricksonLopez.Outbox.SourceGenerators` | `${{ steps.version.outputs.VERSION }}` |
+            | `EricksonLopez.Outbox.Analyzers` | `${{ steps.version.outputs.VERSION }}` |
+
+            ---
+
+            For detailed changes, see [CHANGELOG.md](https://github.com/ericksonlopez/dotnet-outbox/blob/${{ github.ref_name }}/CHANGELOG.md).
+
+            ### Installation
+
+            ```bash
+            dotnet add package EricksonLopez.Outbox --version ${{ steps.version.outputs.VERSION }}
+            dotnet add package EricksonLopez.Outbox.Storage.PostgreSql --version ${{ steps.version.outputs.VERSION }}
+            dotnet add package EricksonLopez.Outbox.Brokers.RabbitMQ --version ${{ steps.version.outputs.VERSION }}
+            # ... and others ...
+            ```
+          files: ./nupkgs/*.nupkg
+          draft: false
+          prerelease: ${{ contains(steps.version.outputs.VERSION, '-') }}

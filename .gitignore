@@ -1,0 +1,65 @@
+# .NET Core
+bin/
+obj/
+
+# Visual Studio Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# ReSharper / JetBrains
+_ReSharper*/
+*.[Rr]e[Ss]harper
+*.DotSettings.user
+.idea/
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Mac
+.DS_Store
+
+# Test results
+scratch/
+TestResults/
+*.coverage
+*.coveragexml
+
+# Secrets
+appsettings.Development.json
+appsettings.Local.json
+secrets.json
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+
+# Benchmarks
+BenchmarkDotNet.Artifacts/
+benchmarks/results/
+
+# Audit
+AUDIT.md
+
+# Mutation Testing
+StrykerOutput/
+stryker_survivors/
+
+# Code Coverage Reports
+coveragereport/
+coveragereport_unit/
+local-test-results/
+coverage.*.xml

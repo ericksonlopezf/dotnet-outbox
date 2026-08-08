@@ -1,0 +1,155 @@
+name: Mutation Testing (Stryker)
+
+# ─── Purpose ─────────────────────────────────────────────────────────────────
+# Runs Stryker.NET mutation testing against the EricksonLopez.Outbox core package.
+# The mutation score is gated by the thresholds defined in stryker-config.json:
+#   • high  (≥100%) — green, all good (target: 100%)
+#   • low   (≥ 98%) — yellow, investigate regressions
+#   • break (< 95%) — CI fails with a non-zero exit code
+#
+# Stryker reads thresholds directly from stryker-config.json.
+# The Python script below MUST mirror those same values — keep them in sync.
+# ─────────────────────────────────────────────────────────────────────────────
+
+on:
+  workflow_dispatch:
+    inputs:
+      mutation-level:
+        description: "Stryker mutation level (Basic, Standard, Advanced)"
+        required: false
+        default: "Standard"
+        type: choice
+        options:
+          - Basic
+          - Standard
+          - Advanced
+  # Run weekly on Monday at 04:00 UTC to detect mutation survivals early
+  schedule:
+    - cron: "0 4 * * 1"
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+
+jobs:
+  mutation-test:
+    name: Stryker Mutation Testing
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: outbox_user
+          POSTGRES_PASSWORD: outbox_password
+          POSTGRES_DB: outbox_db
+        ports:
+          - 5432:5432
+      rabbitmq:
+        image: rabbitmq:3-management-alpine
+        ports:
+          - 5672:5672
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Restore Strong Name key
+        env:
+          SNK_KEY: ${{ secrets.SNK_KEY }}
+        run: |
+          if [ -n "$SNK_KEY" ]; then
+            echo "$SNK_KEY" | tr -d '\n\r ' | base64 --decode > EricksonLopez.Outbox.snk
+          fi
+
+      - name: Restore dependencies
+        run: dotnet restore EricksonLopez.Outbox.slnx
+
+      - name: Build (Release)
+        run: dotnet build EricksonLopez.Outbox.slnx --no-restore --configuration Release
+
+      - name: Install Stryker
+        run: dotnet tool install --global dotnet-stryker
+
+      # Stryker reads thresholds from stryker-config.json (high=100, low=98, break=95).
+      # When the mutation score drops below 'break', Stryker exits with code 1,
+      # which fails this step and therefore the whole workflow run.
+      - name: Run Stryker (Core package)
+        run: >
+          dotnet stryker
+          --project src/EricksonLopez.Outbox/EricksonLopez.Outbox.csproj
+          --test-project tests/EricksonLopez.Outbox.Tests/EricksonLopez.Outbox.Tests.csproj
+          --mutation-level ${{ inputs.mutation-level || 'Standard' }}
+          --reporter html
+          --reporter json
+          --reporter progress
+          --output StrykerOutput/ci
+        continue-on-error: false
+
+      - name: Upload Stryker report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stryker-report-${{ github.run_id }}
+          path: StrykerOutput/ci/
+          retention-days: 30
+
+      # ─── Extract and display mutation score ───────────────────────────────
+      # Parses the Stryker JSON report and writes a summary to the GitHub
+      # step summary, including the pass/warn/fail status relative to thresholds.
+      - name: Extract and report mutation score
+        if: always()
+        run: |
+          REPORT=$(find StrykerOutput/ci -name "*.json" -not -name "*.html.json" | head -1)
+          if [ -f "$REPORT" ]; then
+            python3 - "$REPORT" << 'PYEOF'
+          import sys, json
+
+          report_path = sys.argv[1]
+          with open(report_path) as f:
+              data = json.load(f)
+
+          files = data.get('files', {})
+          total  = sum(f.get('mutants', {}).get('total',  0) for f in files.values() if 'mutants' in f)
+          killed = sum(f.get('mutants', {}).get('killed', 0) for f in files.values() if 'mutants' in f)
+          score  = round(killed / total * 100, 1) if total > 0 else 0.0
+
+          HIGH  = 100
+          LOW   = 98
+          BREAK = 95
+
+          if score >= HIGH:
+              status = "✅ HIGH"
+          elif score >= LOW:
+              status = "🟡 LOW"
+          elif score >= BREAK:
+              status = "🟠 WARNING (approaching break threshold)"
+          else:
+              status = "❌ BELOW BREAK THRESHOLD (CI gate failed)"
+
+          summary = f"""
+          ## Stryker Mutation Testing Results
+
+          | Metric | Value |
+          |--------|-------|
+          | Mutation Score | **{score}%** |
+          | Mutants Killed | {killed} / {total} |
+          | Status | {status} |
+          | High Threshold | ≥{HIGH}% |
+          | Low Threshold  | ≥{LOW}% |
+          | Break Threshold| ≥{BREAK}% |
+          """
+          print(summary)
+
+          import os
+          with open(os.environ.get('GITHUB_STEP_SUMMARY', '/dev/stdout'), 'a') as gh:
+              gh.write(summary)
+          PYEOF
+          else
+            echo "### ⚠️ Stryker report not found — mutation score unavailable" >> "$GITHUB_STEP_SUMMARY"
+          fi

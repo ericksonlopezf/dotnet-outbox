@@ -1,0 +1,30 @@
+# CODEOWNERS
+# Auto-assigns reviewers when a pull request modifies specific paths.
+# Syntax: <path-pattern>  <@github-username or @org/team>
+# Docs: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Global owner — applies to everything not matched by a more specific rule below
+*                           @ericksonlopezf
+
+# Core library — critical, always requires maintainer review
+/src/                       @ericksonlopezf
+
+# Roslyn analyzers and source generators — compiler tooling requires extra scrutiny
+/src/EricksonLopez.Outbox.Analyzers/                @ericksonlopezf
+/src/EricksonLopez.Outbox.SourceGenerators/         @ericksonlopezf
+
+# CI/CD workflows — infrastructure changes require extra scrutiny
+/.github/workflows/         @ericksonlopezf
+
+# Build infrastructure — version, signing, and package metadata
+/Directory.Build.props      @ericksonlopezf
+/Directory.Packages.props   @ericksonlopezf
+/stryker-config.json        @ericksonlopezf
+
+# Governance and community documents
+/SECURITY.md                @ericksonlopezf
+/GOVERNANCE.md              @ericksonlopezf
+/CONTRIBUTING.md            @ericksonlopezf
+
+# Architecture Decision Records — require design approval
+/docs/adr/                              @ericksonlopezf

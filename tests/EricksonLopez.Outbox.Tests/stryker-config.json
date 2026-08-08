@@ -1,0 +1,34 @@
+{
+  "stryker-config": {
+    "reporters": [
+      "progress",
+      "html",
+      "json"
+    ],
+    "ignore-methods": [
+      "ConfigureAwait",
+      "*Log*",
+      "*Throw*",
+      "RecordMetrics",
+      "RecordSpan",
+      "Record",
+      "CreateObservableGauge"
+    ],
+    "mutate": [
+      "**/*.cs",
+      "!Testing/**/*.cs",
+      "!Serialization/ArrayPoolBufferWriter.cs",
+      "!OutboxMessageBuilder.cs",
+      "!Dispatcher/OutboxChannel.cs",
+      "!Dispatcher/AdaptivePoller.cs",
+      "!DefaultOutbox.cs",
+      "!OutboxException.cs",
+      "!Configuration/*.cs"
+    ],
+    "coverage-analysis": "perTest",
+    "project-info": {
+      "name": "EricksonLopez.Outbox",
+      "version": "1.0.0"
+    }
+  }
+}

@@ -1,0 +1,140 @@
+name: Reusable — .NET Build & Test
+
+on:
+  workflow_call:
+    inputs:
+      dotnet-version:
+        description: ".NET SDK version to use"
+        required: false
+        type: string
+        default: "10.0.x"
+      test-filter:
+        description: "Test filter expression (e.g., Category!=Integration)"
+        required: false
+        type: string
+        default: ""
+      test-project:
+        description: "Specific test project path (leave empty to run all)"
+        required: false
+        type: string
+        default: ""
+      upload-coverage:
+        description: "Whether to upload code coverage artifacts"
+        required: false
+        type: boolean
+        default: true
+      artifact-name:
+        description: "Name for the test results artifact"
+        required: false
+        type: string
+        default: "test-results"
+    secrets:
+      SNK_KEY:
+        description: "Base64-encoded Strong Name key (.snk) for assembly signing"
+        required: false
+      CODECOV_TOKEN:
+        description: "Codecov upload token for coverage reporting"
+        required: false
+      SONAR_TOKEN:
+        description: "SonarCloud token for analysis"
+        required: false
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+
+jobs:
+  build-and-test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: outbox_user
+          POSTGRES_PASSWORD: outbox_password
+          POSTGRES_DB: outbox_db
+        ports:
+          - 5432:5432
+      rabbitmq:
+        image: rabbitmq:3-management-alpine
+        ports:
+          - 5672:5672
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ inputs.dotnet-version }}
+
+      - name: Restore Strong Name key
+        env:
+          SNK_KEY: ${{ secrets.SNK_KEY }}
+        run: |
+          if [ -n "$SNK_KEY" ]; then
+            echo "$SNK_KEY" | tr -d '\n\r ' | base64 --decode > EricksonLopez.Outbox.snk
+          fi
+
+      - name: Restore
+        run: dotnet restore EricksonLopez.Outbox.slnx
+
+      - name: Setup Java (for SonarScanner)
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'zulu'
+
+      - name: Install SonarScanner
+        run: dotnet tool install --global dotnet-sonarscanner
+
+      - name: Begin Sonar Analysis
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        if: env.SONAR_TOKEN != ''
+        run: |
+          dotnet sonarscanner begin /k:"ericksonlopez_${{ github.event.repository.name }}" /o:"ericksonlopez" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml"
+
+      - name: Build (Release)
+        run: dotnet build EricksonLopez.Outbox.slnx --no-restore --configuration Release
+
+      - name: Run tests
+        run: >
+          dotnet test
+          EricksonLopez.Outbox.slnx
+          ${{ inputs.test-project }}
+          --no-build
+          --configuration Release
+          ${{ inputs.test-filter != '' && format('--filter "{0}"', inputs.test-filter) || '' }}
+          --verbosity normal
+          --logger "trx"
+          --results-directory ./test-results
+          --collect:"XPlat Code Coverage"
+          --settings coverlet.runsettings
+
+      - name: End Sonar Analysis
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        if: always() && env.SONAR_TOKEN != ''
+        run: dotnet sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: ./test-results/
+
+      - name: Upload coverage to Codecov
+        if: always() && inputs.upload-coverage
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: "**/coverage.opencover.xml,**/coverage.cobertura.xml"
+          fail_ci_if_error: false
+          flags: unittests
+          name: codecov-${{ inputs.artifact-name }}

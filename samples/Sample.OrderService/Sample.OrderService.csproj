@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <PublishAot>true</PublishAot>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Sample.OrderService</RootNamespace>
+    <AssemblyName>Sample.OrderService</AssemblyName>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MediatR" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Npgsql" />
+    <PackageReference Include="Dapper" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="RabbitMQ.Client" />
+    <PackageReference Include="Swashbuckle.AspNetCore" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Http" />
+    <PackageReference Include="OpenTelemetry.Exporter.Console" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
+    <PackageReference Include="Npgsql.OpenTelemetry" />
+    <PackageReference Include="AspNetCore.HealthChecks.Npgsql" />
+    <PackageReference Include="AspNetCore.HealthChecks.Rabbitmq" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\EricksonLopez.Outbox\EricksonLopez.Outbox.csproj" />
+    <ProjectReference Include="..\..\src\EricksonLopez.Outbox.Storage.PostgreSql\EricksonLopez.Outbox.Storage.PostgreSql.csproj" />
+    <ProjectReference Include="..\..\src\EricksonLopez.Outbox.Brokers.RabbitMQ\EricksonLopez.Outbox.Brokers.RabbitMQ.csproj" />
+    <ProjectReference Include="..\..\src\EricksonLopez.Outbox.SourceGenerators\EricksonLopez.Outbox.SourceGenerators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\..\src\EricksonLopez.Outbox.EntityFrameworkCore\EricksonLopez.Outbox.EntityFrameworkCore.csproj" />
+  </ItemGroup>
+</Project>
