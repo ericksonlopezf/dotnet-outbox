@@ -8,7 +8,7 @@
          RS2008: Removed Ã¢â‚¬â€ AnalyzerReleaseTracking.md + AnalyzerReleaseTracking.Unshipped.md
                  are now present as AdditionalFiles, enabling proper IDE diagnostic history.
          CS1591: XML doc warnings suppressed for analyzer internals. -->
-    <NoWarn>RS1032;CS1591</NoWarn>
+    <NoWarn>RS1032;CS1591;RS1038</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />

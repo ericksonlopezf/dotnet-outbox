@@ -91,7 +91,7 @@ jobs:
           SNK_KEY: ${{ secrets.SNK_KEY }}
         run: |
           if [ -n "$SNK_KEY" ]; then
-            echo "$SNK_KEY" | tr -d '\n\r ' | base64 --decode > EricksonLopez.Outbox.snk
+            echo "$SNK_KEY" | tr -d '\n\r ' | base64 --decode > EricksonLopez.snk
           fi
 
       - name: Restore
@@ -126,7 +126,23 @@ jobs:
         run: |
           VERSION="${{ steps.version.outputs.VERSION }}"
           PACK_ARGS="--no-build --configuration Release --output ./nupkgs -p:VersionPrefix=$VERSION"
-          dotnet pack EricksonLopez.Outbox.slnx $PACK_ARGS
+          dotnet pack src/EricksonLopez.Outbox/EricksonLopez.Outbox.csproj $PACK_ARGS
+          dotnet pack src/EricksonLopez.Outbox.EntityFrameworkCore/EricksonLopez.Outbox.EntityFrameworkCore.csproj $PACK_ARGS
+          dotnet pack src/EricksonLopez.Outbox.Storage.PostgreSql/EricksonLopez.Outbox.Storage.PostgreSql.csproj $PACK_ARGS
+          dotnet pack src/EricksonLopez.Outbox.Storage.SqlServer/EricksonLopez.Outbox.Storage.SqlServer.csproj $PACK_ARGS
+          dotnet pack src/EricksonLopez.Outbox.Storage.MySql/EricksonLopez.Outbox.Storage.MySql.csproj $PACK_ARGS
+          dotnet pack src/EricksonLopez.Outbox.Storage.Oracle/EricksonLopez.Outbox.Storage.Oracle.csproj $PACK_ARGS
+          dotnet pack src/EricksonLopez.Outbox.Storage.Sqlite/EricksonLopez.Outbox.Storage.Sqlite.csproj $PACK_ARGS
+          dotnet pack src/EricksonLopez.Outbox.Brokers.RabbitMQ/EricksonLopez.Outbox.Brokers.RabbitMQ.csproj $PACK_ARGS
+          dotnet pack src/EricksonLopez.Outbox.Brokers.Kafka/EricksonLopez.Outbox.Brokers.Kafka.csproj $PACK_ARGS
+          dotnet pack src/EricksonLopez.Outbox.Brokers.AwsSqs/EricksonLopez.Outbox.Brokers.AwsSqs.csproj $PACK_ARGS
+          dotnet pack src/EricksonLopez.Outbox.Brokers.AzureServiceBus/EricksonLopez.Outbox.Brokers.AzureServiceBus.csproj $PACK_ARGS
+          dotnet pack src/EricksonLopez.Outbox.Brokers.GooglePubSub/EricksonLopez.Outbox.Brokers.GooglePubSub.csproj $PACK_ARGS
+          dotnet pack src/EricksonLopez.Outbox.Brokers.Nats/EricksonLopez.Outbox.Brokers.Nats.csproj $PACK_ARGS
+          dotnet pack src/EricksonLopez.Outbox.Brokers.RedisStreams/EricksonLopez.Outbox.Brokers.RedisStreams.csproj $PACK_ARGS
+          dotnet pack src/EricksonLopez.Outbox.MassTransit/EricksonLopez.Outbox.MassTransit.csproj $PACK_ARGS
+          dotnet pack src/EricksonLopez.Outbox.SourceGenerators/EricksonLopez.Outbox.SourceGenerators.csproj $PACK_ARGS
+          dotnet pack src/EricksonLopez.Outbox.Analyzers/EricksonLopez.Outbox.Analyzers.csproj $PACK_ARGS
           echo "Packed packages:"
           ls -la ./nupkgs/
 
@@ -135,7 +151,7 @@ jobs:
       # using Sigstore's keyless signing via GitHub's OIDC token. The attestation
       # proves that the packages were built from THIS repository's workflow and not
       # tampered with after the build. Consumers can verify via:
-      #   gh attestation verify <package.nupkg> --repo ericksonlopez/dotnet-outbox
+      #   gh attestation verify <package.nupkg> --repo ericksonlopezf/dotnet-outbox
       #
       # Why v2: attest-build-provenance@v2 uses the SLSA v1.0 predicate format
       # (vs v0.2 in v1), which is the current standard for SLSA Build L2/L3
@@ -153,7 +169,7 @@ jobs:
         uses: NuGet/login@v1
         id: login
         with:
-          user: ericksonlopez
+          user: ericksonlopezf
 
       - name: Push to NuGet.org
         run: >
@@ -198,7 +214,7 @@ jobs:
 
             ---
 
-            For detailed changes, see [CHANGELOG.md](https://github.com/ericksonlopez/dotnet-outbox/blob/${{ github.ref_name }}/CHANGELOG.md).
+            For detailed changes, see [CHANGELOG.md](https://github.com/ericksonlopezf/dotnet-outbox/blob/${{ github.ref_name }}/CHANGELOG.md).
 
             ### Installation
 

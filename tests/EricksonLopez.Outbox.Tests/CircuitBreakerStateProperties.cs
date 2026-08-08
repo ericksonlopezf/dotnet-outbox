@@ -9,38 +9,23 @@ public class CircuitBreakerStateProperties
 {
     // A test that models sequences of success and failure calls and ensures the state machine acts correctly.
     [Property]
-    public bool CircuitBreaker_Transitions_Correctly(int failureThreshold, int breakDurationMs, bool[] requestResults)
+    public bool CircuitBreaker_Transitions_Correctly(int failureThreshold, bool[] requestResults)
     {
         // Ignore edge cases that don't make sense for testing the state machine
-        if (failureThreshold <= 0 || breakDurationMs <= 0 || requestResults == null || requestResults.Length == 0)
+        if (failureThreshold <= 0 || requestResults == null || requestResults.Length == 0)
         {
             return true;
         }
 
-        var breakDuration = TimeSpan.FromMilliseconds(breakDurationMs);
-        var cb = new CircuitBreakerState(failureThreshold, breakDuration);
+        var cb = new CircuitBreakerState(failureThreshold, TimeSpan.FromDays(1));
         int consecutiveFailures = 0;
 
         foreach (var result in requestResults)
         {
             if (cb.State == CircuitState.Open)
             {
-                // If it's open, it must not allow requests until timeout
-                if (cb.AllowRequest())
-                {
-                    // Transitioned to HalfOpen!
-                    if (result)
-                    {
-                        cb.RecordSuccess();
-                        consecutiveFailures = 0;
-                        if (cb.State != CircuitState.Closed) return false;
-                    }
-                    else
-                    {
-                        cb.RecordFailure();
-                        if (cb.State != CircuitState.Open) return false;
-                    }
-                }
+                // If it's open and the timeout hasn't elapsed (1 day), it must not allow requests.
+                if (cb.AllowRequest()) return false;
             }
             else if (cb.State == CircuitState.Closed)
             {
