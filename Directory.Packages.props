@@ -15,37 +15,37 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageVersion>
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.10" />
-    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="8.0.13" />
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="8.0.13" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="9.0.18" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="9.0.18" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.InMemory" Version="8.0.13" />
     <PackageVersion Include="Microsoft.Extensions.Caching.Memory" Version="8.0.1" />
     <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.10" />
     <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="10.0.10" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.10" />
     <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.10" />
-    <PackageVersion Include="Microsoft.Data.SqlClient" Version="5.2.1" />
+    <PackageVersion Include="Microsoft.Data.SqlClient" Version="7.0.2" />
     <PackageVersion Include="Dapper" Version="2.1.79" />
     <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.10" />
     <PackageVersion Include="Microsoft.Extensions.ObjectPool" Version="10.0.10" />
     <PackageVersion Include="Npgsql" Version="9.0.0" />
-    <PackageVersion Include="Microsoft.Data.Sqlite" Version="8.0.4" />
+    <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.10" />
     <PackageVersion Include="MySqlConnector" Version="2.3.6" />
     <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.0" />
     <PackageVersion Include="NServiceBus" Version="10.2.8" />
     <PackageVersion Include="Oracle.ManagedDataAccess.Core" Version="23.4.0" />
-    <PackageVersion Include="MassTransit" Version="8.2.1" />
+    <PackageVersion Include="MassTransit" Version="9.2.0" />
     <PackageVersion Include="Savorboard.CAP.InMemoryMessageQueue" Version="8.2.0" />
     <PackageVersion Include="WolverineFx" Version="6.24.7" />
     <PackageVersion Include="DotNetCore.CAP" Version="8.2.0" />
     <PackageVersion Include="DotNetCore.CAP.InMemoryStorage" Version="8.2.0" />
     <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="8.0.0" />
     <PackageVersion Include="RabbitMQ.Client" Version="7.1.1" />
-    <PackageVersion Include="Google.Cloud.PubSub.V1" Version="3.23.0" />
+    <PackageVersion Include="Google.Cloud.PubSub.V1" Version="3.36.0" />
     <PackageVersion Include="NATS.Client.Core" Version="2.5.5" />
     <PackageVersion Include="StackExchange.Redis" Version="2.8.0" />
     <PackageVersion Include="Confluent.Kafka" Version="2.3.0" />
-    <PackageVersion Include="Azure.Messaging.ServiceBus" Version="7.17.4" />
-    <PackageVersion Include="AWSSDK.SQS" Version="3.7.300.73" />
+    <PackageVersion Include="Azure.Messaging.ServiceBus" Version="7.20.2" />
+    <PackageVersion Include="AWSSDK.SQS" Version="4.0.100.7" />
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="5.6.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="5.6.0" />
     <PackageVersion Include="BenchmarkDotNet" Version="0.15.8">
@@ -67,16 +67,14 @@
     <PackageVersion Include="Testcontainers.Toxiproxy" Version="4.13.0" />
     <PackageVersion Include="ToxiproxyNetCore" Version="1.0.50" />
     <PackageVersion Include="xunit" Version="2.9.3" />
-    <!-- ISSUE-PKG2 FIX: PrivateAssets="all" prevents xunit.runner.visualstudio from leaking
-         as a transitive dependency into production projects that reference test assemblies. -->
     <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageVersion>
-    <PackageVersion Include="coverlet.collector" Version="6.0.1" />
+    <PackageVersion Include="coverlet.collector" Version="10.0.1" />
     <PackageVersion Include="Moq" Version="4.20.70" />
     <PackageVersion Include="NSubstitute" Version="5.1.0" />
-    <PackageVersion Include="FsCheck.Xunit" Version="3.0.0-rc3" />
+    <PackageVersion Include="FsCheck.Xunit" Version="3.3.4" />
     <PackageVersion Include="AutoFixture" Version="4.18.1" />
     <PackageVersion Include="AutoFixture.AutoNSubstitute" Version="4.18.1" />
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.10" />
