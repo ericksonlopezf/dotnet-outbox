@@ -96,7 +96,7 @@ jobs:
           --
           --filter "${{ inputs.benchmark-filter || '*' }}"
           --job short
-          --runtimes net8.0 net10.0
+          --runtimes net8.0 net9.0 net10.0
           --exporters json markdown
           --artifacts ./benchmarks/results
 
@@ -124,7 +124,7 @@ jobs:
 
           Run: ${{ github.run_id }}
           Trigger: ${{ github.event_name }}
-          Runtime: .NET 8.0 + .NET 10.0
+          Runtime: .NET 8.0 + .NET 9.0 + .NET 10.0
           Filter: ${{ inputs.benchmark-filter || '*' }}
           "
             git push origin HEAD:${{ github.head_ref || github.ref_name }}
