@@ -5,6 +5,13 @@ All notable changes to `EricksonLopez.Outbox` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1](https://github.com/ericksonlopezf/dotnet-outbox/compare/v1.0.0...v1.0.1) (2026-08-09)
+
+
+### 🐛 Bug Fixes
+
+* **benchmarks:** support net8.0 and net9.0 in benchmarks project and workflow ([717fc43](https://github.com/ericksonlopezf/dotnet-outbox/commit/717fc43f99ad1f62b6a171899d26d00559d32803))
+
 ## [Unreleased]
 
 ## [1.0.0] - 2026-08-08
