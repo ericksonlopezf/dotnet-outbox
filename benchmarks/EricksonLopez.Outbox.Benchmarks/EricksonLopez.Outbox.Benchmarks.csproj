@@ -2,7 +2,7 @@
   <PropertyGroup>
     <Description>EricksonLopez.Outbox Benchmarks. Provides high-performance, Zero-Reflection, NativeAOT-ready transactional outbox capabilities.</Description>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Optimize>true</Optimize>
@@ -20,6 +20,7 @@
     <PackageReference Include="Dapper" />
     <PackageReference Include="MassTransit" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+    <PackageReference Include="Microsoft.Extensions.ObjectPool" />
     <PackageReference Include="NServiceBus" />
     <PackageReference Include="Savorboard.CAP.InMemoryMessageQueue" />
     <PackageReference Include="WolverineFx" />
