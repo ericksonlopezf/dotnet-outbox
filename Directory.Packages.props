@@ -35,7 +35,7 @@
     <PackageVersion Include="Oracle.ManagedDataAccess.Core" Version="23.4.0" />
     <PackageVersion Include="MassTransit" Version="9.2.0" />
     <PackageVersion Include="Savorboard.CAP.InMemoryMessageQueue" Version="8.2.0" />
-    <PackageVersion Include="WolverineFx" Version="5.14.0" />
+    <PackageVersion Include="WolverineFx" Version="5.40.1" />
     <PackageVersion Include="DotNetCore.CAP" Version="10.0.2" />
     <PackageVersion Include="DotNetCore.CAP.InMemoryStorage" Version="10.0.2" />
     <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.301" />
