@@ -20,6 +20,7 @@
     <PackageReference Include="Dapper" />
     <PackageReference Include="MassTransit" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+    <PackageReference Include="Microsoft.Extensions.Logging" VersionOverride="10.0.11" />
     <PackageReference Include="Microsoft.Extensions.ObjectPool" />
     <PackageReference Include="NServiceBus" />
     <PackageReference Include="Savorboard.CAP.InMemoryMessageQueue" />
