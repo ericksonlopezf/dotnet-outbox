@@ -1,15 +1,15 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using EricksonLopez.Outbox.Persistence;
 using Microsoft.Extensions.Options;
 using Npgsql;
-
-using EricksonLopez.Outbox.Persistence;
 
 namespace EricksonLopez.Outbox.Storage.PostgreSql;
 
 /// <summary>
-/// PostgreSQL implementation of <see cref="IIdempotencyRepository"/>.
+/// Provides a PostgreSQL implementation of <see cref="IIdempotencyRepository"/>.
 /// </summary>
 public sealed class PostgreSqlIdempotencyRepository : IIdempotencyRepository
 {
@@ -24,6 +24,7 @@ public sealed class PostgreSqlIdempotencyRepository : IIdempotencyRepository
     /// <param name="options">The outbox runtime options.</param>
     /// <exception cref="ArgumentNullException"><paramref name="dataSource"/> or <paramref name="options"/> is <see langword="null"/>.</exception>
     [CLSCompliant(false)]
+
     public PostgreSqlIdempotencyRepository(NpgsqlDataSource dataSource, IOptionsMonitor<OutboxRuntimeOptions> options)
     {
         _dataSource = dataSource ?? throw new ArgumentNullException(nameof(dataSource));
@@ -86,3 +87,6 @@ public sealed class PostgreSqlIdempotencyRepository : IIdempotencyRepository
         await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 }
+
+
+

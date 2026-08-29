@@ -1,3 +1,4 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Text;
 using System.Threading;
@@ -29,7 +30,7 @@ public sealed class ErrorHandlingBrokerPublisher : IBrokerPublisher
     /// <inheritdoc/>
     public ValueTask<DispatchResult> PublishRawAsync(
         OutboxMessage message,
-        MessageMetadata metadata,
+        OutboxMessageMetadata metadata,
         DispatchContext context)
     {
         _logger.LogInformation(
@@ -76,3 +77,7 @@ public sealed class ErrorHandlingBrokerPublisher : IBrokerPublisher
         }
     }
 }
+
+
+
+

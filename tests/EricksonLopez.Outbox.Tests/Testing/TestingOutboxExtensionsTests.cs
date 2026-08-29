@@ -1,9 +1,11 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Linq;
 using AwesomeAssertions;
+using EricksonLopez.Outbox.Testing;
+using EricksonLopez.Result;
 using NSubstitute;
 using Xunit;
-using EricksonLopez.Outbox.Testing;
 
 namespace EricksonLopez.Outbox.Tests.Testing;
 
@@ -247,3 +249,5 @@ public class TestingOutboxExtensionsTests
         act2.Should().Throw<InvalidOperationException>();
     }
 }
+
+

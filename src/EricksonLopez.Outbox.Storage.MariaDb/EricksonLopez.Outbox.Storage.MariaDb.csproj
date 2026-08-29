@@ -1,0 +1,22 @@
+<!-- Copyright © Erickson Lopez. MIT License. -->
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>MariaDB storage provider for EricksonLopez.Outbox. Enables reliable, high-performance, Zero-Reflection, NativeAOT-ready outbox pattern implementation using MariaDB.</Description>
+    <PackageTags>$(CommonPackageTags);mariadb;mysqlconnector;database;native-aot</PackageTags>
+    <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MySqlConnector" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\EricksonLopez.Outbox\EricksonLopez.Outbox.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    
+  </ItemGroup>
+</Project>

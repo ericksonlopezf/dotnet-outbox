@@ -1,3 +1,5 @@
+<!-- Copyright © Erickson Lopez. MIT License. -->
+
 # Level 11: Administration and Monitoring
 
 This level covers the administrative tools provided by `EricksonLopez.Outbox` to monitor queue health and manage failures through the Dead Letter Queue (DLQ).
@@ -36,7 +38,55 @@ app.MapGet("/health/outbox", async (IOutboxRepository repository, CancellationTo
 
 ---
 
-## 2. Managing the Dead Letter Queue (`IDeadLetterRepository`)
+## 2. Single Message Lookup (`IOutboxRepository.GetMessageAsync`)
+
+The `IOutboxRepository` exposes two overloads for retrieving a single outbox message by its ID:
+
+```csharp
+public interface IOutboxRepository
+{
+    // Look up a message by ID (any state: Pending, InFlight, Dispatched, Failed).
+    // Default Interface Method (DIM) — throws NotSupportedException if not overridden
+    // by the storage engine implementation.
+    ValueTask<OutboxMessage?> GetMessageAsync(
+        Guid messageId,
+        CancellationToken cancellationToken = default);
+
+    // Overload with createdAt hint for range-partitioned tables.
+    // Provides a PostgreSQL partition pruning hint: the query planner prunes all partitions
+    // except the one containing the row with created_at ≈ createdAtHint.
+    ValueTask<OutboxMessage?> GetMessageAsync(
+        Guid messageId,
+        DateTimeOffset createdAtHint,
+        CancellationToken cancellationToken = default);
+}
+```
+
+### Usage
+
+```csharp
+using EricksonLopez.Outbox.Persistence;
+
+// Basic lookup:
+var message = await repository.GetMessageAsync(knownMessageId, ct);
+if (message is null) return Results.NotFound();
+
+// Partition-pruning lookup (significantly faster on partitioned tables):
+var message = await repository.GetMessageAsync(
+    messageId: knownMessageId,
+    createdAtHint: DateTimeOffset.UtcNow.AddHours(-2), // approximate creation time
+    cancellationToken: ct);
+```
+
+> [!IMPORTANT]
+> `GetMessageAsync` is a **Default Interface Method (DIM)**. If the storage provider you are using does not override it, calling it will throw `NotSupportedException`. `PostgreSqlOutboxRepository` provides a concrete override.
+
+> [!TIP]
+> **When to use `createdAtHint`?** In deployments using `PARTITION BY RANGE(created_at)` in PostgreSQL, providing the approximate creation timestamp allows the query planner to prune all irrelevant child partitions, resulting in a single-partition scan instead of a full sequential scan across all partitions. Even an approximate hint (within the day) is sufficient for partition pruning.
+
+---
+
+## 3. Managing the Dead Letter Queue (`IDeadLetterRepository`)
 
 Messages that exceed their maximum retry limits, or encounter fatal errors (like payload size violations), are moved to the Dead Letter Queue (DLQ).
 
@@ -59,7 +109,7 @@ public interface IDeadLetterRepository
     // Purges all DLQ messages older than the specified timestamp.
     ValueTask PurgeAsync(DateTimeOffset olderThan, CancellationToken cancellationToken = default);
 
-    // Persists a new dead-lettered message (called internally by the dispatcher).
+    // Persists a new dead-lettered message (called internally by the dispatcher)
     ValueTask InsertAsync(
         DeadLetterMessage message,
         IOutboxTransactionContext? transaction = default,
@@ -126,7 +176,69 @@ app.MapDelete("/admin/dlq/purge", async (
 
 ---
 
-## 3. `OutboxConstants` — Reserved Identifiers
+## 4. Soft-Delete Retention (`PurgeDispatchedMessagesAsync` + `AddOutboxCleanupService`)
+
+By default, `DeleteOnDispatch = true`: dispatched messages are **deleted** from the outbox table immediately after successful publication.
+
+If you need an audit trail, set `DeleteOnDispatch = false` (soft-delete mode). Dispatched messages are then retained with `state = 2 (Dispatched)`. You must then configure a retention policy to prevent unbounded table growth.
+
+### Option A — Automatic: `AddOutboxCleanupService()`
+
+Register the built-in background cleanup service:
+
+```csharp
+// Step 1: Configure soft-delete mode
+builder.Services.AddOutbox(options =>
+{
+    options.ConfigureRuntimeOptions(runtime =>
+    {
+        runtime.DeleteOnDispatch = false; // Retain dispatched messages for audit
+    });
+});
+
+// Step 2: Register the automatic cleanup worker
+builder.Services.AddOutboxCleanupService(options =>
+{
+    options.Enabled = true;                           // Must be explicitly opted in
+    options.RetentionPeriod = TimeSpan.FromDays(7);  // Delete after 7 days
+    options.CleanupInterval = TimeSpan.FromHours(1); // Run every hour
+    options.BatchSize = 1000;                         // Max rows per DELETE (avoids lock escalation)
+});
+```
+
+### `OutboxCleanupOptions` Reference
+
+| Property | Default | Description |
+|---|---|---|
+| `Enabled` | `false` | Must be `true` to activate the background cleanup service. Opt-in by design. |
+| `RetentionPeriod` | `7 days` | Messages dispatched earlier than `(UtcNow - RetentionPeriod)` are purged. |
+| `CleanupInterval` | `1 hour` | Interval between successive cleanup passes. |
+| `BatchSize` | `1000` | Max rows per `DELETE` batch to avoid table lock escalation. |
+
+### Option B — Manual: `IOutboxRepository.PurgeDispatchedMessagesAsync()`
+
+For on-demand purging without the background service:
+
+```csharp
+using EricksonLopez.Outbox.Persistence;
+
+// IOutboxRepository.PurgeDispatchedMessagesAsync(cutoff, batchSize, ct):
+//   cutoff    — delete rows where ProcessedAt < cutoff
+//   batchSize — max rows per DELETE (prevents lock escalation)
+//   returns   — count of rows deleted
+var cutoff = DateTimeOffset.UtcNow.AddDays(-7);
+var purgedCount = await repository.PurgeDispatchedMessagesAsync(
+    cutoff: cutoff,
+    batchSize: 1000,
+    cancellationToken: ct);
+```
+
+> [!WARNING]
+> `PurgeDispatchedMessagesAsync` has **no effect** when `DeleteOnDispatch = true` (the default configuration), because dispatched messages are already deleted at dispatch time. Only call it in soft-delete deployments (`DeleteOnDispatch = false`).
+
+---
+
+## 5. `OutboxConstants` — Reserved Identifiers
 
 ```csharp
 using EricksonLopez.Outbox;
@@ -140,7 +252,7 @@ When calling `IInboxIdempotencyChecker.ShouldSkipAsync()` or `ShouldProcessAsync
 
 ---
 
-## 4. OpenTelemetry — `OutboxActivitySource`
+## 6. OpenTelemetry — `OutboxActivitySource`
 
 The library emits structured distributed tracing via `OutboxActivitySource`:
 
@@ -181,7 +293,7 @@ Spans emitted by the outbox follow the [OpenTelemetry Messaging Semantic Convent
 
 ---
 
-## 5. Metrics (`OutboxMetrics`)
+## 7. Metrics (`OutboxMetrics`)
 
 The library emits `System.Diagnostics.Metrics` instruments:
 

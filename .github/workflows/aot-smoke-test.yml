@@ -6,9 +6,8 @@ name: NativeAOT Smoke Test
 #
 # The smoke test:
 #   1. Restores and builds the solution in Release mode.
-#   2. Publishes the AotTests console app with PublishAot=true. If any
-#      referenced API uses reflection, MakeGenericType, or Expression.Compile
-#      without the [RequiresDynamicCode] / [RequiresUnreferencedCode] guards,
+#   2. Publishes the AotSmokeTest console app with PublishAot=true. If any
+#      referenced API uses reflection without proper trimming annotations,
 #      ILC will emit IL2026 / IL3050 warnings — which we treat as errors.
 #   3. Runs the published native binary and asserts a zero exit code.
 #
@@ -18,7 +17,6 @@ name: NativeAOT Smoke Test
 # ────────────────────────────────────────────────────────────────────────────
 
 on:
-  # Called from ci.yml for every push/PR — blocking gate
   workflow_call:
     secrets:
       SNK_KEY:
@@ -37,8 +35,6 @@ env:
 jobs:
   aot-smoke-test:
     name: NativeAOT Smoke Test
-    # linux-latest is the fastest and cheapest runner for NativeAOT cross-compilation.
-    # NativeAOT on Linux requires the native linker (lld is pre-installed on ubuntu-latest).
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -49,14 +45,17 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: "8.0.x"
+          dotnet-version: |
+            8.0.x
+            9.0.x
+            10.0.x
 
       - name: Restore Strong Name key
         env:
           SNK_KEY: ${{ secrets.SNK_KEY }}
         run: |
           if [ -n "$SNK_KEY" ]; then
-            echo "$SNK_KEY" | tr -d '\n\r ' | base64 --decode > EricksonLopez.Outbox.snk
+            echo "$SNK_KEY" | tr -d '\n\r ' | base64 --decode > EricksonLopez.snk
           fi
 
       - name: Install NativeAOT prerequisites (clang, lld, zlib)
@@ -71,13 +70,10 @@ jobs:
         run: dotnet build EricksonLopez.Outbox.slnx --no-restore --configuration Release
 
       # ─── Publish with AOT ────────────────────────────────────────────────
-      # TreatWarningsAsErrors=true ensures that any IL2026 / IL3050 warning
-      # from the ILC trimmer is treated as a hard build error — not just a hint.
-      # This is the primary validation gate for NativeAOT compatibility.
       - name: Publish AotSmokeTest (NativeAOT)
         run: >
           dotnet publish
-          tests/EricksonLopez.Outbox.AotTests/EricksonLopez.Outbox.AotTests.csproj
+          tests/EricksonLopez.Outbox.AotSmokeTest/EricksonLopez.Outbox.AotSmokeTest.csproj
           --configuration Release
           --runtime linux-x64
           --self-contained
@@ -88,12 +84,10 @@ jobs:
           DOTNET_EnableAotCompilationWarningsAsErrors: true
 
       # ─── Run the native binary ───────────────────────────────────────────
-      # Verifies the published binary executes correctly with the expected
-      # smoke-test assertions. A non-zero exit code from the binary fails this step.
       - name: Run NativeAOT binary
         run: |
-          chmod +x ./aot-output/EricksonLopez.Outbox.AotTests
-          ./aot-output/EricksonLopez.Outbox.AotTests
+          chmod +x ./aot-output/EricksonLopez.Outbox.AotSmokeTest
+          ./aot-output/EricksonLopez.Outbox.AotSmokeTest
           echo "Exit code: $?"
 
       # ─── Upload binary for debugging if needed ────────────────────────────

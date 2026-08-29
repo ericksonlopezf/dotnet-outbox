@@ -1,16 +1,18 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Threading;
 using System.Threading.Tasks;
 using AwesomeAssertions;
+using Dapper;
 using EricksonLopez.Outbox.Storage.PostgreSql;
 using Microsoft.Extensions.Logging.Abstractions;
 using Npgsql;
 using Testcontainers.PostgreSql;
 using Xunit;
-using Dapper;
 
-namespace EricksonLopez.Outbox.Tests;
+namespace EricksonLopez.Outbox.Storage.PostgreSql.Tests;
 
+[Trait("Category", "Integration")]
 public class PostgreSqlVersionValidatorTests : IAsyncLifetime
 {
     private PostgreSqlContainer? _container;
@@ -18,8 +20,7 @@ public class PostgreSqlVersionValidatorTests : IAsyncLifetime
 
     public async Task InitializeAsync()
     {
-        _container = new PostgreSqlBuilder()
-            .WithImage("postgres:15-alpine")
+        _container = new PostgreSqlBuilder("postgres:15-alpine")
             .Build();
             
         await _container.StartAsync();
@@ -53,8 +54,7 @@ public class PostgreSqlVersionValidatorTests : IAsyncLifetime
     [Fact]
     public async Task StartAsync_Should_Throw_For_Version_14()
     {
-        await using var pg14 = new PostgreSqlBuilder()
-            .WithImage("postgres:14-alpine")
+        await using var pg14 = new PostgreSqlBuilder("postgres:14-alpine")
             .Build();
         
         await pg14.StartAsync();
@@ -81,7 +81,30 @@ public class PostgreSqlVersionValidatorTests : IAsyncLifetime
         // It shouldn't throw NotSupportedException or anything, it should just swallow the exception.
         await act.Should().NotThrowAsync();
     }
+
+    [Theory]
+    [InlineData(150000, true)]
+    [InlineData(150001, true)]
+    [InlineData(160000, true)]
+    [InlineData(149999, false)]
+    [InlineData(140000, false)]
+    public void ValidateServerVersion_BoundaryChecks(int versionNum, bool shouldPass)
+    {
+        var act = () => PostgreSqlVersionValidator.ValidateServerVersion(versionNum, NullLogger<PostgreSqlVersionValidator>.Instance);
+        if (shouldPass)
+        {
+            act.Should().NotThrow();
+        }
+        else
+        {
+            var ex = act.Should().Throw<NotSupportedException>();
+            ex.WithMessage("*PostgreSQL 15 or higher*");
+        }
+    }
 }
+
+
+
 
 
 

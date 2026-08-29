@@ -1,4 +1,4 @@
-// Stryker disable all : Covered by ADR-013. Edge cases, micro-optimizations, logging, and validation strings are not rigorously mutated.
+// Copyright © Erickson Lopez. MIT License.
 using System;
 
 namespace EricksonLopez.Outbox;
@@ -13,7 +13,6 @@ namespace EricksonLopez.Outbox;
 /// <param name="Id">The unique identifier of the publisher instance.</param>
 /// <param name="Name">The human-readable name or role of the publisher.</param>
 /// <param name="RegisteredAt">The exact date and time the publisher was registered or started.</param>
-// Stryker disable String : Identifiers, exception messages, and constants are not tested for exact matching
 public readonly record struct Publisher(
     string Id,
     string Name,
@@ -44,3 +43,4 @@ public readonly record struct Publisher(
         Name: "none",
         RegisteredAt: DateTimeOffset.MinValue);
 }
+

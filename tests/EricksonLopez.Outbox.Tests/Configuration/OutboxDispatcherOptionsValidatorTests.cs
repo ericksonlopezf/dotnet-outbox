@@ -1,5 +1,7 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using AwesomeAssertions;
+using EricksonLopez.Result;
 using Microsoft.Extensions.Options;
 using Xunit;
 
@@ -124,7 +126,7 @@ public class OutboxDispatcherOptionsValidatorTests
         };
         var result = _sut.Validate(null, options);
         result.Failed.Should().BeTrue();
-        result.FailureMessage.Should().Contain(nameof(options.PendingCountRefreshInterval));
+        result.FailureMessage.Should().Be("PendingCountRefreshInterval must be greater than TimeSpan.Zero. Recommended range: 5\u201360 seconds.");
     }
 
     [Fact]
@@ -165,3 +167,4 @@ public class OutboxDispatcherOptionsValidatorTests
         result.FailureMessage.Should().Contain(nameof(options.DbRetryBaseDelayMs));
     }
 }
+

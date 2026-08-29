@@ -1,13 +1,13 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Data;
-
 using EricksonLopez.Outbox.Persistence;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace EricksonLopez.Outbox.Storage.SqlServer;
 
 /// <summary>
-/// Dependency Injection setup extensions for SQL Server Outbox Storage.
+/// Provides extension methods for configuring SQL Server outbox storage.
 /// </summary>
 public static class SqlServerOutboxSetup
 {
@@ -48,3 +48,4 @@ public static class SqlServerOutboxSetup
         return options;
     }
 }
+

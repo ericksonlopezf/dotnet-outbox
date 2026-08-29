@@ -1,24 +1,30 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
+using System.Data;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using AutoFixture;
 using AutoFixture.AutoNSubstitute;
 using AwesomeAssertions;
 using Dapper;
 using EricksonLopez.Outbox;
+using EricksonLopez.Outbox.Persistence;
 using EricksonLopez.Outbox.Storage.MySql;
-using MySqlConnector;
-using Xunit;
 using Microsoft.Extensions.Options;
+using MySqlConnector;
 using NSubstitute;
+using Xunit;
 
-namespace EricksonLopez.Outbox.Tests;
+namespace EricksonLopez.Outbox.Storage.MySql.Tests;
 
-public class MySqlDeadLetterRepositoryTests : IClassFixture<MySqlContainerFixture>, IAsyncLifetime
+[Collection("MySql")]
+[Trait("Category", "Integration")]
+public class MySqlDeadLetterRepositoryTests : IAsyncLifetime
 {
     private readonly MySqlContainerFixture _fixture;
     private readonly IFixture _autoFixture;
-    private readonly EricksonLopez.Outbox.OutboxRuntimeOptions _options = new() { SchemaName = "testdb", TableName = "outbox_messages" };
+    private readonly OutboxRuntimeOptions _options = new() { SchemaName = "", TableName = "outbox_messages" };
 
     public MySqlDeadLetterRepositoryTests(MySqlContainerFixture fixture)
     {
@@ -28,46 +34,74 @@ public class MySqlDeadLetterRepositoryTests : IClassFixture<MySqlContainerFixtur
 
     public async Task InitializeAsync()
     {
-        using var connection = new MySqlConnection(_fixture.Container.GetConnectionString() + ";AllowLoadLocalInfile=true");
-        await connection.OpenAsync();
-
-        const string schema = @"
-            CREATE TABLE IF NOT EXISTS outbox_messages_dead_letters (
-                id VARCHAR(36) PRIMARY KEY,
-                original_message_id VARCHAR(36) NOT NULL,
-                type VARCHAR(255) NOT NULL,
-                payload LONGBLOB,
-                correlation_id VARCHAR(255),
-                causation_id VARCHAR(255),
-                headers_json LONGBLOB,
-                created_at DATETIME(6) NOT NULL,
-                dead_lettered_at DATETIME(6) NOT NULL,
-                retry_count INT NOT NULL DEFAULT 0,
-                reason LONGTEXT,
-                last_error LONGTEXT
-            );
-            TRUNCATE TABLE outbox_messages_dead_letters;";
-        
-        await connection.ExecuteAsync(schema);
+        await MySqlTestDatabase.EnsureSchemaAsync(_fixture.Container.GetConnectionString() + ";AllowLoadLocalInfile=true");
     }
 
     public Task DisposeAsync() => Task.CompletedTask;
 
-    private MySqlDeadLetterRepository CreateSut()
+    private MySqlDeadLetterRepository CreateSut(OutboxRuntimeOptions? customOptions = null)
     {
-        var options = new Microsoft.Extensions.Options.OptionsMonitor<OutboxRuntimeOptions>(
-            new Microsoft.Extensions.Options.OptionsFactory<OutboxRuntimeOptions>(
-                Array.Empty<Microsoft.Extensions.Options.IConfigureOptions<OutboxRuntimeOptions>>(),
-                Array.Empty<Microsoft.Extensions.Options.IPostConfigureOptions<OutboxRuntimeOptions>>()),
-            Array.Empty<Microsoft.Extensions.Options.IOptionsChangeTokenSource<OutboxRuntimeOptions>>(),
-            new Microsoft.Extensions.Options.OptionsCache<OutboxRuntimeOptions>());
-        // Since IOptionsMonitor doesn't easily let us mock the CurrentValue directly if it doesn't match the cache,
-        // wait, I can just use NSubstitute to mock IOptionsMonitor!
-        
-        var mockedOptions = NSubstitute.Substitute.For<IOptionsMonitor<OutboxRuntimeOptions>>();
-        mockedOptions.CurrentValue.Returns(_options);
+        var mockedOptions = Substitute.For<IOptionsMonitor<OutboxRuntimeOptions>>();
+        mockedOptions.CurrentValue.Returns(customOptions ?? _options);
 
         return new MySqlDeadLetterRepository(() => new MySqlConnection(_fixture.Container.GetConnectionString() + ";AllowLoadLocalInfile=true"), mockedOptions);
+    }
+
+    [Fact]
+    public void Constructor_NullConnectionFactory_ThrowsArgumentNullException()
+    {
+        var mockedOptions = Substitute.For<IOptionsMonitor<OutboxRuntimeOptions>>();
+        mockedOptions.CurrentValue.Returns(_options);
+
+        Action act = () => { _ = new MySqlDeadLetterRepository(null!, mockedOptions); };
+        act.Should().Throw<ArgumentNullException>().WithParameterName("connectionFactory");
+    }
+
+    [Fact]
+    public void Constructor_NullOptions_ThrowsArgumentNullException()
+    {
+        Action act = () => { _ = new MySqlDeadLetterRepository(() => new MySqlConnection(), null!); };
+        act.Should().Throw<ArgumentNullException>().WithParameterName("options");
+    }
+
+    [Fact]
+    public void IsFirstPartyImplementation_Should_Be_True()
+    {
+        var sut = CreateSut();
+        sut.IsFirstPartyImplementation.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Operations_WithNonExistentSchema_ThrowsMySqlExceptionContainingSchemaName()
+    {
+        var custom = new OutboxRuntimeOptions { SchemaName = "non_existent_schema_xyz", TableName = "outbox_messages" };
+        var sut = CreateSut(custom);
+        
+        Func<Task> act = async () => await sut.GetAsync(10);
+        var ex = await act.Should().ThrowAsync<MySqlException>();
+        ex.Which.Message.Should().Contain("non_existent_schema_xyz");
+    }
+
+    [Fact]
+    public async Task InsertAsync_WithoutTransaction_DisposesConnection()
+    {
+        MySqlConnection? createdConn = null;
+        var mockedOptions = Substitute.For<IOptionsMonitor<OutboxRuntimeOptions>>();
+        mockedOptions.CurrentValue.Returns(_options);
+        var sut = new MySqlDeadLetterRepository(() => {
+            createdConn = new MySqlConnection(_fixture.Container.GetConnectionString() + ";AllowLoadLocalInfile=true");
+            return createdConn;
+        }, mockedOptions);
+
+        var msg = _autoFixture.Create<DeadLetterMessage>() with {
+            Payload = "{}"u8.ToArray(),
+            Headers = "{}"u8.ToArray(),
+            CreatedAt = DateTimeOffset.UtcNow,
+            DeadLetteredAt = DateTimeOffset.UtcNow
+        };
+        await sut.InsertAsync(msg);
+        createdConn.Should().NotBeNull();
+        createdConn!.State.Should().Be(ConnectionState.Closed);
     }
 
     [Fact]
@@ -86,6 +120,25 @@ public class MySqlDeadLetterRepositoryTests : IClassFixture<MySqlContainerFixtur
         await using var connection = new MySqlConnection(_fixture.Container.GetConnectionString() + ";AllowLoadLocalInfile=true");
         var count = await connection.ExecuteScalarAsync<int>("SELECT COUNT(1) FROM outbox_messages_dead_letters WHERE id = @Id", new { Id = msg.Id.ToString() });
         count.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task InsertAsync_WithNullReason_DefaultsToUnknown()
+    {
+        var sut = CreateSut();
+        var msg = _autoFixture.Create<DeadLetterMessage>() with { 
+            Payload = "{}"u8.ToArray(),
+            Headers = "{}"u8.ToArray(),
+            Reason = null!,
+            CreatedAt = DateTimeOffset.UtcNow,
+            DeadLetteredAt = DateTimeOffset.UtcNow
+        };
+
+        await sut.InsertAsync(msg);
+
+        await using var connection = new MySqlConnection(_fixture.Container.GetConnectionString() + ";AllowLoadLocalInfile=true");
+        var reason = await connection.ExecuteScalarAsync<string>("SELECT reason FROM outbox_messages_dead_letters WHERE id = @Id", new { Id = msg.Id.ToString() });
+        reason.Should().Be("Unknown");
     }
 
     [Fact]
@@ -122,7 +175,7 @@ public class MySqlDeadLetterRepositoryTests : IClassFixture<MySqlContainerFixtur
         await connection.OpenAsync();
         await using var tx = await connection.BeginTransactionAsync();
 
-        await sut.InsertAsync(msg, new EricksonLopez.Outbox.Persistence.DbTransactionContext(tx));
+        await sut.InsertAsync(msg, new DbTransactionContext(tx));
 
         await tx.RollbackAsync();
 
@@ -141,15 +194,17 @@ public class MySqlDeadLetterRepositoryTests : IClassFixture<MySqlContainerFixtur
             CorrelationId = null,
             CausationId = null,
             LastError = null,
+            Reason = "ExplicitReason",
             CreatedAt = DateTimeOffset.UtcNow,
             DeadLetteredAt = DateTimeOffset.UtcNow
         };
         var msg2 = _autoFixture.Create<DeadLetterMessage>() with { 
-            Payload = "{}"u8.ToArray(),
-            Headers = "{}"u8.ToArray(),
+            Payload = System.Text.Encoding.UTF8.GetBytes("{\"mysql\":\"custom_data\"}"),
+            Headers = System.Text.Encoding.UTF8.GetBytes("{\"mysql\":\"custom_headers\"}"),
             CorrelationId = "corr",
             CausationId = "caus",
             LastError = "err",
+            Reason = "AnotherReason",
             CreatedAt = DateTimeOffset.UtcNow,
             DeadLetteredAt = DateTimeOffset.UtcNow
         };
@@ -166,11 +221,40 @@ public class MySqlDeadLetterRepositoryTests : IClassFixture<MySqlContainerFixtur
         retrieved1.CorrelationId.Should().BeNull();
         retrieved1.CausationId.Should().BeNull();
         retrieved1.LastError.Should().BeNull();
+        retrieved1.Reason.Should().Be("ExplicitReason");
 
         var retrieved2 = results.FirstOrDefault(m => m.Id == msg2.Id)!;
         retrieved2.CorrelationId.Should().Be("corr");
         retrieved2.CausationId.Should().Be("caus");
         retrieved2.LastError.Should().Be("err");
+        retrieved2.Reason.Should().Be("AnotherReason");
+        System.Text.Encoding.UTF8.GetString(retrieved2.Payload.Span).Should().Be("{\"mysql\":\"custom_data\"}");
+        System.Text.Encoding.UTF8.GetString(retrieved2.Headers.Span).Should().Be("{\"mysql\":\"custom_headers\"}");
+    }
+
+    [Fact]
+    public async Task GetAsync_WithNullDbFields_ReturnsDefaultValues()
+    {
+        var id = Guid.NewGuid();
+        var origId = Guid.NewGuid();
+        await using var connection = new MySqlConnection(_fixture.Container.GetConnectionString() + ";AllowLoadLocalInfile=true");
+        await connection.OpenAsync();
+        await connection.ExecuteAsync(@"
+            INSERT INTO outbox_messages_dead_letters 
+            (id, original_message_id, type, payload, correlation_id, causation_id, headers_json, created_at, dead_lettered_at, retry_count, reason, last_error)
+            VALUES (@Id, @OrigId, 'test.type', NULL, NULL, NULL, NULL, UTC_TIMESTAMP(), UTC_TIMESTAMP(), 0, NULL, NULL)",
+            new { Id = id.ToString(), OrigId = origId.ToString() });
+
+        var sut = CreateSut();
+        var results = await sut.GetAsync(100);
+        var msg = results.FirstOrDefault(m => m.Id == id);
+        msg.Should().NotBeNull();
+        msg!.Reason.Should().Be("Unknown");
+        System.Text.Encoding.UTF8.GetString(msg.Payload.Span).Should().Be("{}");
+        System.Text.Encoding.UTF8.GetString(msg.Headers.Span).Should().Be("{}");
+        msg.CorrelationId.Should().BeNull();
+        msg.CausationId.Should().BeNull();
+        msg.LastError.Should().BeNull();
     }
 
     [Fact]
