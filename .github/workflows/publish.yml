@@ -12,7 +12,7 @@ name: Publish NuGet
 #   Maintainer merges Release PR →
 #   release-please creates GitHub Release + tag vX.Y.Z →
 #   release-please triggers this workflow via workflow_dispatch →
-#   Pack → Sign → Attest → Publish to NuGet.org
+#   Verify Mutation Gate (run Stryker if needed) → Pack → Sign → Attest → Publish to NuGet.org
 # ─────────────────────────────────────────────────────────────────────────────────
 
 on:
@@ -31,27 +31,64 @@ env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
 
 jobs:
+  # ─── Job 1: Verify Stryker Mutation Quality Gate on main ────────────────────
+  mutation-gate-check:
+    name: Verify Mutation Quality Gate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      statuses: read
+      actions: read
+    outputs:
+      needs_stryker: ${{ steps.check.outputs.needs_stryker }}
+      can_proceed: ${{ steps.check.outputs.can_proceed }}
+      evaluated_commit: ${{ steps.check.outputs.evaluated_commit }}
+      mutation_score: ${{ steps.check.outputs.mutation_score }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Evaluate Mutation Quality Gate on main
+        id: check
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const verifyMutationGate = require('./scripts/verify-mutation-gate.js');
+            await verifyMutationGate({ github, context, core });
+
+  # ─── Job 2: Conditional Stryker Execution if needed ────────────────────────
+  stryker-gate:
+    name: Run Stryker Mutation Gate (Conditional)
+    needs: mutation-gate-check
+    if: needs.mutation-gate-check.outputs.needs_stryker == 'true'
+    permissions:
+      contents: read
+      statuses: write
+      actions: read
+    uses: ./.github/workflows/mutation-testing.yml
+    with:
+      mutation-level: "Standard"
+
+  # ─── Job 3: Publish to NuGet (Strict Quality Gate Required) ────────────────
   publish:
     name: Pack & Publish
+    needs: [mutation-gate-check, stryker-gate]
+    if: |
+      always() &&
+      (needs.mutation-gate-check.result == 'success') &&
+      (
+        (needs.mutation-gate-check.outputs.needs_stryker == 'false' && needs.mutation-gate-check.outputs.can_proceed == 'true') ||
+        (needs.mutation-gate-check.outputs.needs_stryker == 'true' && needs.stryker-gate.result == 'success')
+      )
     runs-on: ubuntu-latest
     permissions:
       id-token: write        # Required for Sigstore OIDC attestation
       contents: write        # Required for GitHub Release creation
       attestations: write    # Required for actions/attest-build-provenance
-
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: outbox_user
-          POSTGRES_PASSWORD: outbox_password
-          POSTGRES_DB: outbox_db
-        ports:
-          - 5432:5432
-      rabbitmq:
-        image: rabbitmq:3-management-alpine
-        ports:
-          - 5672:5672
+      statuses: read
+      actions: read
 
     steps:
       - name: Checkout
@@ -63,16 +100,18 @@ jobs:
       # Priority: workflow_dispatch input → git tag → fallback to Directory.Build.props
       - name: Resolve version
         id: version
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
         run: |
-          if [ -n "${{ inputs.version }}" ]; then
-            echo "VERSION=${{ inputs.version }}" >> $GITHUB_OUTPUT
-            echo "Resolved version from workflow_dispatch input: ${{ inputs.version }}"
+          if [ -n "$INPUT_VERSION" ]; then
+            echo "VERSION=$INPUT_VERSION" >> $GITHUB_OUTPUT
+            echo "Resolved version from workflow_dispatch input: $INPUT_VERSION"
           elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             VERSION="${GITHUB_REF_NAME#v}"
             echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
             echo "Resolved version from git tag: $VERSION"
           else
-            VERSION=$(grep -oP '(?<=<VersionPrefix>)[^<]+' Directory.Build.props)
+            VERSION=$(grep -oP '(?<=<VersionPrefix>)[^<]+' Directory.Build.props || echo "1.0.0")
             echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
             echo "Resolved version from Directory.Build.props: $VERSION"
           fi
@@ -83,15 +122,12 @@ jobs:
           dotnet-version: "10.0.x"
 
       # ─── Strong Name key ──────────────────────────────────────────────────────
-      # The private .snk is stored as a base64-encoded GitHub Secret (SNK_KEY).
-      # The public key is committed as public.snk. If SNK_KEY is not set (e.g.,
-      # in a fork), the build succeeds without signing (conditional in Directory.Build.props).
       - name: Restore Strong Name key
         env:
           SNK_KEY: ${{ secrets.SNK_KEY }}
         run: |
           if [ -n "$SNK_KEY" ]; then
-            echo "$SNK_KEY" | tr -d '\n\r ' | base64 --decode > EricksonLopez.Outbox.snk
+            echo "$SNK_KEY" | tr -d '\n\r ' | base64 --decode > EricksonLopez.snk
           fi
 
       - name: Restore
@@ -101,7 +137,6 @@ jobs:
         run: dotnet build EricksonLopez.Outbox.slnx --no-restore --configuration Release
 
       # ─── Full test suite before publish ──────────────────────────────────────
-      # Never publish without a passing test suite.
       - name: Run tests before publish
         run: |
           dotnet test EricksonLopez.Outbox.slnx \
@@ -113,7 +148,7 @@ jobs:
             -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
 
       - name: Upload coverage to Codecov (publish gate)
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@0fb7174895f61a3b6b78fc075e0cd60383518dac # v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: "**/coverage.opencover.xml"
@@ -125,35 +160,58 @@ jobs:
       - name: Pack All Packages
         run: |
           VERSION="${{ steps.version.outputs.VERSION }}"
-          PACK_ARGS="--no-build --configuration Release --output ./nupkgs -p:VersionPrefix=$VERSION"
-          dotnet pack EricksonLopez.Outbox.slnx $PACK_ARGS
+          PACK_ARGS="--no-build --configuration Release --output ./nupkgs -p:VersionPrefix=$VERSION -p:TreatWarningsAsErrors=true"
+          dotnet pack src/EricksonLopez.Inbox/EricksonLopez.Inbox.csproj $PACK_ARGS
+          dotnet pack src/EricksonLopez.Inbox.Abstractions/EricksonLopez.Inbox.Abstractions.csproj $PACK_ARGS
+          dotnet pack src/EricksonLopez.Outbox.Abstractions/EricksonLopez.Outbox.Abstractions.csproj $PACK_ARGS
+          dotnet pack src/EricksonLopez.Outbox.Analyzers/EricksonLopez.Outbox.Analyzers.csproj $PACK_ARGS
+          dotnet pack src/EricksonLopez.Outbox.Brighter/EricksonLopez.Outbox.Brighter.csproj $PACK_ARGS
+          dotnet pack src/EricksonLopez.Outbox.Brokers.AwsSqs/EricksonLopez.Outbox.Brokers.AwsSqs.csproj $PACK_ARGS
+          dotnet pack src/EricksonLopez.Outbox.Brokers.AzureServiceBus/EricksonLopez.Outbox.Brokers.AzureServiceBus.csproj $PACK_ARGS
+          dotnet pack src/EricksonLopez.Outbox.Brokers.GooglePubSub/EricksonLopez.Outbox.Brokers.GooglePubSub.csproj $PACK_ARGS
+          dotnet pack src/EricksonLopez.Outbox.Brokers.Kafka/EricksonLopez.Outbox.Brokers.Kafka.csproj $PACK_ARGS
+          dotnet pack src/EricksonLopez.Outbox.Brokers.Nats/EricksonLopez.Outbox.Brokers.Nats.csproj $PACK_ARGS
+          dotnet pack src/EricksonLopez.Outbox.Brokers.RabbitMQ/EricksonLopez.Outbox.Brokers.RabbitMQ.csproj $PACK_ARGS
+          dotnet pack src/EricksonLopez.Outbox.Brokers.RedisStreams/EricksonLopez.Outbox.Brokers.RedisStreams.csproj $PACK_ARGS
+          dotnet pack src/EricksonLopez.Outbox.Dapr/EricksonLopez.Outbox.Dapr.csproj $PACK_ARGS
+          dotnet pack src/EricksonLopez.Outbox.EntityFrameworkCore/EricksonLopez.Outbox.EntityFrameworkCore.csproj $PACK_ARGS
+          dotnet pack src/EricksonLopez.Outbox.Inbox/EricksonLopez.Outbox.Inbox.csproj $PACK_ARGS
+          dotnet pack src/EricksonLopez.Outbox.MassTransit/EricksonLopez.Outbox.MassTransit.csproj $PACK_ARGS
+          dotnet pack src/EricksonLopez.Outbox.MediatR/EricksonLopez.Outbox.MediatR.csproj $PACK_ARGS
+          dotnet pack src/EricksonLopez.Outbox.Mediator/EricksonLopez.Outbox.Mediator.csproj $PACK_ARGS
+          dotnet pack src/EricksonLopez.Outbox.NServiceBus/EricksonLopez.Outbox.NServiceBus.csproj $PACK_ARGS
+          dotnet pack src/EricksonLopez.Outbox.Rebus/EricksonLopez.Outbox.Rebus.csproj $PACK_ARGS
+          dotnet pack src/EricksonLopez.Outbox.Serialization.MessagePack/EricksonLopez.Outbox.Serialization.MessagePack.csproj $PACK_ARGS
+          dotnet pack src/EricksonLopez.Outbox.Serialization.Protobuf/EricksonLopez.Outbox.Serialization.Protobuf.csproj $PACK_ARGS
+          dotnet pack src/EricksonLopez.Outbox.SourceGenerators/EricksonLopez.Outbox.SourceGenerators.csproj $PACK_ARGS
+          dotnet pack src/EricksonLopez.Outbox.Storage.MariaDb/EricksonLopez.Outbox.Storage.MariaDb.csproj $PACK_ARGS
+          dotnet pack src/EricksonLopez.Outbox.Storage.MySql/EricksonLopez.Outbox.Storage.MySql.csproj $PACK_ARGS
+          dotnet pack src/EricksonLopez.Outbox.Storage.Oracle/EricksonLopez.Outbox.Storage.Oracle.csproj $PACK_ARGS
+          dotnet pack src/EricksonLopez.Outbox.Storage.PostgreSql/EricksonLopez.Outbox.Storage.PostgreSql.csproj $PACK_ARGS
+          dotnet pack src/EricksonLopez.Outbox.Storage.Sqlite/EricksonLopez.Outbox.Storage.Sqlite.csproj $PACK_ARGS
+          dotnet pack src/EricksonLopez.Outbox.Storage.SqlServer/EricksonLopez.Outbox.Storage.SqlServer.csproj $PACK_ARGS
+          dotnet pack src/EricksonLopez.Outbox.Aspire/EricksonLopez.Outbox.Aspire.csproj $PACK_ARGS
+          dotnet pack src/EricksonLopez.Outbox.Brokers.AzureEventHubs/EricksonLopez.Outbox.Brokers.AzureEventHubs.csproj $PACK_ARGS
+          dotnet pack src/EricksonLopez.Outbox.Storage.MongoDb/EricksonLopez.Outbox.Storage.MongoDb.csproj $PACK_ARGS
+          dotnet pack src/EricksonLopez.Outbox.Inbox.AspNetCore/EricksonLopez.Outbox.Inbox.AspNetCore.csproj $PACK_ARGS
+          dotnet pack src/EricksonLopez.Outbox.Events/EricksonLopez.Outbox.Events.csproj $PACK_ARGS
+          dotnet pack src/EricksonLopez.Outbox.Inbox.Events/EricksonLopez.Outbox.Inbox.Events.csproj $PACK_ARGS
+          dotnet pack src/EricksonLopez.Outbox/EricksonLopez.Outbox.csproj $PACK_ARGS
           echo "Packed packages:"
           ls -la ./nupkgs/
 
       # ─── Sigstore Provenance Attestation ─────────────────────────────────────
-      # Generates a cryptographically signed provenance attestation for every .nupkg
-      # using Sigstore's keyless signing via GitHub's OIDC token. The attestation
-      # proves that the packages were built from THIS repository's workflow and not
-      # tampered with after the build. Consumers can verify via:
-      #   gh attestation verify <package.nupkg> --repo ericksonlopez/dotnet-outbox
-      #
-      # Why v2: attest-build-provenance@v2 uses the SLSA v1.0 predicate format
-      # (vs v0.2 in v1), which is the current standard for SLSA Build L2/L3
-      # provenance and is supported by NuGet.org's new provenance verification.
       - name: Generate Sigstore Provenance Attestation
         uses: actions/attest-build-provenance@v2
         with:
           subject-path: './nupkgs/*.nupkg'
 
       # ─── NuGet.org publish via OIDC ──────────────────────────────────────────
-      # Uses NuGet Trusted Publishing (OIDC) — no long-lived API keys stored.
-      # The NuGet/login action exchanges GitHub's OIDC token for a short-lived
-      # NuGet API token scoped to this specific repository and workflow.
       - name: NuGet login (OIDC)
-        uses: NuGet/login@v1
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1
         id: login
         with:
-          user: ericksonlopez
+          user: ericksonlopezf
 
       - name: Push to NuGet.org
         run: >
@@ -163,12 +221,9 @@ jobs:
           --skip-duplicate
 
       # ─── GitHub Release ───────────────────────────────────────────────────────
-      # When triggered by a tag push, create the GitHub Release with assets.
-      # When triggered by Release Please workflow_dispatch, the release is already
-      # created by release-please-action — this step is skipped.
       - name: Create GitHub Release (tag-triggered only)
         if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           tag_name: v${{ steps.version.outputs.VERSION }}
           name: Release ${{ steps.version.outputs.VERSION }}
@@ -178,36 +233,46 @@ jobs:
 
             | Package | Version |
             |---------|---------|
-            | `EricksonLopez.Outbox` | `${{ steps.version.outputs.VERSION }}` |
-            | `EricksonLopez.Outbox.EntityFrameworkCore` | `${{ steps.version.outputs.VERSION }}` |
-            | `EricksonLopez.Outbox.Storage.PostgreSql` | `${{ steps.version.outputs.VERSION }}` |
-            | `EricksonLopez.Outbox.Storage.SqlServer` | `${{ steps.version.outputs.VERSION }}` |
-            | `EricksonLopez.Outbox.Storage.MySql` | `${{ steps.version.outputs.VERSION }}` |
-            | `EricksonLopez.Outbox.Storage.Oracle` | `${{ steps.version.outputs.VERSION }}` |
-            | `EricksonLopez.Outbox.Storage.Sqlite` | `${{ steps.version.outputs.VERSION }}` |
-            | `EricksonLopez.Outbox.Brokers.RabbitMQ` | `${{ steps.version.outputs.VERSION }}` |
-            | `EricksonLopez.Outbox.Brokers.Kafka` | `${{ steps.version.outputs.VERSION }}` |
+            | `EricksonLopez.Inbox` | `${{ steps.version.outputs.VERSION }}` |
+            | `EricksonLopez.Inbox.Abstractions` | `${{ steps.version.outputs.VERSION }}` |
+            | `EricksonLopez.Outbox.Abstractions` | `${{ steps.version.outputs.VERSION }}` |
+            | `EricksonLopez.Outbox.Analyzers` | `${{ steps.version.outputs.VERSION }}` |
+            | `EricksonLopez.Outbox.Brighter` | `${{ steps.version.outputs.VERSION }}` |
             | `EricksonLopez.Outbox.Brokers.AwsSqs` | `${{ steps.version.outputs.VERSION }}` |
             | `EricksonLopez.Outbox.Brokers.AzureServiceBus` | `${{ steps.version.outputs.VERSION }}` |
             | `EricksonLopez.Outbox.Brokers.GooglePubSub` | `${{ steps.version.outputs.VERSION }}` |
+            | `EricksonLopez.Outbox.Brokers.Kafka` | `${{ steps.version.outputs.VERSION }}` |
             | `EricksonLopez.Outbox.Brokers.Nats` | `${{ steps.version.outputs.VERSION }}` |
+            | `EricksonLopez.Outbox.Brokers.RabbitMQ` | `${{ steps.version.outputs.VERSION }}` |
             | `EricksonLopez.Outbox.Brokers.RedisStreams` | `${{ steps.version.outputs.VERSION }}` |
+            | `EricksonLopez.Outbox.Dapr` | `${{ steps.version.outputs.VERSION }}` |
+            | `EricksonLopez.Outbox.EntityFrameworkCore` | `${{ steps.version.outputs.VERSION }}` |
+            | `EricksonLopez.Outbox.Inbox` | `${{ steps.version.outputs.VERSION }}` |
             | `EricksonLopez.Outbox.MassTransit` | `${{ steps.version.outputs.VERSION }}` |
+            | `EricksonLopez.Outbox.MediatR` | `${{ steps.version.outputs.VERSION }}` |
+            | `EricksonLopez.Outbox.Mediator` | `${{ steps.version.outputs.VERSION }}` |
+            | `EricksonLopez.Outbox.NServiceBus` | `${{ steps.version.outputs.VERSION }}` |
+            | `EricksonLopez.Outbox.Rebus` | `${{ steps.version.outputs.VERSION }}` |
+            | `EricksonLopez.Outbox.Serialization.MessagePack` | `${{ steps.version.outputs.VERSION }}` |
+            | `EricksonLopez.Outbox.Serialization.Protobuf` | `${{ steps.version.outputs.VERSION }}` |
             | `EricksonLopez.Outbox.SourceGenerators` | `${{ steps.version.outputs.VERSION }}` |
-            | `EricksonLopez.Outbox.Analyzers` | `${{ steps.version.outputs.VERSION }}` |
+            | `EricksonLopez.Outbox.Storage.MariaDb` | `${{ steps.version.outputs.VERSION }}` |
+            | `EricksonLopez.Outbox.Storage.MySql` | `${{ steps.version.outputs.VERSION }}` |
+            | `EricksonLopez.Outbox.Storage.Oracle` | `${{ steps.version.outputs.VERSION }}` |
+            | `EricksonLopez.Outbox.Storage.PostgreSql` | `${{ steps.version.outputs.VERSION }}` |
+            | `EricksonLopez.Outbox.Storage.Sqlite` | `${{ steps.version.outputs.VERSION }}` |
+            | `EricksonLopez.Outbox.Storage.SqlServer` | `${{ steps.version.outputs.VERSION }}` |
+            | `EricksonLopez.Outbox.Aspire` | `${{ steps.version.outputs.VERSION }}` |
+            | `EricksonLopez.Outbox.Brokers.AzureEventHubs` | `${{ steps.version.outputs.VERSION }}` |
+            | `EricksonLopez.Outbox.Storage.MongoDb` | `${{ steps.version.outputs.VERSION }}` |
+            | `EricksonLopez.Outbox.Inbox.AspNetCore` | `${{ steps.version.outputs.VERSION }}` |
+            | `EricksonLopez.Outbox.Events` | `${{ steps.version.outputs.VERSION }}` |
+            | `EricksonLopez.Outbox.Inbox.Events` | `${{ steps.version.outputs.VERSION }}` |
+            | `EricksonLopez.Outbox` | `${{ steps.version.outputs.VERSION }}` |
 
             ---
 
-            For detailed changes, see [CHANGELOG.md](https://github.com/ericksonlopez/dotnet-outbox/blob/${{ github.ref_name }}/CHANGELOG.md).
-
-            ### Installation
-
-            ```bash
-            dotnet add package EricksonLopez.Outbox --version ${{ steps.version.outputs.VERSION }}
-            dotnet add package EricksonLopez.Outbox.Storage.PostgreSql --version ${{ steps.version.outputs.VERSION }}
-            dotnet add package EricksonLopez.Outbox.Brokers.RabbitMQ --version ${{ steps.version.outputs.VERSION }}
-            # ... and others ...
-            ```
+            For detailed changes, see [CHANGELOG.md](https://github.com/ericksonlopezf/dotnet-outbox/blob/${{ github.ref_name }}/CHANGELOG.md).
           files: ./nupkgs/*.nupkg
           draft: false
           prerelease: ${{ contains(steps.version.outputs.VERSION, '-') }}

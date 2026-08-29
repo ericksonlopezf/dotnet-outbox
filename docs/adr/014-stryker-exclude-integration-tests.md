@@ -1,3 +1,5 @@
+<!-- Copyright © Erickson Lopez. MIT License. -->
+
 # ADR 014: Exclude Integration Tests from Mutation Coverage (Stryker)
 
 Date: 2026-08-07

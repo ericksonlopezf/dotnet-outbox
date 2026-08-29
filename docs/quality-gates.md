@@ -1,3 +1,5 @@
+<!-- Copyright © Erickson Lopez. MIT License. -->
+
 # Quality Gates & Code Analysis Methodology
 
 In `EricksonLopez.Outbox`, a passing test suite is merely the beginning. We enforce draconian quality gates to ensure architectural integrity, prevent regression, and secure the AOT-compatibility of the library.
@@ -30,15 +32,26 @@ We use the `ignore-methods` configuration to prevent Stryker from mutating side-
 
 Our static analysis pipeline operates at two levels:
 
-### Level 1: Roslyn Analyzers (Real-Time)
-We distribute our own `EricksonLopez.Outbox.Analyzers`. This enforces library-specific rules directly in the developer's IDE:
-- **OUTBOX001**: Triggers if a class implements `IIntegrationEvent` but forgets the `[OutboxMessage]` attribute.
-- **OUTBOX002**: Triggers if a developer attempts to call `.StoreAsync()` outside of a transaction context.
+### Level 1: Roslyn Analyzers (Real-Time IDE Checks)
+We distribute our own `EricksonLopez.Outbox.Analyzers` package, enforcing compile-time architectural integrity directly in the developer's IDE:
+- **`OUTBOX001`**: Event class missing `[OutboxMessage]` attribute.
+- **`OUTBOX002`**: Message stored without transaction context.
+- **`OUTBOX003`**: Invalid message type alias formatting.
+- **`OUTBOX004`**: Outbox message type must not be an abstract class.
+- **`OUTBOX005`**: Missing valid constructor or property accessors for serialization.
+- **`OUTBOX006`**: Invalid attribute target usage.
+- **`OUTBOX007`**: Incompatible broker configuration parameters.
+- **`OUTBOX008`**: Unsafe async fire-and-forget inside handlers.
+- **`OUTBOX009`**: Redundant serializer registration detected.
+- **`OUTBOX010`**: Transaction context lifetime mismatch.
+- **`OUTBOX011`**: Stale lease timeout configured too low.
+- **`OUTBOX012`**: Missing idempotency configuration on consumer handler.
+- **`OUTBOX013`**: Missing `[JsonSerializable]` attribute in NativeAOT serialization context.
 
-### Level 2: SonarCloud (Pipeline)
+### Level 2: SonarCloud (Pipeline Quality Gate)
 Integrated into `ci.yml` via `dotnet-sonarscanner`, SonarCloud enforces over 300+ C# rules.
-- **Focus Areas**: We strictly enforce rules around async/await deadlocks, disposable object leaks, and thread-safety violations.
-- **Quality Gate**: The SonarCloud gate requires **0 Bugs**, **0 Vulnerabilities**, and a **Maintainability Rating of A**.
+- **Focus Areas**: Async/await deadlocks, unhandled exception leaking, disposable resource leaks, and thread-safety violations.
+- **Quality Gate**: SonarCloud gate requires **0 Bugs**, **0 Vulnerabilities**, and a **Maintainability Rating of A**.
 
 ## 3. Code Coverage — Coverlet
 

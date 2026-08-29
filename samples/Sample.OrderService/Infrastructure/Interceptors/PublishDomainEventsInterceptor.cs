@@ -1,14 +1,16 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Collections.Generic;
 using EricksonLopez.Outbox;
 using EricksonLopez.Outbox.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Storage;
-using Sample.OrderService.Shared;
 using Sample.OrderService.Infrastructure;
+using Sample.OrderService.Shared;
 
 namespace Sample.OrderService.Infrastructure.Interceptors;
 
@@ -62,4 +64,8 @@ public sealed class PublishDomainEventsInterceptor : SaveChangesInterceptor
         return await base.SavingChangesAsync(eventData, result, cancellationToken);
     }
 }
+
+
+
+
 

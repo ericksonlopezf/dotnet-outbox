@@ -1,0 +1,29 @@
+{
+  "stryker-config": {
+    "concurrency": 6,
+    "additional-timeout": 30000,
+    "coverage-analysis": "off",
+    "thresholds": {
+      "high": 100,
+      "low": 98,
+      "break": 95
+    },
+    "project": "EricksonLopez.Outbox.Analyzers.csproj",
+    "mutate": [
+      "**/*.cs",
+      "!**/*.g.cs",
+      "!**/Generated/**/*.cs"
+    ],
+    "reporters": [
+      "html",
+      "json",
+      "cleartext",
+      "progress"
+    ],
+    "ignore-mutations": [],
+    "ignore-methods": [
+      "Log*",
+      "ConfigureAwait"
+    ]
+  }
+}

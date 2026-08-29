@@ -1,0 +1,44 @@
+# Copyright © Erickson Lopez. MIT License.
+name: Repository Compliance & Quality Gate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+
+jobs:
+  compliance-audit:
+    name: Compliance & Architecture Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Run Architecture & Rules Compliance Script
+        shell: pwsh
+        run: ./scripts/verify-compliance.ps1
+
+      - name: Restore dependencies
+        run: dotnet restore EricksonLopez.Outbox.slnx
+
+      - name: Build with Strict Diagnostics (TreatWarningsAsErrors)
+        run: dotnet build EricksonLopez.Outbox.slnx --no-restore --configuration Release
+
+      - name: Run Unit Tests
+        run: dotnet test EricksonLopez.Outbox.slnx --no-build --configuration Release --verbosity normal --filter "FullyQualifiedName!~IntegrationTests"
+
+      - name: Validate NuGet Packages Packaging
+        run: dotnet pack EricksonLopez.Outbox.slnx --no-build --configuration Release -o artifacts/

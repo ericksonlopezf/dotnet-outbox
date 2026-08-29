@@ -1,3 +1,4 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Collections.Generic;
 using System.Data.Common;
@@ -9,32 +10,18 @@ using AutoFixture.AutoNSubstitute;
 using AwesomeAssertions;
 using Dapper;
 using EricksonLopez.Outbox;
+using EricksonLopez.Outbox.Persistence;
 using EricksonLopez.Outbox.Storage.PostgreSql;
+using Microsoft.Extensions.Options;
 using Npgsql;
-using Testcontainers.PostgreSql;
+using NSubstitute;
 using Xunit;
 
-namespace EricksonLopez.Outbox.Tests;
+namespace EricksonLopez.Outbox.Storage.PostgreSql.Tests;
 
-public class PostgreSqlContainerFixture : IAsyncLifetime
-{
-    public PostgreSqlContainer Container { get; } = new PostgreSqlBuilder().WithImage("postgres:15-alpine").Build();
-    public NpgsqlDataSource DataSource { get; private set; } = null!;
-
-    public async Task InitializeAsync()
-    {
-        await Container.StartAsync();
-        DataSource = NpgsqlDataSource.Create(Container.GetConnectionString());
-    }
-
-    public async Task DisposeAsync()
-    {
-        if (DataSource != null) await DataSource.DisposeAsync();
-        await Container.DisposeAsync();
-    }
-}
-
-public class PostgreSqlOutboxRepositoryTests : IClassFixture<PostgreSqlContainerFixture>, IAsyncLifetime
+[Collection("PostgreSql")]
+[Trait("Category", "Integration")]
+public class PostgreSqlOutboxRepositoryTests : IAsyncLifetime
 {
     private readonly PostgreSqlContainerFixture _fixture;
     private readonly IFixture _autoFixture;
@@ -50,33 +37,16 @@ public class PostgreSqlOutboxRepositoryTests : IClassFixture<PostgreSqlContainer
 
     public async Task InitializeAsync()
     {
-        using var connection = await _dataSource.OpenConnectionAsync();
-
-        const string schema = @"
-            CREATE SCHEMA IF NOT EXISTS outbox;
-            CREATE TABLE IF NOT EXISTS outbox.messages (
-                id UUID,
-                type VARCHAR(255) NOT NULL,
-                payload JSONB,
-                correlation_id VARCHAR(255),
-                causation_id VARCHAR(255),
-                headers_json JSONB,
-                created_at TIMESTAMPTZ NOT NULL,
-                updated_at TIMESTAMPTZ NOT NULL,
-                processed_at TIMESTAMPTZ,
-                deliver_at TIMESTAMPTZ,
-                state INT NOT NULL,
-                retry_count INT NOT NULL DEFAULT 0,
-                owner_id UUID,
-                error TEXT,
-                PRIMARY KEY (id, created_at)
-            );
-            TRUNCATE TABLE outbox.messages;";
-        
-        await connection.ExecuteAsync(schema);
+        await PostgreSqlTestDatabase.EnsureSchemaAsync(_dataSource);
     }
 
-    public Task DisposeAsync() => Task.CompletedTask;
+    public async Task DisposeAsync()
+    {
+        await using var connection = new NpgsqlConnection(_fixture.Container.GetConnectionString());
+        await connection.OpenAsync();
+        await using var cmd = new NpgsqlCommand($"TRUNCATE TABLE outbox.{_options.TableName} CASCADE", connection);
+        await cmd.ExecuteNonQueryAsync();
+    }
 
     private PostgreSqlOutboxRepository CreateSut(int? largeTableThreshold = null)
     {
@@ -125,17 +95,19 @@ public class PostgreSqlOutboxRepositoryTests : IClassFixture<PostgreSqlContainer
     [Fact]
     public async Task InsertAsync_Should_Persist_Message()
     {
-        var msg = CreateMessage();
+        var msg = CreateMessage(correlationId: "corr_insert", causationId: "caus_insert", deliverAt: DateTimeOffset.UtcNow);
 
         await using var connection = await _dataSource.OpenConnectionAsync();
-        
         await using var tx = await connection.BeginTransactionAsync();
         
         await CreateSut().InsertAsync(msg, new EricksonLopez.Outbox.Persistence.DbTransactionContext(tx));
         await tx.CommitAsync();
 
-        var count = await connection.ExecuteScalarAsync<long>("SELECT COUNT(1) FROM outbox.messages WHERE id = @Id", new { msg.Id });
-        count.Should().Be(1);
+        var db = await connection.QuerySingleAsync<(string correlation_id, string causation_id, DateTimeOffset? deliver_at)>("SELECT correlation_id, causation_id, deliver_at FROM outbox.messages WHERE id = @Id", new { msg.Id });
+        db.correlation_id.Should().Be("corr_insert");
+        db.causation_id.Should().Be("caus_insert");
+        db.deliver_at.Should().NotBeNull();
+        db.deliver_at!.Value.Should().BeCloseTo(msg.DeliverAt!.Value, TimeSpan.FromMilliseconds(1));
     }
 
     [Fact]
@@ -162,7 +134,7 @@ public class PostgreSqlOutboxRepositoryTests : IClassFixture<PostgreSqlContainer
             var payloadStr = System.Text.Encoding.UTF8.GetString(m.Payload.Span);
             var headersStr = System.Text.Encoding.UTF8.GetString(m.Headers.Span);
             await connection.ExecuteAsync(
-            "INSERT INTO outbox.messages (id, type, correlation_id, causation_id, payload, headers_json, created_at, updated_at, deliver_at, state) VALUES (@Id, @MessageType, @CorrelationId, @CausationId, @PayloadStr::jsonb, @HeadersStr::jsonb, @CreatedAt, NOW(), @DeliverAt, @State)", 
+            "INSERT INTO outbox.messages (id, type, correlation_id, causation_id, payload, headers_json, created_at, updated_at, deliver_at, processed_at, state, error) VALUES (@Id, @MessageType, @CorrelationId, @CausationId, @PayloadStr::jsonb, @HeadersStr::jsonb, @CreatedAt, NOW(), @DeliverAt, NOW(), @State, 'error_sample_retrying')", 
             new { m.Id, m.MessageType, m.CorrelationId, m.CausationId, PayloadStr = payloadStr, HeadersStr = headersStr, m.CreatedAt, m.DeliverAt, State = m.Status });
         }
 
@@ -183,6 +155,10 @@ public class PostgreSqlOutboxRepositoryTests : IClassFixture<PostgreSqlContainer
         else
             fetchedMsg.DeliverAt.Should().BeNull();
         fetchedMsg.RetryCount.Should().Be(pendingReady.RetryCount);
+
+        var fetchedRetrying = fetched.Single(x => x.Id == retryingReady.Id);
+        fetchedRetrying.ProcessedAt.Should().NotBeNull();
+        fetchedRetrying.Error.Should().Be("error_sample_retrying");
 
         // Ensure state is updated to 1
         var dbState = await connection.QuerySingleAsync<int>("SELECT state FROM outbox.messages WHERE id = @Id", new { pendingReady.Id });
@@ -382,6 +358,17 @@ public class PostgreSqlOutboxRepositoryTests : IClassFixture<PostgreSqlContainer
         var countEstimate = await sutLarge.GetPendingCountAsync(CancellationToken.None);
         countEstimate.Should().BeGreaterThanOrEqualTo(0);
     }
+
+    [Fact]
+    public async Task GetPendingCountAsync_WithPartitionTable_UsesPrefixQuery()
+    {
+        await using var connection = await _dataSource.OpenConnectionAsync();
+        await connection.ExecuteAsync("CREATE TABLE IF NOT EXISTS outbox.messages_part1 (LIKE outbox.messages INCLUDING ALL);");
+
+        var sutLarge = CreateSut(largeTableThreshold: 0);
+        var countEstimate = await sutLarge.GetPendingCountAsync(CancellationToken.None);
+        countEstimate.Should().BeGreaterThanOrEqualTo(0);
+    }
     
     [Fact]
     public async Task GetMessageAsync_Should_Return_Message_If_Found()
@@ -390,7 +377,7 @@ public class PostgreSqlOutboxRepositoryTests : IClassFixture<PostgreSqlContainer
         var msg = CreateMessage(state: 1, deliverAt: DateTimeOffset.UtcNow);
         
         await using var connection = await _dataSource.OpenConnectionAsync();
-        await connection.ExecuteAsync("INSERT INTO outbox.messages (id, type, payload, correlation_id, causation_id, headers_json, created_at, updated_at, deliver_at, state) VALUES (@Id, @MessageType, '{}', @CorrelationId, @CausationId, '{}', @CreatedAt, NOW(), @DeliverAt, @State)", new { msg.Id, msg.MessageType, msg.CorrelationId, msg.CausationId, msg.CreatedAt, msg.DeliverAt, State = msg.Status });
+        await connection.ExecuteAsync("INSERT INTO outbox.messages (id, type, payload, correlation_id, causation_id, headers_json, created_at, updated_at, deliver_at, processed_at, state, error) VALUES (@Id, @MessageType, '{}', @CorrelationId, @CausationId, '{}', @CreatedAt, NOW(), @DeliverAt, NOW(), @State, 'sample_error_1param')", new { msg.Id, msg.MessageType, msg.CorrelationId, msg.CausationId, msg.CreatedAt, msg.DeliverAt, State = msg.Status });
 
         var fetched = await sut.GetMessageAsync(msg.Id);
         
@@ -400,6 +387,9 @@ public class PostgreSqlOutboxRepositoryTests : IClassFixture<PostgreSqlContainer
         fetched.CorrelationId.Should().Be(msg.CorrelationId);
         fetched.CausationId.Should().Be(msg.CausationId);
         fetched.Status.Should().Be(msg.Status);
+        fetched.DeliverAt.Should().NotBeNull();
+        fetched.ProcessedAt.Should().NotBeNull();
+        fetched.Error.Should().Be("sample_error_1param");
         
         // Null payload/headers/fields
         var msgNull = CreateMessage(deliverAt: null) with { CorrelationId = null, CausationId = null };
@@ -410,6 +400,8 @@ public class PostgreSqlOutboxRepositoryTests : IClassFixture<PostgreSqlContainer
         fetchedNull!.CorrelationId.Should().BeNull();
         fetchedNull.CausationId.Should().BeNull();
         fetchedNull.DeliverAt.Should().BeNull();
+        fetchedNull.ProcessedAt.Should().BeNull();
+        fetchedNull.Error.Should().BeNull();
         System.Text.Encoding.UTF8.GetString(fetchedNull.Payload.Span).Should().Be("{}");
         System.Text.Encoding.UTF8.GetString(fetchedNull.Headers.Span).Should().Be("{}");
     }
@@ -421,7 +413,480 @@ public class PostgreSqlOutboxRepositoryTests : IClassFixture<PostgreSqlContainer
         var fetched = await sut.GetMessageAsync(Guid.NewGuid());
         fetched.Should().BeNull();
     }
+
+    [Fact]
+    public void Constructor_InvalidArguments_ThrowsException()
+    {
+        Action actNullDs = () => _ = new PostgreSqlOutboxRepository(null!);
+        actNullDs.Should().Throw<ArgumentNullException>().WithParameterName("dataSource");
+
+        var invalidSchemaOpts = Options.Create(new OutboxRuntimeOptions { SchemaName = "outbox;DROP TABLE", TableName = "messages" });
+        Action actInvalidSchema = () => _ = new PostgreSqlOutboxRepository(_dataSource, invalidSchemaOpts);
+        actInvalidSchema.Should().Throw<ArgumentException>()
+            .WithParameterName("options")
+            .WithMessage("*Schema name contains invalid characters*");
+
+        var invalidTableOpts = Options.Create(new OutboxRuntimeOptions { SchemaName = "outbox", TableName = "messages-invalid" });
+        Action actInvalidTable = () => _ = new PostgreSqlOutboxRepository(_dataSource, invalidTableOpts);
+        actInvalidTable.Should().Throw<ArgumentException>()
+            .WithParameterName("options")
+            .WithMessage("*Table name contains invalid characters*");
+
+        // Null options should use default options
+        var sutDefault = new PostgreSqlOutboxRepository(_dataSource, null);
+        sutDefault.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task InsertAsync_NonNpgsqlConnectionTransaction_ThrowsInvalidOperationException()
+    {
+        var sut = CreateSut();
+        var msg = CreateMessage();
+        var mockTx = Substitute.For<IOutboxTransactionContext>();
+        mockTx.Connection.Returns(Substitute.For<DbConnection>());
+
+        Func<Task> act = async () => await sut.InsertAsync(msg, mockTx);
+        var ex = await act.Should().ThrowAsync<InvalidOperationException>();
+        ex.WithMessage("*NpgsqlConnection*");
+    }
+
+    [Fact]
+    public async Task InsertBatchAsync_NonNpgsqlConnectionTransaction_ThrowsInvalidOperationException()
+    {
+        var sut = CreateSut();
+        var msg = CreateMessage();
+        var mockTx = Substitute.For<IOutboxTransactionContext>();
+        mockTx.Connection.Returns(Substitute.For<DbConnection>());
+
+        Func<Task> act = async () => await sut.InsertBatchAsync(new[] { msg }, mockTx);
+        var ex = await act.Should().ThrowAsync<InvalidOperationException>();
+        ex.WithMessage("*NpgsqlConnection*");
+    }
+
+    [Fact]
+    public async Task InsertAsync_WithSlicedPayloadAndHeaders_PersistsSuccessfully()
+    {
+        var sut = CreateSut();
+        var fullPayload = new byte[10] { 99, 91, 49, 93, 99, 99, 99, 99, 99, 99 }; // 'c' + "[1]" + 'c'...
+        var sliced = new ReadOnlyMemory<byte>(fullPayload, 1, 3);
+        var msg = CreateMessage() with { Payload = sliced, Headers = sliced, CorrelationId = null, CausationId = null, DeliverAt = null };
+
+        await using var connection = await _dataSource.OpenConnectionAsync();
+        await using var tx = await connection.BeginTransactionAsync();
+        await sut.InsertAsync(msg, new EricksonLopez.Outbox.Persistence.DbTransactionContext(tx));
+        await tx.CommitAsync();
+
+        var fetched = await sut.GetMessageAsync(msg.Id);
+        fetched.Should().NotBeNull();
+        System.Text.Encoding.UTF8.GetString(fetched!.Payload.Span).Should().Be("[1]");
+        System.Text.Encoding.UTF8.GetString(fetched.Headers.Span).Should().Be("[1]");
+    }
+
+    [Fact]
+    public async Task InsertBatchAsync_WithSlicedPayloadAndHeaders_PersistsSuccessfully()
+    {
+        var sut = CreateSut();
+        var fullPayload = new byte[10] { 99, 91, 49, 93, 99, 99, 99, 99, 99, 99 };
+        var sliced = new ReadOnlyMemory<byte>(fullPayload, 1, 3);
+        var msg = CreateMessage() with { Payload = sliced, Headers = sliced };
+
+        await using var connection = await _dataSource.OpenConnectionAsync();
+        await using var tx = await connection.BeginTransactionAsync();
+        await sut.InsertBatchAsync(new[] { msg }, new EricksonLopez.Outbox.Persistence.DbTransactionContext(tx));
+        await tx.CommitAsync();
+
+        var fetched = await sut.GetMessageAsync(msg.Id);
+        fetched.Should().NotBeNull();
+        System.Text.Encoding.UTF8.GetString(fetched!.Payload.Span).Should().Be("[1]");
+    }
+
+    [Fact]
+    public async Task InsertBulkAsync_WithSlicedPayloadAndHeaders_PersistsSuccessfully()
+    {
+        var sut = CreateSut();
+        var fullPayload = new byte[10] { 99, 91, 49, 93, 99, 99, 99, 99, 99, 99 };
+        var sliced = new ReadOnlyMemory<byte>(fullPayload, 1, 3);
+        var msg = CreateMessage() with { Payload = sliced, Headers = sliced, CorrelationId = "c1", CausationId = "caus1", DeliverAt = DateTimeOffset.UtcNow };
+
+        await sut.InsertBulkAsync(new[] { msg });
+
+        var fetched = await sut.GetMessageAsync(msg.Id);
+        fetched.Should().NotBeNull();
+        System.Text.Encoding.UTF8.GetString(fetched!.Payload.Span).Should().Be("[1]");
+        fetched.CorrelationId.Should().Be("c1");
+        fetched.CausationId.Should().Be("caus1");
+    }
+
+    [Fact]
+    public async Task InsertAsync_WithSubArrayStartingAtZero_PersistsOnlySubArray()
+    {
+        var sut = CreateSut();
+        var fullPayload = new byte[10] { 91, 49, 93, 99, 99, 99, 99, 99, 99, 99 }; // "[1]" followed by 'c'...
+        var subArray = new ReadOnlyMemory<byte>(fullPayload, 0, 3); // Offset = 0, Count = 3 < Length 10
+        var msg = CreateMessage() with { Payload = subArray, Headers = subArray };
+
+        await using var connection = await _dataSource.OpenConnectionAsync();
+        await using var tx = await connection.BeginTransactionAsync();
+        await sut.InsertAsync(msg, new EricksonLopez.Outbox.Persistence.DbTransactionContext(tx));
+        await tx.CommitAsync();
+
+        var fetched = await sut.GetMessageAsync(msg.Id);
+        fetched.Should().NotBeNull();
+        fetched!.Payload.Length.Should().Be(3);
+        System.Text.Encoding.UTF8.GetString(fetched.Payload.Span).Should().Be("[1]");
+    }
+
+    [Fact]
+    public async Task InsertBatchAsync_WithSubArrayStartingAtZero_PersistsOnlySubArray()
+    {
+        var sut = CreateSut();
+        var fullPayload = new byte[10] { 91, 49, 93, 99, 99, 99, 99, 99, 99, 99 };
+        var subArray = new ReadOnlyMemory<byte>(fullPayload, 0, 3);
+        var msg = CreateMessage() with { Payload = subArray, Headers = subArray };
+
+        await using var connection = await _dataSource.OpenConnectionAsync();
+        await using var tx = await connection.BeginTransactionAsync();
+        await sut.InsertBatchAsync(new[] { msg }, new EricksonLopez.Outbox.Persistence.DbTransactionContext(tx));
+        await tx.CommitAsync();
+
+        var fetched = await sut.GetMessageAsync(msg.Id);
+        fetched.Should().NotBeNull();
+        fetched!.Payload.Length.Should().Be(3);
+        System.Text.Encoding.UTF8.GetString(fetched.Payload.Span).Should().Be("[1]");
+    }
+
+    [Fact]
+    public async Task InsertBulkAsync_WithSubArrayStartingAtZero_PersistsOnlySubArray()
+    {
+        var sut = CreateSut();
+        var fullPayload = new byte[10] { 91, 49, 93, 99, 99, 99, 99, 99, 99, 99 };
+        var subArray = new ReadOnlyMemory<byte>(fullPayload, 0, 3);
+        var msg = CreateMessage() with { Payload = subArray, Headers = subArray };
+
+        await sut.InsertBulkAsync(new[] { msg });
+
+        var fetched = await sut.GetMessageAsync(msg.Id);
+        fetched.Should().NotBeNull();
+        fetched!.Payload.Length.Should().Be(3);
+        System.Text.Encoding.UTF8.GetString(fetched.Payload.Span).Should().Be("[1]");
+    }
+
+    [Fact]
+    public async Task MarkAsDispatchedAsync_WithDeleteOnDispatchFalse_UpdatesStateToDispatched()
+    {
+        var opts = Options.Create(new OutboxRuntimeOptions
+        {
+            SchemaName = "outbox",
+            TableName = "messages",
+            DeleteOnDispatch = false,
+            InstanceId = InstanceId
+        });
+        var sut = new PostgreSqlOutboxRepository(_dataSource, opts);
+        var msg = CreateMessage(state: 1);
+
+        await using var connection = await _dataSource.OpenConnectionAsync();
+        await connection.ExecuteAsync("INSERT INTO outbox.messages (id, type, payload, headers_json, created_at, updated_at, state, owner_id) VALUES (@Id, @MessageType, '{}', '{}', @CreatedAt, NOW(), @State, @owner_id)", new { msg.Id, msg.MessageType, msg.CreatedAt, State = msg.Status, owner_id = Guid.Parse(InstanceId) });
+
+        await sut.MarkAsDispatchedAsync(new[] { msg });
+
+        var db = await connection.QuerySingleAsync<(int state, DateTimeOffset? processed_at)>("SELECT state, processed_at FROM outbox.messages WHERE id = @Id", new { msg.Id });
+        db.state.Should().Be(2);
+        db.processed_at.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task MarkAsFailedAsync_WithLongErrorMessage_TruncatesErrorString()
+    {
+        var sut = CreateSut();
+        var msg = CreateMessage(state: 1, retryCount: 0);
+        var longError = new string('A', 3600) + "MIDDLE" + new string('Z', 500); // 4106 characters
+
+        await using var connection = await _dataSource.OpenConnectionAsync();
+        await connection.ExecuteAsync("INSERT INTO outbox.messages (id, type, payload, headers_json, created_at, updated_at, state, retry_count, owner_id) VALUES (@Id, @MessageType, '{}', '{}', @CreatedAt, NOW(), @State, @RetryCount, @owner_id)", new { msg.Id, msg.MessageType, msg.CreatedAt, State = msg.Status, msg.RetryCount, owner_id = Guid.Parse(InstanceId) });
+
+        await sut.MarkAsFailedAsync(new[] { msg }, longError);
+
+        var db = await connection.QuerySingleAsync<(int state, string error)>("SELECT state, error FROM outbox.messages WHERE id = @Id", new { msg.Id });
+        db.error.Should().Contain(" ... [TRUNCATED] ... ");
+        db.error.Length.Should().Be(4000);
+        db.error.Should().StartWith(new string('A', 3530));
+        db.error.Should().EndWith(new string('Z', 449));
+    }
+
+    [Fact]
+    public async Task MarkAsFailedAsync_WithExact4000CharError_IsNotTruncated()
+    {
+        var sut = CreateSut();
+        var msg = CreateMessage(state: 1, retryCount: 0);
+        var exact4000Error = new string('X', 4000);
+
+        await using var connection = await _dataSource.OpenConnectionAsync();
+        await connection.ExecuteAsync("INSERT INTO outbox.messages (id, type, payload, headers_json, created_at, updated_at, state, retry_count, owner_id) VALUES (@Id, @MessageType, '{}', '{}', @CreatedAt, NOW(), @State, @RetryCount, @owner_id)", new { msg.Id, msg.MessageType, msg.CreatedAt, State = msg.Status, msg.RetryCount, owner_id = Guid.Parse(InstanceId) });
+
+        await sut.MarkAsFailedAsync(new[] { msg }, exact4000Error);
+
+        var db = await connection.QuerySingleAsync<(int state, string error)>("SELECT state, error FROM outbox.messages WHERE id = @Id", new { msg.Id });
+        db.error.Should().Be(exact4000Error);
+        db.error.Should().NotContain("[TRUNCATED]");
+    }
+
+    [Fact]
+    public async Task GetMessageAsync_WithCreatedAtHint_ReturnsMessageOrNull()
+    {
+        var sut = CreateSut();
+        var msg = CreateMessage(state: 1, deliverAt: DateTimeOffset.UtcNow, correlationId: "corr_hint", causationId: "caus_hint");
+
+        await using var connection = await _dataSource.OpenConnectionAsync();
+        await connection.ExecuteAsync("INSERT INTO outbox.messages (id, type, payload, correlation_id, causation_id, headers_json, created_at, updated_at, deliver_at, processed_at, state, error) VALUES (@Id, @MessageType, '{\"k\":\"val_hint\"}'::jsonb, @CorrelationId, @CausationId, '{\"h\":\"head_hint\"}'::jsonb, @CreatedAt, NOW(), @DeliverAt, NOW(), @State, 'sample_error')", new { msg.Id, msg.MessageType, msg.CorrelationId, msg.CausationId, msg.CreatedAt, msg.DeliverAt, State = msg.Status });
+
+        // Query with matching hint
+        var fetchedWithHint = await sut.GetMessageAsync(msg.Id, msg.CreatedAt);
+        fetchedWithHint.Should().NotBeNull();
+        fetchedWithHint!.Id.Should().Be(msg.Id);
+        fetchedWithHint.CorrelationId.Should().Be("corr_hint");
+        fetchedWithHint.CausationId.Should().Be("caus_hint");
+        fetchedWithHint.Error.Should().Be("sample_error");
+        fetchedWithHint.DeliverAt.Should().NotBeNull();
+        fetchedWithHint.ProcessedAt.Should().NotBeNull();
+        System.Text.Encoding.UTF8.GetString(fetchedWithHint.Payload.Span).Should().Be("{\"k\": \"val_hint\"}");
+        System.Text.Encoding.UTF8.GetString(fetchedWithHint.Headers.Span).Should().Be("{\"h\": \"head_hint\"}");
+
+        // Query with null hint (fallback to id-only query)
+        var fetchedNullHint = await sut.GetMessageAsync(msg.Id, null);
+        fetchedNullHint.Should().NotBeNull();
+        fetchedNullHint!.Id.Should().Be(msg.Id);
+
+        // Query with wrong timestamp hint
+        var notFound = await sut.GetMessageAsync(msg.Id, msg.CreatedAt.AddDays(5));
+        notFound.Should().BeNull();
+
+        // Query with non-existent id
+        var notFoundId = await sut.GetMessageAsync(Guid.NewGuid(), msg.CreatedAt);
+        notFoundId.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GetMessageAsync_WithCreatedAtHint_HandlesNullColumns()
+    {
+        var sut = CreateSut();
+        var msg = CreateMessage(state: 0, deliverAt: null) with { CorrelationId = null, CausationId = null };
+
+        await using var connection = await _dataSource.OpenConnectionAsync();
+        await connection.ExecuteAsync("INSERT INTO outbox.messages (id, type, payload, headers_json, created_at, updated_at, deliver_at, state, error) VALUES (@Id, @MessageType, NULL, NULL, @CreatedAt, NOW(), NULL, @State, NULL)", new { msg.Id, msg.MessageType, msg.CreatedAt, State = msg.Status });
+
+        var fetched = await sut.GetMessageAsync(msg.Id, msg.CreatedAt);
+        fetched.Should().NotBeNull();
+        fetched!.CorrelationId.Should().BeNull();
+        fetched.CausationId.Should().BeNull();
+        fetched.DeliverAt.Should().BeNull();
+        fetched.ProcessedAt.Should().BeNull();
+        fetched.Error.Should().BeNull();
+        System.Text.Encoding.UTF8.GetString(fetched.Payload.Span).Should().Be("{}");
+        System.Text.Encoding.UTF8.GetString(fetched.Headers.Span).Should().Be("{}");
+    }
+
+    [Fact]
+    public async Task PurgeDispatchedMessagesAsync_WhenBatchSizeZeroOrNegative_ReturnsZeroImmediately()
+    {
+        var sut = CreateSut();
+        var oldDispatched = CreateMessage(state: 2, createdAt: DateTimeOffset.UtcNow.AddDays(-10));
+        await using var connection = await _dataSource.OpenConnectionAsync();
+        await connection.ExecuteAsync("INSERT INTO outbox.messages (id, type, payload, headers_json, created_at, updated_at, processed_at, state) VALUES (@Id, @MessageType, '{}', '{}', @CreatedAt, NOW() - INTERVAL '10 days', NOW() - INTERVAL '10 days', @State)", new { oldDispatched.Id, oldDispatched.MessageType, oldDispatched.CreatedAt, State = oldDispatched.Status });
+
+        var result0 = await sut.PurgeDispatchedMessagesAsync(DateTimeOffset.UtcNow, batchSize: 0);
+        result0.Should().Be(0);
+
+        var resultNeg = await sut.PurgeDispatchedMessagesAsync(DateTimeOffset.UtcNow, batchSize: -5);
+        resultNeg.Should().Be(0);
+
+        var count = await connection.ExecuteScalarAsync<int>("SELECT COUNT(1) FROM outbox.messages WHERE id = @Id", new { oldDispatched.Id });
+        count.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task PurgeDispatchedMessagesAsync_Should_Delete_State2_Messages_Before_Cutoff()
+    {
+        var sut = CreateSut();
+        var oldDispatched = CreateMessage(state: 2, createdAt: DateTimeOffset.UtcNow.AddDays(-10));
+        var freshDispatched = CreateMessage(state: 2, createdAt: DateTimeOffset.UtcNow);
+        var pendingMsg = CreateMessage(state: 0, createdAt: DateTimeOffset.UtcNow.AddDays(-10));
+
+        await using var connection = await _dataSource.OpenConnectionAsync();
+        await connection.ExecuteAsync("INSERT INTO outbox.messages (id, type, payload, headers_json, created_at, updated_at, processed_at, state) VALUES (@Id, @MessageType, '{}', '{}', @CreatedAt, NOW() - INTERVAL '10 days', NOW() - INTERVAL '10 days', @State)", new { oldDispatched.Id, oldDispatched.MessageType, oldDispatched.CreatedAt, State = oldDispatched.Status });
+        await connection.ExecuteAsync("INSERT INTO outbox.messages (id, type, payload, headers_json, created_at, updated_at, processed_at, state) VALUES (@Id, @MessageType, '{}', '{}', @CreatedAt, NOW(), NOW(), @State)", new { freshDispatched.Id, freshDispatched.MessageType, freshDispatched.CreatedAt, State = freshDispatched.Status });
+        await connection.ExecuteAsync("INSERT INTO outbox.messages (id, type, payload, headers_json, created_at, updated_at, state) VALUES (@Id, @MessageType, '{}', '{}', @CreatedAt, NOW() - INTERVAL '10 days', @State)", new { pendingMsg.Id, pendingMsg.MessageType, pendingMsg.CreatedAt, State = pendingMsg.Status });
+
+        var purged = await sut.PurgeDispatchedMessagesAsync(DateTimeOffset.UtcNow.AddDays(-5), batchSize: 100);
+        purged.Should().Be(1);
+
+        var countOld = await connection.ExecuteScalarAsync<int>("SELECT COUNT(1) FROM outbox.messages WHERE id = @Id", new { oldDispatched.Id });
+        countOld.Should().Be(0);
+
+        var countFresh = await connection.ExecuteScalarAsync<int>("SELECT COUNT(1) FROM outbox.messages WHERE id = @Id", new { freshDispatched.Id });
+        countFresh.Should().Be(1);
+
+        var countPending = await connection.ExecuteScalarAsync<int>("SELECT COUNT(1) FROM outbox.messages WHERE id = @Id", new { pendingMsg.Id });
+        countPending.Should().Be(1);
+    }
+
+    [Fact]
+    public void PooledList_BasicOperations_And_EdgeCases()
+    {
+        using (var list = new PostgreSqlOutboxRepository.PooledList<int>(5))
+        {
+            list.Count.Should().Be(5);
+            list.IsReadOnly.Should().BeFalse();
+
+            for (int i = 0; i < 5; i++)
+            {
+                list[i] = i * 10;
+                list[i].Should().Be(i * 10);
+            }
+
+            // Indexer out of bounds
+            Action getNegative = () => { var _ = list[-1]; };
+            getNegative.Should().Throw<ArgumentOutOfRangeException>();
+
+            Action getTooLarge = () => { var _ = list[5]; };
+            getTooLarge.Should().Throw<ArgumentOutOfRangeException>();
+
+            Action setNegative = () => { list[-1] = 99; };
+            setNegative.Should().Throw<ArgumentOutOfRangeException>();
+
+            Action setTooLarge = () => { list[5] = 99; };
+            setTooLarge.Should().Throw<ArgumentOutOfRangeException>();
+
+            // CopyTo
+            var expectedItems = new int[] { 0, 10, 20, 30, 40 };
+            var destination = new int[5];
+            list.CopyTo(destination, 0);
+            destination.Should().BeEquivalentTo(expectedItems);
+
+            // Enumerator & non-generic enumerator
+            var items = new List<int>();
+            foreach (var item in list)
+            {
+                items.Add(item);
+            }
+            items.Should().BeEquivalentTo(expectedItems);
+
+            var nonGenericItems = new List<int>();
+            var nonGenericEnum = ((System.Collections.IEnumerable)list).GetEnumerator();
+            while (nonGenericEnum.MoveNext())
+            {
+                nonGenericItems.Add((int)nonGenericEnum.Current!);
+            }
+            nonGenericItems.Should().BeEquivalentTo(expectedItems);
+
+            // Unsupported mutations
+            Action add = () => list.Add(1);
+            add.Should().Throw<NotSupportedException>();
+
+            Action clear = () => list.Clear();
+            clear.Should().Throw<NotSupportedException>();
+
+            Action contains = () => list.Contains(1);
+            contains.Should().Throw<NotSupportedException>();
+
+            Action indexOf = () => list.IndexOf(1);
+            indexOf.Should().Throw<NotSupportedException>();
+
+            Action insert = () => list.Insert(0, 1);
+            insert.Should().Throw<NotSupportedException>();
+
+            Action remove = () => list.Remove(1);
+            remove.Should().Throw<NotSupportedException>();
+
+            Action removeAt = () => list.RemoveAt(0);
+            removeAt.Should().Throw<NotSupportedException>();
+        }
+
+        // Multiple dispose should be safe and clearArray works
+        var listToDispose = new PostgreSqlOutboxRepository.PooledList<int>(3);
+        listToDispose.IsDisposed.Should().BeFalse();
+        listToDispose[0] = 777;
+        listToDispose[1] = 888;
+        listToDispose[2] = 999;
+        listToDispose.Dispose();
+        listToDispose.IsDisposed.Should().BeTrue();
+        listToDispose.Dispose();
+        listToDispose.IsDisposed.Should().BeTrue();
+    }
+
+    [Fact]
+    public void PooledList_Dispose_ReturnsClearedArrayToPool()
+    {
+        var warmup = System.Buffers.ArrayPool<string>.Shared.Rent(16);
+        System.Buffers.ArrayPool<string>.Shared.Return(warmup, clearArray: true);
+
+        var list = new PostgreSqlOutboxRepository.PooledList<string>(16);
+        list[0] = "secret_canary_value";
+        list.Dispose();
+
+        var rented = System.Buffers.ArrayPool<string>.Shared.Rent(16);
+        try
+        {
+            rented[0].Should().BeNull();
+        }
+        finally
+        {
+            System.Buffers.ArrayPool<string>.Shared.Return(rented, clearArray: true);
+        }
+    }
+
+    [Fact]
+    public async Task PurgeDispatchedMessagesAsync_WhenBatchSizeZero_WithDisposedDataSource_ReturnsZeroImmediately()
+    {
+        await using var disposedDs = NpgsqlDataSource.Create("Host=localhost;Username=test;Password=test");
+        await disposedDs.DisposeAsync();
+
+        var sut = new PostgreSqlOutboxRepository(disposedDs);
+        var result = await sut.PurgeDispatchedMessagesAsync(DateTimeOffset.UtcNow, batchSize: 0);
+        result.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task InsertBulkAsync_EmptyRecords_ReturnsImmediatelyWithoutTouchingDataSource()
+    {
+        await using var disposedDs = NpgsqlDataSource.Create("Host=localhost;Username=test;Password=test");
+        await disposedDs.DisposeAsync();
+
+        var sut = new PostgreSqlOutboxRepository(disposedDs);
+        var act = () => sut.InsertBulkAsync(Array.Empty<OutboxMessage>());
+        await act.Should().NotThrowAsync();
+    }
+
+    [Fact]
+    public async Task FetchPendingAsync_WhenUnexpectedStateInDatabase_SkipsRow()
+    {
+        var sut = CreateSut();
+        var msg = CreateMessage(state: 0);
+
+        await using var connection = await _dataSource.OpenConnectionAsync();
+        await connection.ExecuteAsync(@"
+            INSERT INTO outbox.messages 
+            (id, type, payload, correlation_id, causation_id, headers_json, created_at, updated_at, deliver_at, state, retry_count)
+            VALUES 
+            (@Id, @Type, @Payload::jsonb, @CorrelationId, @CausationId, @HeadersJson::jsonb, @CreatedAt, @UpdatedAt, @DeliverAt, 99, 0)",
+            new {
+                Id = msg.Id,
+                Type = msg.MessageType,
+                Payload = System.Text.Encoding.UTF8.GetString(msg.Payload.Span),
+                CorrelationId = msg.CorrelationId,
+                CausationId = msg.CausationId,
+                HeadersJson = System.Text.Encoding.UTF8.GetString(msg.Headers.Span),
+                CreatedAt = msg.CreatedAt,
+                UpdatedAt = DateTimeOffset.UtcNow,
+                DeliverAt = (DateTimeOffset?)null
+            });
+
+        var fetched = await sut.FetchPendingAsync(10);
+        fetched.Should().NotContain(m => m.Id == msg.Id);
+    }
 }
+
+
+
 
 
 

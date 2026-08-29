@@ -1,0 +1,30 @@
+{
+  "stryker-config": {
+    "project": "EricksonLopez.Outbox.MassTransit.csproj",
+    "test-projects": [
+      "EricksonLopez.Outbox.MassTransit.Tests.csproj"
+    ],
+    "mutate": [
+      "**/*.cs",
+      "!bin/**",
+      "!obj/**",
+      "!**/*.g.cs",
+      "!**/*.AssemblyInfo.cs"
+    ],
+    "thresholds": {
+      "high": 100,
+      "low": 98,
+      "break": 95
+    },
+    "reporters": [
+      "html",
+      "json",
+      "cleartext",
+      "progress"
+    ],
+    "ignore-methods": [
+      "ConfigureAwait",
+      "Dispose"
+    ]
+  }
+}

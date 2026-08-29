@@ -65,6 +65,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup Node.js (for compliance & quality gates)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Verify repository compliance & enforcement
+        run: node scripts/verify-compliance.js
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
@@ -75,14 +83,14 @@ jobs:
           SNK_KEY: ${{ secrets.SNK_KEY }}
         run: |
           if [ -n "$SNK_KEY" ]; then
-            echo "$SNK_KEY" | tr -d '\n\r ' | base64 --decode > EricksonLopez.Outbox.snk
+            echo "$SNK_KEY" | tr -d '\n\r ' | base64 --decode > EricksonLopez.snk
           fi
 
       - name: Restore
         run: dotnet restore EricksonLopez.Outbox.slnx
 
       - name: Setup Java (for SonarScanner)
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v5
         with:
           java-version: '17'
           distribution: 'zulu'
@@ -96,7 +104,15 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         if: env.SONAR_TOKEN != ''
         run: |
-          dotnet sonarscanner begin /k:"ericksonlopez_${{ github.event.repository.name }}" /o:"ericksonlopez" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml"
+          dotnet sonarscanner begin \
+            /k:"ericksonlopezf_${{ github.event.repository.name }}" \
+            /o:"ericksonlopezf" \
+            /d:sonar.token="$SONAR_TOKEN" \
+            /d:sonar.host.url="https://sonarcloud.io" \
+            /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml" \
+            /d:sonar.cs.vstest.reportsPaths="**/test-results/*.trx,**/*.trx" \
+            /d:sonar.coverage.exclusions="tests/**,benchmarks/**,samples/**,scripts/**,**/*.g.cs,**/HeadersJsonContext*.cs" \
+            /d:sonar.cpd.exclusions="tests/**,benchmarks/**,samples/**,scripts/**"
 
       - name: Build (Release)
         run: dotnet build EricksonLopez.Outbox.slnx --no-restore --configuration Release
@@ -120,7 +136,7 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         if: always() && env.SONAR_TOKEN != ''
-        run: dotnet sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
+        run: dotnet sonarscanner end /d:sonar.token="$SONAR_TOKEN"
 
       - name: Upload test results
         if: always()
@@ -131,7 +147,7 @@ jobs:
 
       - name: Upload coverage to Codecov
         if: always() && inputs.upload-coverage
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@0fb7174895f61a3b6b78fc075e0cd60383518dac # v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: "**/coverage.opencover.xml,**/coverage.cobertura.xml"

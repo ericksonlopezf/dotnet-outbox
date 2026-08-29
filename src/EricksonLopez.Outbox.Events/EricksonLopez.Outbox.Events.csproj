@@ -1,0 +1,28 @@
+<!-- Copyright © Erickson Lopez. MIT License. -->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>EricksonLopez.Events integration for EricksonLopez.Outbox. Provides an IEventPublisher implementation backed by transactional outbox for reliable at-least-once domain and integration event delivery.</Description>
+    <PackageTags>$(CommonPackageTags);domain-events;integration-events;event-driven;events;messaging;native-aot</PackageTags>
+    <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
+    <Nullable>enable</Nullable>
+    <IsAotCompatible>true</IsAotCompatible>
+    <IsTrimmable>true</IsTrimmable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\EricksonLopez.Outbox\EricksonLopez.Outbox.csproj" />
+    <ProjectReference Include="..\EricksonLopez.Outbox.Abstractions\EricksonLopez.Outbox.Abstractions.csproj" />
+    <ProjectReference Include="..\..\..\dotnet-events\src\EricksonLopez.Events.Contracts\EricksonLopez.Events.Contracts.csproj" 
+                      Condition="Exists('..\..\..\dotnet-events\src\EricksonLopez.Events.Contracts\EricksonLopez.Events.Contracts.csproj')" />
+    <PackageReference Include="EricksonLopez.Events.Contracts" 
+                      Condition="!Exists('..\..\..\dotnet-events\src\EricksonLopez.Events.Contracts\EricksonLopez.Events.Contracts.csproj')" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="EricksonLopez.Outbox.Events.Tests" />
+  </ItemGroup>
+</Project>

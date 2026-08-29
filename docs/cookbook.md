@@ -1,264 +1,489 @@
-# Cookbook & Best Practices
+<!-- Copyright © Erickson Lopez. MIT License. -->
 
-Practical recipes for real-world integration patterns with `EricksonLopez.Outbox`, plus production best practices. All recipes use exclusively the verified public API.
+# Transactional Outbox & Inbox Cookbook
+
+Production-grade recipes and architectural patterns for `EricksonLopez.Outbox` and `EricksonLopez.Inbox`.
 
 ---
 
-## Recipes
+## Recipes Index
 
-### Recipe 1: Transaction with Raw ADO.NET (PostgreSQL)
+1. [Recipe 1: Atomic Transaction with Raw ADO.NET (PostgreSQL)](#recipe-1-atomic-transaction-with-raw-adonet-postgresql)
+2. [Recipe 2: Atomic Transaction with Entity Framework Core](#recipe-2-atomic-transaction-with-entity-framework-core)
+3. [Recipe 3: High-Throughput Zero-Allocation Batching](#recipe-3-high-throughput-zero-allocation-batching)
+4. [Recipe 4: Clean Architecture & Domain Events via Interceptor](#recipe-4-clean-architecture--domain-events-via-interceptor)
+5. [Recipe 5: Scheduled & Delayed Message Delivery](#recipe-5-scheduled--delayed-message-delivery)
+6. [Recipe 6: Idempotent Consumer & Inbox Deduplication](#recipe-6-idempotent-consumer--inbox-deduplication)
+7. [Recipe 7: ASP.NET Core HTTP `Idempotency-Key` Endpoint Filter](#recipe-7-aspnet-core-http-idempotency-key-endpoint-filter)
+8. [Recipe 8: Custom Dispatch Middleware (Telemetry & Enrichment)](#recipe-8-custom-dispatch-middleware-telemetry--enrichment)
+9. [Recipe 9: Serverless & Cron On-Demand Dispatching (`ManualOutboxDispatcher`)](#recipe-9-serverless--cron-on-demand-dispatching-manualoutboxdispatcher)
+10. [Recipe 10: Unit Testing Without a Database (`InMemoryOutboxStore`)](#recipe-10-unit-testing-without-a-database-inmemoryoutboxstore)
 
-**Problem:** You need to persist an event in the outbox within the same transaction as your domain operations using `Npgsql`.
+---
 
+## Recipe 1: Atomic Transaction with Raw ADO.NET (PostgreSQL)
+
+### Problem
+You need to insert a business entity using raw SQL (`Npgsql`) and guarantee that an integration event is saved in the outbox within the exact same database transaction.
+
+### Solution
+Wrap the active `NpgsqlTransaction` using `tx.ToOutboxContext()` and call `IOutbox.StoreAsync`.
+
+### Code
 ```csharp
+using System;
+using System.Threading;
+using System.Threading.Tasks;
 using EricksonLopez.Outbox;
+using EricksonLopez.Outbox.Contracts;
 using EricksonLopez.Outbox.Persistence;
 using Npgsql;
 
-public async Task ProcessOrder(IOutbox outbox, NpgsqlDataSource dataSource, CancellationToken ct)
+[OutboxMessage("order.created.v1")]
+public sealed record OrderCreatedEvent(Guid OrderId, string CustomerId, decimal Amount, DateTimeOffset CreatedAt);
+
+public sealed class OrderRepository
 {
-    await using var conn = await dataSource.OpenConnectionAsync(ct);
-    await using var tx = await conn.BeginTransactionAsync(ct);
+    private readonly NpgsqlDataSource _dataSource;
+    private readonly IOutbox _outbox;
 
-    // 1. Execute domain query
-    await using var cmd = new NpgsqlCommand("INSERT INTO Orders (Id) VALUES (@id)", conn, tx);
-    cmd.Parameters.AddWithValue("id", Guid.NewGuid());
-    await cmd.ExecuteNonQueryAsync(ct);
+    public OrderRepository(NpgsqlDataSource dataSource, IOutbox outbox)
+    {
+        _dataSource = dataSource;
+        _outbox = outbox;
+    }
 
-    // 2. Store event in outbox (same transaction)
-    var @event = new OrderCreatedEvent(Guid.NewGuid(), 99.99m);
-    var dbTx = new DbTransactionContext(tx);
-    await outbox.StoreAsync(@event, dbTx, ct);
+    public async Task CreateOrderAsync(Guid orderId, string customerId, decimal amount, CancellationToken ct)
+    {
+        await using var conn = await _dataSource.OpenConnectionAsync(ct);
+        await using var tx = await conn.BeginTransactionAsync(ct);
 
-    // 3. Unified commit — both succeed or both rollback
-    await tx.CommitAsync(ct);
+        // 1. Domain persistence
+        await using var cmd = new NpgsqlCommand(
+            "INSERT INTO orders (id, customer_id, total, created_at) VALUES (@id, @cid, @tot, @cat)", 
+            conn, tx);
+        cmd.Parameters.AddWithValue("id", orderId);
+        cmd.Parameters.AddWithValue("cid", customerId);
+        cmd.Parameters.AddWithValue("tot", amount);
+        cmd.Parameters.AddWithValue("cat", DateTimeOffset.UtcNow);
+        await cmd.ExecuteNonQueryAsync(ct);
+
+        // 2. Outbox persistence (same transaction context)
+        var @event = new OrderCreatedEvent(orderId, customerId, amount, DateTimeOffset.UtcNow);
+        await _outbox.StoreAsync(@event, tx.ToOutboxContext(), ct);
+
+        // 3. Unified atomic commit
+        await tx.CommitAsync(ct);
+    }
 }
 ```
 
-### Recipe 2: Transaction with Entity Framework Core
+### Best Practices
+- Always call `tx.CommitAsync()` after `outbox.StoreAsync()`.
+- Use `tx.ToOutboxContext()` extension method to avoid manual wrapper instantiation.
 
-**Problem:** You have a `DbContext` and need to ensure atomicity between your entities and the outbox message.
+### Common Errors
+- ❌ Committing the transaction *before* calling `StoreAsync()`.
+- ❌ Opening a second database connection for the outbox.
 
+---
+
+## Recipe 2: Atomic Transaction with Entity Framework Core
+
+### Problem
+You use EF Core for your aggregate root persistence and want to store an outbox message within the EF Core transaction boundary.
+
+### Solution
+Begin an EF Core transaction via `dbContext.Database.BeginTransactionAsync()`, extract the underlying transaction using `DbTransactionContext`, store the outbox message, and commit.
+
+### Code
 ```csharp
+using System;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using EricksonLopez.Outbox;
 using EricksonLopez.Outbox.Persistence;
 
-public async Task SaveWithEfCore(AppDbContext dbContext, IOutbox outbox, CancellationToken ct)
+public sealed class OrderCommandHandler
 {
-    await using var tx = await dbContext.Database.BeginTransactionAsync(ct);
+    private readonly AppDbContext _dbContext;
+    private readonly IOutbox _outbox;
 
-    // 1. Modify entities
-    var order = new Order { CustomerId = "123" };
-    dbContext.Orders.Add(order);
-    await dbContext.SaveChangesAsync(ct);
+    public OrderCommandHandler(AppDbContext dbContext, IOutbox outbox)
+    {
+        _dbContext = dbContext;
+        _outbox = outbox;
+    }
 
-    // 2. Store in outbox (extract the underlying DbTransaction)
-    var @event = new OrderCreatedEvent(order.Id);
-    var dbTx = new DbTransactionContext(tx.GetDbTransaction());
-    await outbox.StoreAsync(@event, dbTx, ct);
+    public async Task HandleCreateOrderAsync(string customerId, decimal total, CancellationToken ct)
+    {
+        await using var transaction = await _dbContext.Database.BeginTransactionAsync(ct);
 
-    // 3. Commit the transaction
-    await tx.CommitAsync(ct);
+        // 1. Persist Domain Entities
+        var order = new Order { Id = Guid.NewGuid(), CustomerId = customerId, Total = total };
+        _dbContext.Orders.Add(order);
+        await _dbContext.SaveChangesAsync(ct);
+
+        // 2. Store Outbox Message in the same EF Core transaction
+        var dbTransaction = transaction.GetDbTransaction();
+        var @event = new OrderCreatedEvent(order.Id, customerId, total, DateTimeOffset.UtcNow);
+        await _outbox.StoreAsync(@event, new DbTransactionContext(dbTransaction), ct);
+
+        // 3. Commit EF Core transaction
+        await transaction.CommitAsync(ct);
+    }
 }
 ```
 
-### Recipe 3: Fluent API with Metadata and Delayed Delivery
+---
 
-**Problem:** You need to add `CorrelationId`, `CausationId`, custom headers, and schedule delayed delivery.
+## Recipe 3: High-Throughput Zero-Allocation Batching
 
+### Problem
+You are processing high-volume ingestion (e.g. bulk CSV import or IoT sensor readings) and need to insert 5,000 outbox records per second without GC pressure.
+
+### Solution
+Use `IOutbox.StoreAsync(ReadOnlyMemory<TMessage>, ...)` with contiguous arrays or pooled memory slices.
+
+### Code
 ```csharp
+using System;
+using System.Buffers;
+using System.Threading;
+using System.Threading.Tasks;
 using EricksonLopez.Outbox;
 using EricksonLopez.Outbox.Persistence;
+using Npgsql;
 
-public async Task PublishWithMetadata(IOutbox outbox, DbTransaction tx, CancellationToken ct)
-{
-    var @event = new UserRegisteredEvent("user@domain.com");
-
-    await outbox.Publish(@event)
-        .WithCorrelationId(Guid.NewGuid().ToString())
-        .WithCausationId("cmd-register-user-42")
-        .WithHeader("X-Tenant-Id", "tenant-alpha")
-        .WithDelay(TimeSpan.FromMinutes(5))  // Delay delivery by 5 minutes
-        .WithTransaction(new DbTransactionContext(tx))
-        .StoreAsync(ct);
-}
-```
-
-### Recipe 4: Batch Processing
-
-**Problem:** You have hundreds of events to publish and individual `StoreAsync` calls are too slow.
-
-```csharp
-using EricksonLopez.Outbox;
-using EricksonLopez.Outbox.Persistence;
-
-public async Task PublishBatch(
-    IOutbox outbox, DbTransaction tx, IEnumerable<MyEvent> events, CancellationToken ct)
-{
-    var dbTx = new DbTransactionContext(tx);
-    // The outbox converts the enumerable and inserts in a single batch round-trip
-    await outbox.StoreAsync(events, dbTx, ct);
-}
-```
-
-### Recipe 5: Idempotent Consumption (Inbox Pattern)
-
-**Problem:** You're receiving messages from RabbitMQ or Kafka, but the broker guarantees at-least-once delivery. You need to prevent processing the same message twice.
-
-**How it works:**
-1. When a message arrives, start a local transaction.
-2. Attempt to insert the `MessageId` + `ConsumerId` into the idempotency table:
-   ```sql
-   INSERT INTO outbox.idempotency (message_id, consumer_id, processed_at)
-   VALUES (@MessageId, @ConsumerId, NOW())
-   ON CONFLICT DO NOTHING;
-   ```
-3. If zero rows affected → the message was already processed. Skip it.
-4. If one row inserted → execute business logic within the **same** transaction.
-5. Commit atomically — both the business state and the idempotency record are saved together.
-
-```csharp
-using EricksonLopez.Outbox.Idempotency;
-using EricksonLopez.Outbox.Persistence;
-
-public async Task ConsumeMessage(
-    string messageId,
-    OrderCreatedEvent payload,
-    DbTransaction tx,
-    IInboxIdempotencyChecker checker,
+public async Task IngestSensorReadingsAsync(
+    SensorReading[] readings, 
+    int count, 
+    NpgsqlDataSource dataSource, 
+    IOutbox outbox, 
     CancellationToken ct)
 {
-    var dbTx = new DbTransactionContext(tx);
+    await using var conn = await dataSource.OpenConnectionAsync(ct);
+    await using var tx = await conn.BeginTransactionAsync(ct);
 
-    // Attempt to claim exclusive processing rights
-    bool shouldProcess = await checker.ShouldProcessAsync(
-        messageId,
-        consumerId: "BillingService",
-        dbTx,
-        ct);
+    // Pass ReadOnlyMemory slice directly — zero array copies
+    var slice = new ReadOnlyMemory<SensorReading>(readings, 0, count);
+    await outbox.StoreAsync(slice, tx.ToOutboxContext(), ct);
 
-    if (!shouldProcess)
-    {
-        // Duplicate — ACK the broker and skip
-        return;
-    }
-
-    // Execute business logic (safe — only runs once per unique messageId)
-    await ProcessPayment(payload);
-}
-```
-
-> [!NOTE]
-> If the server crashes during business logic execution, the transaction rolls back.
-> The idempotency record disappears, the business state doesn't change, and the broker
-> will redeliver the message, where it will succeed on the next attempt.
-
-### Recipe 6: Domain Events in DDD Aggregates
-
-**Problem:** You follow DDD and want to collect domain events inside your aggregate root, then flush them to the outbox during persistence.
-
-```csharp
-public abstract class AggregateRoot
-{
-    private readonly List<object> _domainEvents = [];
-    public IReadOnlyList<object> DomainEvents => _domainEvents;
-    protected void AddDomainEvent(object evt) => _domainEvents.Add(evt);
-    public void ClearDomainEvents() => _domainEvents.Clear();
-}
-
-// In your Unit of Work / SaveChanges override:
-public async Task CommitAsync(CancellationToken ct)
-{
-    await using var tx = await _db.Database.BeginTransactionAsync(ct);
-    var txContext = new DbTransactionContext(tx.GetDbTransaction());
-
-    var aggregates = _db.ChangeTracker.Entries<AggregateRoot>()
-        .Where(e => e.Entity.DomainEvents.Count > 0)
-        .Select(e => e.Entity);
-
-    foreach (var aggregate in aggregates)
-    {
-        foreach (var evt in aggregate.DomainEvents)
-            await _outbox.StoreAsync(evt, txContext, ct);
-        aggregate.ClearDomainEvents();
-    }
-
-    await _db.SaveChangesAsync(ct);
     await tx.CommitAsync(ct);
 }
 ```
 
 ---
 
-## Production Best Practices
+## Recipe 4: Clean Architecture & Domain Events via Interceptor
 
-### 1. Database Configuration
+### Problem
+You follow Domain-Driven Design (DDD) where domain aggregates raise domain events, and you want to persist these events to the outbox automatically whenever EF Core saves changes.
 
-- **Use native storage providers** (`PostgreSqlOutboxRepository`, `SqlServerOutboxRepository`) for horizontal scaling. They implement `SKIP LOCKED` / `READPAST` for safe concurrent polling.
-- **Do not delete indexes** created by the library on `state`, `created_at`, and `deliver_at` columns.
-- **Tune autovacuum** for the outbox table (PostgreSQL):
-  ```sql
-  ALTER TABLE outbox.messages SET (
-      autovacuum_vacuum_scale_factor = 0.01,
-      autovacuum_analyze_scale_factor = 0.01,
-      autovacuum_vacuum_cost_delay = 2
-  );
-  ```
+### Solution
+Implement an EF Core `SaveChangesInterceptor` that drains domain events from aggregates and calls `IOutbox.StoreAsync` within the active transaction.
 
-### 2. Message Design
-
-- **Keep payloads small.** The outbox is not for binary files. Use the **Claim Check Pattern** — upload to blob storage (S3/Azure Blob) and send the URL in the event.
-- **Always use aliases.** Use `[OutboxMessage("domain.entity.event.v1")]`. If you rename your namespace, the alias protects deserialization of old messages.
-- **Use source generators** in production: `options.UseGeneratedTypes()`. Zero-allocation, AOT-friendly.
-
-### 3. Dispatcher Tuning
-
-- **`BatchSize`:** Start with 100. Reduce if the broker can't keep up; increase to 500–1000 for high throughput.
-- **`UseAdaptivePolling`:** Always enable. Prevents thousands of empty SELECTs during off-peak hours.
-- **`MaxDegreeOfParallelism`:** Use 1 for strict ordering. Use 4–8 for high-throughput with relaxed ordering.
-
-### 4. Data Retention
-
-- Configure `options.RetentionPeriod` to 7 or 15 days for inbox cleanup.
-- Do not keep dispatched events forever in the transactional database — this degrades index performance.
-- For historical auditing, use CDC (Change Data Capture) or a data warehouse.
-
-### 5. Consumer Design (Idempotency)
-
-- Design consumers assuming they **will** receive the same message twice.
-- If your business logic is not naturally idempotent (e.g., `UPDATE balance = balance - 10`), **you must** use the `IInboxIdempotencyChecker` (Inbox Pattern).
-
-### 6. Strict Ordering
-
-The outbox guarantees partial ordering (by `created_at`). For strict per-entity ordering:
-1. Group logically by `AggregateId`
-2. Set `MaxDegreeOfParallelism = 1`
-3. Pass the `AggregateId` as a Kafka partition key via `OutboxMessageBuilder.WithHeader()`
-
-### 7. Observability
-
+### Code
 ```csharp
-builder.Services.AddOpenTelemetry()
-    .WithTracing(t => t.AddSource("EricksonLopez.Outbox"));
-```
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.EntityFrameworkCore.Storage;
+using EricksonLopez.Outbox;
+using EricksonLopez.Outbox.Persistence;
 
-The framework automatically propagates `traceparent` inside message headers for distributed trace correlation.
+public sealed class OutboxDomainEventsInterceptor : SaveChangesInterceptor
+{
+    private readonly IOutbox _outbox;
+
+    public OutboxDomainEventsInterceptor(IOutbox outbox)
+    {
+        _outbox = outbox;
+    }
+
+    public override async ValueTask<InterceptionResult<int>> SavingChangesAsync(
+        DbContextEventData eventData,
+        InterceptionResult<int> result,
+        CancellationToken cancellationToken = default)
+    {
+        var context = eventData.Context;
+        if (context == null) return result;
+
+        var entitiesWithEvents = context.ChangeTracker.Entries<IHasDomainEvents>()
+            .Select(e => e.Entity)
+            .Where(e => e.DomainEvents.Any())
+            .ToList();
+
+        if (entitiesWithEvents.Count == 0) return result;
+
+        var currentTransaction = context.Database.CurrentTransaction?.GetDbTransaction();
+        var transactionContext = currentTransaction != null ? new DbTransactionContext(currentTransaction) : null;
+
+        foreach (var entity in entitiesWithEvents)
+        {
+            foreach (var domainEvent in entity.DomainEvents)
+            {
+                await _outbox.StoreAsync(domainEvent, transactionContext, cancellationToken);
+            }
+            entity.ClearDomainEvents();
+        }
+
+        return result;
+    }
+}
+```
 
 ---
 
-## Running the Sample Application
+## Recipe 5: Scheduled & Delayed Message Delivery
 
-The repository includes a functional example under `samples/Sample.OrderService`:
+### Problem
+You need to publish an event that becomes visible for broker dispatch only after a specific delay (e.g. reminder email in 24 hours, invoice expiration check).
 
-```bash
-# 1. Start infrastructure (PostgreSQL + RabbitMQ)
-cd samples/Sample.OrderService
-docker-compose up -d
+### Solution
+Use `outbox.Publish(event).WithDelay(TimeSpan)` or `.DeliverAt(DateTimeOffset)`.
 
-# 2. Run the application
-dotnet run
+### Code
+```csharp
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+using EricksonLopez.Outbox;
+using EricksonLopez.Outbox.Persistence;
+
+public sealed class PaymentService
+{
+    private readonly IOutbox _outbox;
+
+    public PaymentService(IOutbox outbox)
+    {
+        _outbox = outbox;
+    }
+
+    public async Task SchedulePaymentReminderAsync(
+        Guid invoiceId, 
+        IOutboxTransactionContext transaction, 
+        CancellationToken ct)
+    {
+        var reminderEvent = new InvoicePaymentReminderDue(invoiceId, DateTimeOffset.UtcNow);
+
+        // Schedule message delivery 24 hours in the future
+        await _outbox.Publish(reminderEvent)
+            .WithTransaction(transaction)
+            .WithDelay(TimeSpan.FromHours(24))
+            .StoreAsync(ct);
+    }
+}
 ```
 
-The sample demonstrates the complete flow: `POST /orders` → save order + store outbox event → dispatcher publishes to RabbitMQ → consumer processes with inbox idempotency.
+---
+
+## Recipe 6: Idempotent Consumer & Inbox Deduplication
+
+### Problem
+A message broker delivers a duplicate message due to network reconnection (At-Least-Once delivery). The consumer must detect duplicates and avoid processing business logic twice.
+
+### Solution
+Use `IInboxIdempotencyChecker.ShouldProcessAsync()` within the consumer's local database transaction.
+
+### Code
+```csharp
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+using EricksonLopez.Outbox.Idempotency;
+using EricksonLopez.Outbox.Persistence;
+using Npgsql;
+
+public sealed class PaymentProcessedConsumer
+{
+    private readonly NpgsqlDataSource _dataSource;
+    private readonly IInboxIdempotencyChecker _idempotencyChecker;
+
+    public PaymentProcessedConsumer(NpgsqlDataSource dataSource, IInboxIdempotencyChecker idempotencyChecker)
+    {
+        _dataSource = dataSource;
+        _idempotencyChecker = idempotencyChecker;
+    }
+
+    public async Task ConsumeAsync(string messageId, Guid orderId, decimal amount, CancellationToken ct)
+    {
+        await using var conn = await _dataSource.OpenConnectionAsync(ct);
+        await using var tx = await conn.BeginTransactionAsync(ct);
+        var dbTx = tx.ToOutboxContext();
+
+        // 1. Atomic Inbox idempotency check
+        var shouldProcess = await _idempotencyChecker.ShouldProcessAsync(
+            messageId: messageId,
+            consumerId: "BillingService.PaymentConsumer",
+            transaction: dbTx,
+            cancellationToken: ct);
+
+        if (!shouldProcess)
+        {
+            // Duplicate detected! Safe to ACK without re-executing business logic.
+            await tx.RollbackAsync(ct);
+            return;
+        }
+
+        // 2. Execute business operations
+        await using var cmd = new NpgsqlCommand("UPDATE orders SET status = 'Paid' WHERE id = @id", conn, tx);
+        cmd.Parameters.AddWithValue("id", orderId);
+        await cmd.ExecuteNonQueryAsync(ct);
+
+        // 3. Atomic commit (both business update and idempotency record committed together)
+        await tx.CommitAsync(ct);
+    }
+}
+```
+
+---
+
+## Recipe 7: ASP.NET Core HTTP `Idempotency-Key` Endpoint Filter
+
+### Problem
+An API client retries a `POST /api/orders` payment request due to a client-side timeout. The API must return the original cached response without creating a duplicate order.
+
+### Solution
+Apply `IdempotentEndpointFilter` to the Minimal API route using `.RequireIdempotency()`.
+
+### Code
+```csharp
+using EricksonLopez.Outbox.Inbox.AspNetCore;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Register Inbox Deduplication
+builder.Services.AddInboxDeduplication();
+
+var app = builder.Build();
+
+app.MapPost("/api/checkout", async (CheckoutRequest request) =>
+{
+    // Process business transaction...
+    return Results.Ok(new { status = "Confirmed", orderId = Guid.NewGuid() });
+})
+.RequireIdempotency(); // Intercepts HTTP Idempotency-Key header
+
+app.Run();
+```
+
+---
+
+## Recipe 8: Custom Dispatch Middleware (Telemetry & Enrichment)
+
+### Problem
+You need to inject custom tenant headers, telemetry baggage, or security tokens into every outbox message right before it is published to the broker.
+
+### Solution
+Implement `IOutboxMiddleware` and register it in the outbox pipeline.
+
+### Code
+```csharp
+using System.Threading.Tasks;
+using EricksonLopez.Outbox.Pipeline;
+
+public sealed class CorrelationEnrichmentMiddleware : IOutboxMiddleware
+{
+    public async ValueTask InvokeAsync(
+        OutboxMessage message,
+        OutboxMessageMetadata metadata,
+        DispatchContext context,
+        OutboxPipelineDelegate next)
+    {
+        // Enrich context or propagate correlation headers
+        context.Headers["x-app-version"] = "1.0.0";
+        context.Headers["x-environment"] = "Production";
+
+        await next(message, metadata, context);
+    }
+}
+
+// Registration:
+services.AddOutboxServices(builder =>
+{
+    builder.UseMiddleware<CorrelationEnrichmentMiddleware>();
+});
+```
+
+---
+
+## Recipe 9: Serverless & Cron On-Demand Dispatching (`ManualOutboxDispatcher`)
+
+### Problem
+You run in a serverless environment (AWS Lambda, Azure Functions) or want a cron job to drain pending outbox messages on demand rather than running a 24/7 background worker daemon.
+
+### Solution
+Use `IManualOutboxDispatcher.DrainBatchAsync()` to fetch and dispatch a fixed batch of pending messages.
+
+### Code
+```csharp
+using System.Threading;
+using System.Threading.Tasks;
+using EricksonLopez.Outbox.Hosting;
+using Microsoft.Azure.Functions.Worker;
+
+public sealed class OutboxDrainFunction
+{
+    private readonly IManualOutboxDispatcher _dispatcher;
+
+    public OutboxDrainFunction(IManualOutboxDispatcher dispatcher)
+    {
+        _dispatcher = dispatcher;
+    }
+
+    [Function("DrainOutboxTimer")]
+    public async Task Run([TimerTrigger("*/30 * * * * *")] TimerInfo timer, CancellationToken ct)
+    {
+        // Drain up to 500 pending messages on demand
+        var dispatchedCount = await _dispatcher.DrainBatchAsync(maxBatchSize: 500, ct);
+    }
+}
+```
+
+---
+
+## Recipe 10: Unit Testing Without a Database (`InMemoryOutboxStore`)
+
+### Problem
+You want to write fast unit and component tests verifying that your domain command handlers store the expected outbox messages, without spinning up Docker or real databases.
+
+### Solution
+Use `TestingOutboxExtensions` with `InMemoryOutboxStore` and `FakeBrokerPublisher`.
+
+### Code
+```csharp
+using System;
+using System.Threading.Tasks;
+using AwesomeAssertions;
+using EricksonLopez.Outbox.Testing;
+using Xunit;
+
+public sealed class OrderHandlerTests
+{
+    [Fact]
+    public async Task HandleCreateOrder_Should_Store_OrderCreatedEvent_In_Outbox()
+    {
+        // 1. Arrange: In-Memory Outbox harness
+        var store = new InMemoryOutboxStore();
+        var outbox = store.CreateOutbox();
+        var handler = new OrderCommandHandler(outbox);
+
+        // 2. Act
+        var orderId = Guid.NewGuid();
+        await handler.CreateOrderAsync(orderId, "customer-123", 99.95m);
+
+        // 3. Assert
+        store.StoredMessages.Should().HaveCount(1);
+        var stored = store.StoredMessages[0];
+        stored.MessageType.Should().Be("order.created.v1");
+        stored.CorrelationId.Should().NotBeNull();
+    }
+}
+```
+

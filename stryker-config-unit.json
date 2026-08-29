@@ -9,9 +9,7 @@
     "mutate": [
       "!**/Testing/**/*.cs",
       "!**/*.g.cs",
-      "!**/*Generator.cs",
       "!**/Generated/**/*.cs",
-      "!**/SourceGenerators/**/*.cs",
       "!**/EricksonLopez.Outbox.Analyzers/**/*.cs",
       "!**/*Analyzer.cs",
       "!**/*CodeFixProviders.cs"
@@ -25,9 +23,7 @@
       "cleartext",
       "progress"
     ],
-    "ignore-mutations": [
-      "string"
-    ],
+    "ignore-mutations": [],
     "ignore-methods": [
       "Log*",
       "LogDebug",
@@ -36,9 +32,6 @@
       "LogError",
       "PollerError",
       "ConfigureAwait",
-      "ThrowIfNull",
-      "ThrowIfNullOrWhiteSpace",
-      "ThrowIfNullOrEmpty",
       "ReturnArrayToPool",
       "RecordMetrics",
       "RecordMessageDispatched"
