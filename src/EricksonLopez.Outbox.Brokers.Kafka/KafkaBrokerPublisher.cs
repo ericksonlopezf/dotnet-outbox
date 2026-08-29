@@ -1,6 +1,9 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Confluent.Kafka;
 using EricksonLopez.Outbox;
@@ -9,7 +12,7 @@ using EricksonLopez.Outbox.Serialization;
 namespace EricksonLopez.Outbox.Brokers.Kafka;
 
 /// <summary>
-/// Publishes outbox messages to an Apache Kafka cluster.
+/// Provides a broker publisher implementation that dispatches outbox messages to an Apache Kafka cluster.
 /// </summary>
 public sealed class KafkaBrokerPublisher : IBrokerPublisher
 {
@@ -106,7 +109,7 @@ public sealed class KafkaBrokerPublisher : IBrokerPublisher
     /// <inheritdoc/>
     public async ValueTask<DispatchResult> PublishRawAsync(
         OutboxMessage message,
-        EricksonLopez.Outbox.MessageMetadata metadata,
+        EricksonLopez.Outbox.OutboxMessageMetadata metadata,
         DispatchContext context)
     {
         try
@@ -137,3 +140,8 @@ public sealed class KafkaBrokerPublisher : IBrokerPublisher
         }
     }
 }
+
+
+
+
+

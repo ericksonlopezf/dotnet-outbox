@@ -1,0 +1,21 @@
+<!-- Copyright © Erickson Lopez. MIT License. -->
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>Standalone consumer idempotency and inbox deduplication package for EricksonLopez.Outbox.</Description>
+    <PackageTags>$(CommonPackageTags);inbox;inbox-pattern;idempotency;deduplication;consumer;native-aot</PackageTags>
+    <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\EricksonLopez.Inbox.Abstractions\EricksonLopez.Inbox.Abstractions.csproj" />
+    <ProjectReference Include="..\EricksonLopez.Outbox.Abstractions\EricksonLopez.Outbox.Abstractions.csproj" />
+  </ItemGroup>
+
+</Project>

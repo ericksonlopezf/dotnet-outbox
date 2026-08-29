@@ -1,3 +1,4 @@
+// Copyright © Erickson Lopez. MIT License.
 namespace EricksonLopez.Outbox;
 
 /// <summary>
@@ -8,3 +9,4 @@ namespace EricksonLopez.Outbox;
 public readonly record struct Lock(
     string ResourceId,
     string OwnerId);
+

@@ -1,19 +1,20 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using EricksonLopez.Outbox;
 using EricksonLopez.Outbox.EntityFrameworkCore.Entities;
 using EricksonLopez.Outbox.Persistence;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace EricksonLopez.Outbox.EntityFrameworkCore;
 
 /// <summary>
-/// Entity Framework Core implementation of <see cref="IIdempotencyRepository"/>.
+/// Provides an Entity Framework Core implementation of <see cref="IIdempotencyRepository"/>.
 /// </summary>
-/// <typeparamref name="TDbContext">The application's DbContext type.</typeparamref>
+/// <typeparam name="TDbContext">The application's <see cref="DbContext"/> type that contains idempotency records.</typeparam>
 public class EntityFrameworkCoreIdempotencyRepository<TDbContext> : IIdempotencyRepository
     where TDbContext : DbContext
 {
@@ -26,7 +27,8 @@ public class EntityFrameworkCoreIdempotencyRepository<TDbContext> : IIdempotency
     /// <exception cref="ArgumentNullException"><paramref name="serviceProvider"/> is <see langword="null"/>.</exception>
     public EntityFrameworkCoreIdempotencyRepository(IServiceProvider serviceProvider)
     {
-        _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
+        ArgumentNullException.ThrowIfNull(serviceProvider);
+        _serviceProvider = serviceProvider;
     }
 
     /// <inheritdoc/>
@@ -64,7 +66,6 @@ public class EntityFrameworkCoreIdempotencyRepository<TDbContext> : IIdempotency
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        // Stryker disable once all
         if (oldRecords.Count > 0)
         {
             dbContext.Set<IdempotencyRecordEntity>().RemoveRange(oldRecords);
@@ -72,4 +73,7 @@ public class EntityFrameworkCoreIdempotencyRepository<TDbContext> : IIdempotency
         }
     }
 }
+
+
+
 

@@ -1,19 +1,25 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
+using System.Data;
+using System.Threading;
 using System.Threading.Tasks;
 using AutoFixture;
+using AutoFixture.AutoNSubstitute;
+using AwesomeAssertions;
 using Dapper;
 using EricksonLopez.Outbox;
-using AwesomeAssertions;
-using AutoFixture.AutoNSubstitute;
-
+using EricksonLopez.Outbox.Persistence;
 using EricksonLopez.Outbox.Storage.SqlServer;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Options;
+using NSubstitute;
 using Xunit;
 
-namespace EricksonLopez.Outbox.Tests;
+namespace EricksonLopez.Outbox.Storage.SqlServer.Tests;
 
-public class SqlServerIdempotencyRepositoryTests : IClassFixture<SqlServerContainerFixture>, IAsyncLifetime
+[Collection("SqlServer")]
+[Trait("Category", "Integration")]
+public class SqlServerIdempotencyRepositoryTests : IAsyncLifetime
 {
     private readonly SqlServerContainerFixture _fixture;
     private readonly IFixture _autoFixture;
@@ -26,45 +32,64 @@ public class SqlServerIdempotencyRepositoryTests : IClassFixture<SqlServerContai
 
     public async Task InitializeAsync()
     {
-        using var connection = new SqlConnection(_fixture.Container.GetConnectionString());
-        await connection.OpenAsync();
-        
-        await connection.ExecuteAsync(@"
-            IF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = 'outbox')
-            BEGIN
-                EXEC('CREATE SCHEMA [outbox]');
-            END
-        ");
-
-        const string schema = @"
-            IF OBJECT_ID('outbox.messages_idempotency', 'U') IS NULL
-            BEGIN
-                CREATE TABLE [outbox].[messages_idempotency] (
-                    message_id NVARCHAR(255) NOT NULL,
-                    consumer_id NVARCHAR(255) NOT NULL,
-                    processed_at DATETIMEOFFSET NOT NULL,
-                    PRIMARY KEY (message_id, consumer_id)
-                );
-            END
-            ELSE
-            BEGIN
-                TRUNCATE TABLE [outbox].[messages_idempotency];
-            END";
-        
-        await connection.ExecuteAsync(schema);
+        await SqlServerTestDatabase.EnsureSchemaAsync(_fixture.Container.GetConnectionString());
     }
 
-    public Task DisposeAsync() => Task.CompletedTask;
-
-    private SqlServerIdempotencyRepository CreateSut()
+    public async Task DisposeAsync()
     {
-        var options = new Microsoft.Extensions.Options.OptionsMonitor<OutboxRuntimeOptions>(
-            new Microsoft.Extensions.Options.OptionsFactory<OutboxRuntimeOptions>(
-                Array.Empty<Microsoft.Extensions.Options.IConfigureOptions<OutboxRuntimeOptions>>(),
-                Array.Empty<Microsoft.Extensions.Options.IPostConfigureOptions<OutboxRuntimeOptions>>()),
-            Array.Empty<Microsoft.Extensions.Options.IOptionsChangeTokenSource<OutboxRuntimeOptions>>(),
-            new Microsoft.Extensions.Options.OptionsCache<OutboxRuntimeOptions>());
+        await using var connection = new SqlConnection(_fixture.Container.GetConnectionString());
+        await connection.OpenAsync();
+        var options = new OutboxRuntimeOptions();
+        await connection.ExecuteAsync($"TRUNCATE TABLE [outbox].[{options.TableName}_idempotency]");
+    }
+
+    private SqlServerIdempotencyRepository CreateSut(OutboxRuntimeOptions? customOptions = null)
+    {
+        var opt = customOptions ?? new OutboxRuntimeOptions();
+        var options = new OptionsMonitor<OutboxRuntimeOptions>(
+            new OptionsFactory<OutboxRuntimeOptions>(
+                new[] { new ConfigureOptions<OutboxRuntimeOptions>(o => {
+                    o.SchemaName = opt.SchemaName;
+                    o.TableName = opt.TableName;
+                }) },
+                Array.Empty<IPostConfigureOptions<OutboxRuntimeOptions>>()),
+            Array.Empty<IOptionsChangeTokenSource<OutboxRuntimeOptions>>(),
+            new OptionsCache<OutboxRuntimeOptions>());
         return new SqlServerIdempotencyRepository(() => new SqlConnection(_fixture.Container.GetConnectionString()), options);
+    }
+
+    [Fact]
+    public void Constructor_NullConnectionFactory_ThrowsArgumentNullException()
+    {
+        var options = new OptionsMonitor<OutboxRuntimeOptions>(
+            new OptionsFactory<OutboxRuntimeOptions>(Array.Empty<IConfigureOptions<OutboxRuntimeOptions>>(), Array.Empty<IPostConfigureOptions<OutboxRuntimeOptions>>()),
+            Array.Empty<IOptionsChangeTokenSource<OutboxRuntimeOptions>>(),
+            new OptionsCache<OutboxRuntimeOptions>());
+
+        Action act = () => { _ = new SqlServerIdempotencyRepository(null!, options); };
+        act.Should().Throw<ArgumentNullException>().WithParameterName("connectionFactory");
+    }
+
+    [Fact]
+    public void Constructor_NullOptions_ThrowsArgumentNullException()
+    {
+        Action act = () => { _ = new SqlServerIdempotencyRepository(() => new SqlConnection(), null!); };
+        act.Should().Throw<ArgumentNullException>().WithParameterName("options");
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData("dbo")]
+    [InlineData("outbox")]
+    public async Task Operations_WithConfiguredSchema_TargetsConfiguredSchemaTable(string? schemaName)
+    {
+        var custom = new OutboxRuntimeOptions { SchemaName = schemaName!, TableName = "messages" };
+        var sut = CreateSut(custom);
+        var record = new IdempotencyRecord(Guid.NewGuid().ToString(), "c-test", DateTimeOffset.UtcNow);
+        var inserted = await sut.TryInsertAsync(record);
+        inserted.Should().BeTrue();
     }
 
     [Fact]
@@ -104,7 +129,7 @@ public class SqlServerIdempotencyRepositoryTests : IClassFixture<SqlServerContai
         await connection.OpenAsync();
         await using var tx = connection.BeginTransaction();
 
-        var result = await sut.TryInsertAsync(record, new EricksonLopez.Outbox.Persistence.DbTransactionContext(tx));
+        var result = await sut.TryInsertAsync(record, new DbTransactionContext(tx));
         result.Should().BeTrue();
 
         await tx.RollbackAsync();
@@ -112,6 +137,20 @@ public class SqlServerIdempotencyRepositoryTests : IClassFixture<SqlServerContai
         await using var newConn = new SqlConnection(_fixture.Container.GetConnectionString());
         var countAfterRollback = await newConn.ExecuteScalarAsync<int>("SELECT COUNT(1) FROM [outbox].[messages_idempotency] WHERE message_id = @MessageId", new { record.MessageId });
         countAfterRollback.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task TryInsertAsync_WithInvalidTransactionConnection_ThrowsInvalidOperationException()
+    {
+        var sut = CreateSut();
+        var record = _autoFixture.Create<IdempotencyRecord>();
+
+        var invalidTx = Substitute.For<IOutboxTransactionContext>();
+        invalidTx.Connection.Returns(Substitute.For<IDbConnection>());
+
+        Func<Task> act = async () => await sut.TryInsertAsync(record, invalidTx);
+        var ex = await act.Should().ThrowAsync<InvalidOperationException>();
+        ex.WithMessage("Connection must be a SqlConnection");
     }
 
     [Fact]
@@ -134,8 +173,29 @@ public class SqlServerIdempotencyRepositoryTests : IClassFixture<SqlServerContai
         var count = await connection.ExecuteScalarAsync<int>("SELECT COUNT(1) FROM [outbox].[messages_idempotency]");
         count.Should().Be(2); // r2 and r3 remain
     }
+
+    [Fact]
+    public async Task Operations_WithoutTransaction_DisposeConnectionProperly()
+    {
+        var builder = new SqlConnectionStringBuilder(_fixture.Container.GetConnectionString())
+        {
+            MaxPoolSize = 2,
+            ConnectTimeout = 2
+        };
+
+        var options = new OptionsMonitor<OutboxRuntimeOptions>(
+            new OptionsFactory<OutboxRuntimeOptions>(Array.Empty<IConfigureOptions<OutboxRuntimeOptions>>(), Array.Empty<IPostConfigureOptions<OutboxRuntimeOptions>>()),
+            Array.Empty<IOptionsChangeTokenSource<OutboxRuntimeOptions>>(),
+            new OptionsCache<OutboxRuntimeOptions>());
+
+        var sut = new SqlServerIdempotencyRepository(() => new SqlConnection(builder.ConnectionString), options);
+
+        for (int i = 0; i < 5; i++)
+        {
+            var record = new IdempotencyRecord($"msg-{i}", $"consumer-{i}", DateTimeOffset.UtcNow);
+            var inserted = await sut.TryInsertAsync(record);
+            inserted.Should().BeTrue();
+            await sut.PurgeExpiredRecordsAsync(DateTimeOffset.UtcNow.AddYears(-1));
+        }
+    }
 }
-
-
-
-

@@ -1,0 +1,24 @@
+<!-- Copyright © Erickson Lopez. MIT License. -->
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
+    <AssemblyName>EricksonLopez.Inbox.Abstractions</AssemblyName>
+    <RootNamespace>EricksonLopez.Inbox</RootNamespace>
+    <PackageId>EricksonLopez.Inbox.Abstractions</PackageId>
+    <Description>Pure, zero-dependency foundation contracts for consumer idempotency and inbox deduplication pattern.</Description>
+    <PackageTags>$(CommonPackageTags);inbox;inbox-pattern;idempotency;deduplication;abstractions;contracts;native-aot</PackageTags>
+    <IsPackable>true</IsPackable>
+    <IsAotCompatible>true</IsAotCompatible>
+    <IsTrimmable>true</IsTrimmable>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\dotnet-idempotency\src\EricksonLopez.Idempotency.Abstractions\EricksonLopez.Idempotency.Abstractions.csproj"
+                      Condition="Exists('..\..\..\dotnet-idempotency\src\EricksonLopez.Idempotency.Abstractions\EricksonLopez.Idempotency.Abstractions.csproj')" />
+    <PackageReference Include="EricksonLopez.Idempotency.Abstractions"
+                      Condition="!Exists('..\..\..\dotnet-idempotency\src\EricksonLopez.Idempotency.Abstractions\EricksonLopez.Idempotency.Abstractions.csproj')" />
+  </ItemGroup>
+
+</Project>

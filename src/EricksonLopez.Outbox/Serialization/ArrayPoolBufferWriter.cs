@@ -1,3 +1,4 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Buffers;
 
@@ -62,7 +63,6 @@ internal sealed class ArrayPoolBufferWriter<T> : IBufferWriter<T>, IDisposable
         if (sizeHint == 0)
             sizeHint = 1;
 
-        // Stryker disable all : Buffer resizing logic depends on JSON payload size which is hard to assert
         if (sizeHint > _buffer.Length - _index)
         {
             int newSize = CalculateNewSize(_buffer.Length, sizeHint);
@@ -72,10 +72,8 @@ internal sealed class ArrayPoolBufferWriter<T> : IBufferWriter<T>, IDisposable
             ReturnArrayToPool(_buffer);
             _buffer = newBuffer;
         }
-        // Stryker restore all
     }
 
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
     public void Dispose()
     {
         if (_buffer != null)
@@ -85,25 +83,26 @@ internal sealed class ArrayPoolBufferWriter<T> : IBufferWriter<T>, IDisposable
         }
     }
 
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
+
     private static void ReturnArrayToPool(T[] array)
     {
         ArrayPool<T>.Shared.Return(array, clearArray: true);
     }
 
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
-    private static int CalculateNewSize(int currentLength, int sizeHint)
+    internal const int MaxDoublingCapacity = int.MaxValue / 2; // 1,073,741,823
+
+    internal static int CalculateNewSize(int currentLength, int sizeHint)
     {
         int growBy = Math.Max(sizeHint, currentLength);
-        int newSize = currentLength + growBy;
-        
-        if ((uint)newSize > int.MaxValue)
+        if (growBy == currentLength && currentLength > MaxDoublingCapacity)
         {
-            newSize = currentLength + sizeHint;
-            if ((uint)newSize > int.MaxValue)
-                throw new InvalidOperationException("Requested buffer size is too large.");
+            growBy = sizeHint;
         }
-        
-        return newSize;
+
+        if (currentLength > int.MaxValue - growBy)
+            throw new InvalidOperationException("Requested buffer size is too large.");
+
+        return currentLength + growBy;
     }
 }
+

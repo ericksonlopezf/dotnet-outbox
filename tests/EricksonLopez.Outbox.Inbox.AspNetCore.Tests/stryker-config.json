@@ -1,0 +1,30 @@
+{
+  "stryker-config": {
+    "concurrency": 4,
+    "thresholds": {
+      "high": 100,
+      "low": 98,
+      "break": 95
+    },
+    "project": "EricksonLopez.Outbox.Inbox.AspNetCore.csproj",
+    "mutate": [
+      "**/*.cs"
+    ],
+    "reporters": [
+      "cleartext",
+      "progress",
+      "json"
+    ],
+    "ignore-mutations": [
+      "string"
+    ],
+    "ignore-methods": [
+      "Log*",
+      "LogDebug",
+      "LogInformation",
+      "LogWarning",
+      "LogError",
+      "ConfigureAwait"
+    ]
+  }
+}

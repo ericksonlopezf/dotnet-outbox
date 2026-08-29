@@ -1,19 +1,19 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
-using System.Threading.Tasks;
+using EricksonLopez.Outbox;
+using EricksonLopez.Outbox.Persistence;
+using EricksonLopez.Outbox.Retry;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Routing;
-using EricksonLopez.Outbox;
-using EricksonLopez.Outbox.Retry;
 using Microsoft.AspNetCore.Mvc;
-using EricksonLopez.Outbox.Persistence;
+using Microsoft.AspNetCore.Routing;
 using Sample.OrderService.Infrastructure.Customization;
+using System.Threading.Tasks;
 
 #pragma warning disable CA1861
-
 namespace Sample.OrderService.Endpoints;
 
 /// <summary>
@@ -64,6 +64,12 @@ public static class Level6_ErrorHandlingEndpoints
         // RetryPolicy is the base class (abstract record) for retry policies
         // at the BROKER PUBLICATION level (not the outbox dispatcher).
         // Configures how many attempts the RetryDispatcherInterceptor makes on failures.
+        //
+        // Available built-in policies:
+        //   • RetryPolicy.Default — exponential backoff, 4 attempts (1s, 2s, 4s, 8s, max 30s)
+        //   • FixedDelayRetryPolicy — constant delay between all attempts
+        //   • ExponentialBackoffRetryPolicy — delay doubles on each attempt
+        //   • JitterRetryPolicy — exponential + random jitter to prevent thundering-herd problem
         app.MapGet("/api/level6/retry-policies", () =>
         {
             // RetryPolicy.Default: exponential backoff, 1s initial, max 30s, 5 attempts.
@@ -81,9 +87,20 @@ public static class Level6_ErrorHandlingEndpoints
                 Factor: 2.0,       // delay * 2 on each attempt
                 MaxDelay: TimeSpan.FromSeconds(30)); // maximum cap
 
+            // JitterRetryPolicy: exponential backoff + random jitter (±25% by default).
+            // Prevents the thundering-herd problem: when multiple dispatcher instances
+            // all fail simultaneously, they will retry at slightly different times,
+            // avoiding synchronized load spikes on the recovering broker.
+            var jitterPolicy = new JitterRetryPolicy(
+                InitialDelay: TimeSpan.FromSeconds(1),
+                MaxAttempts: 5,
+                Factor: 2.0,          // delay * 2 on each attempt (base)
+                MaxDelay: TimeSpan.FromSeconds(30),
+                JitterFactor: 0.25);  // ±25% random deviation of the base delay
+
             return Results.Ok(new
             {
-                description = "The 3 available retry policies. Configured in UseBroker() when registering the IBrokerPublisher.",
+                description = "The 4 available retry policies. Configured in UseBroker() when registering the IBrokerPublisher.",
                 policies = new object[]
                 {
                     new
@@ -119,27 +136,58 @@ public static class Level6_ErrorHandlingEndpoints
                             $"Attempt 5: {exponentialPolicy.GetNextDelay(5)?.TotalSeconds}s (null = stop)",
                         },
                         use = "Network failures or saturated broker. Reduces pressure exponentially."
+                    },
+                    new
+                    {
+                        type = "JitterRetryPolicy(1s, 5, x2, max30s, jitter25%)",
+                        description = "JitterFactor=0.25 means each delay = base ± (base * 25%) at random.",
+                        approximateSchedule = new[]
+                        {
+                            "Attempt 1: ~1.0s ± 0.25s  (range: 0.75s–1.25s)",
+                            "Attempt 2: ~2.0s ± 0.50s  (range: 1.50s–2.50s)",
+                            "Attempt 3: ~4.0s ± 1.00s  (range: 3.00s–5.00s)",
+                            "Attempt 4: ~8.0s ± 2.00s  (range: 6.00s–10.0s)",
+                            "Attempt 5: null            (max attempts exhausted)",
+                        },
+                        use = "Recommended for multi-instance deployments. Prevents thundering-herd problem.",
+                        parameters = new
+                        {
+                            InitialDelay = jitterPolicy.InitialDelay.TotalSeconds + "s",
+                            MaxAttempts = jitterPolicy.MaxAttempts,
+                            Factor = jitterPolicy.Factor,
+                            MaxDelay = jitterPolicy.MaxDelay?.TotalSeconds + "s",
+                            JitterFactor = jitterPolicy.JitterFactor
+                        }
                     }
                 },
                 configurationExample = @"
 // In AddOutbox(), pass the retryPolicy to UseBroker():
 services.AddOutbox(options =>
 {
+    // Option A: ExponentialBackoff for single-instance deployments
     var retryPolicy = new ExponentialBackoffRetryPolicy(
         InitialDelay: TimeSpan.FromSeconds(1),
         MaxAttempts: 5,
         Factor: 2.0,
         MaxDelay: TimeSpan.FromSeconds(30));
 
+    // Option B: JitterRetryPolicy for multi-instance deployments (recommended)
+    var jitterPolicy = new JitterRetryPolicy(
+        InitialDelay: TimeSpan.FromSeconds(1),
+        MaxAttempts: 5,
+        Factor: 2.0,
+        MaxDelay: TimeSpan.FromSeconds(30),
+        JitterFactor: 0.25);
+
     var circuitBreaker = new CircuitBreakerState(
         failureThreshold: 5,
         openDuration: TimeSpan.FromSeconds(30));
 
-    options.UseBroker<ConsoleBrokerPublisher>(retryPolicy, circuitBreaker);
+    options.UseBroker<ConsoleBrokerPublisher>(jitterPolicy, circuitBreaker);
 });"
             });
         })
-        .WithSummary("Level 6b - RetryPolicy: Default, FixedDelay, ExponentialBackoff")
+        .WithSummary("Level 6b - RetryPolicy: Default, FixedDelay, ExponentialBackoff, JitterRetryPolicy")
         .WithTags("Level 6 — Error Handling");
 
         // ─── Endpoint 6c: CircuitBreakerState ────────────────────────────────
@@ -280,3 +328,5 @@ services.AddOutbox(options =>
         .WithTags("Level 6 — Error Handling");
     }
 }
+
+

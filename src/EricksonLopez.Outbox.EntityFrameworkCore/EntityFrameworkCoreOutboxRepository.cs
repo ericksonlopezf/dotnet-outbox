@@ -1,18 +1,19 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using EricksonLopez.Outbox;
 using EricksonLopez.Outbox.EntityFrameworkCore.Entities;
 using EricksonLopez.Outbox.Persistence;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace EricksonLopez.Outbox.EntityFrameworkCore;
 
 /// <summary>
-/// Entity Framework Core implementation of <see cref="IOutboxRepository"/>.
+/// Provides an Entity Framework Core implementation of <see cref="IOutboxRepository"/>.
 /// Operates on a <typeparamref name="TDbContext"/> to participate directly in EF Core transactions.
 /// </summary>
 /// <typeparam name="TDbContext">The application's <see cref="DbContext"/> type that owns the outbox tables.</typeparam>
@@ -20,15 +21,18 @@ public class EntityFrameworkCoreOutboxRepository<TDbContext> : IOutboxRepository
     where TDbContext : DbContext
 {
     private readonly IServiceProvider _serviceProvider;
+    private readonly TimeProvider _timeProvider;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="EntityFrameworkCoreOutboxRepository{TDbContext}"/> class.
     /// </summary>
     /// <param name="serviceProvider">The service provider to resolve scoped DbContext instances.</param>
+    /// <param name="timeProvider">The time provider for time-based queries.</param>
     /// <exception cref="ArgumentNullException"><paramref name="serviceProvider"/> is <see langword="null"/>.</exception>
-    public EntityFrameworkCoreOutboxRepository(IServiceProvider serviceProvider)
+    public EntityFrameworkCoreOutboxRepository(IServiceProvider serviceProvider, TimeProvider? timeProvider = null)
     {
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
+        _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
     /// <inheritdoc/>
@@ -37,6 +41,7 @@ public class EntityFrameworkCoreOutboxRepository<TDbContext> : IOutboxRepository
         EricksonLopez.Outbox.Persistence.IOutboxTransactionContext transaction,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(record);
         var dbContext = _serviceProvider.GetRequiredService<TDbContext>();
         var entity = OutboxMessageEntity.FromModel(record);
         dbContext.Set<OutboxMessageEntity>().Add(entity);
@@ -69,7 +74,7 @@ public class EntityFrameworkCoreOutboxRepository<TDbContext> : IOutboxRepository
         await using var scope = _serviceProvider.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<TDbContext>();
 
-        var now = DateTimeOffset.UtcNow;
+        var now = _timeProvider.GetUtcNow();
         var pending = await dbContext.Set<OutboxMessageEntity>()
             .Where(m => m.State == 0 && (m.DeliverAt == null || m.DeliverAt <= now))
             .OrderBy(m => m.CreatedAt)
@@ -77,7 +82,6 @@ public class EntityFrameworkCoreOutboxRepository<TDbContext> : IOutboxRepository
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        // Stryker disable once all
         if (pending.Count == 0)
         {
             return Array.Empty<OutboxMessage>();
@@ -104,13 +108,12 @@ public class EntityFrameworkCoreOutboxRepository<TDbContext> : IOutboxRepository
         // P2-FIX: Build list with foreach to avoid LINQ closure allocation.
         var idList = new List<Guid>();
         foreach (var m in messages) idList.Add(m.Id);
-        // Stryker disable once all
         if (idList.Count == 0) return;
 
         await using var scope = _serviceProvider.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<TDbContext>();
 
-        var now = DateTimeOffset.UtcNow;
+        var now = _timeProvider.GetUtcNow();
         var entities = await dbContext.Set<OutboxMessageEntity>()
             .Where(m => idList.Contains(m.Id))
             .ToListAsync(cancellationToken)
@@ -137,7 +140,6 @@ public class EntityFrameworkCoreOutboxRepository<TDbContext> : IOutboxRepository
         // P2-FIX: Build list with foreach to avoid LINQ closure allocation.
         var idList = new List<Guid>();
         foreach (var m in messages) idList.Add(m.Id);
-        // Stryker disable once all
         if (idList.Count == 0) return;
 
         await using var scope = _serviceProvider.CreateAsyncScope();
@@ -166,7 +168,7 @@ public class EntityFrameworkCoreOutboxRepository<TDbContext> : IOutboxRepository
         await using var scope = _serviceProvider.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<TDbContext>();
 
-        var threshold = DateTimeOffset.UtcNow.Subtract(staleTimeout);
+        var threshold = _timeProvider.GetUtcNow().Subtract(staleTimeout);
         var staleMessages = await dbContext.Set<OutboxMessageEntity>()
             .Where(m => m.State == 1 && m.CreatedAt < threshold)
             .ToListAsync(cancellationToken)
@@ -192,5 +194,33 @@ public class EntityFrameworkCoreOutboxRepository<TDbContext> : IOutboxRepository
             .CountAsync(m => m.State == 0 || m.State == 3, cancellationToken)
             .ConfigureAwait(false);
     }
+
+    /// <inheritdoc/>
+    public async ValueTask<int> PurgeDispatchedMessagesAsync(
+        DateTimeOffset cutoff,
+        int batchSize = 1000,
+        CancellationToken cancellationToken = default)
+    {
+        if (batchSize <= 0) return 0;
+
+        await using var scope = _serviceProvider.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<TDbContext>();
+
+        var toPurge = await dbContext.Set<OutboxMessageEntity>()
+            .Where(m => m.State == 2 && (m.ProcessedAt < cutoff || (m.ProcessedAt == null && m.CreatedAt < cutoff)))
+            .OrderBy(m => m.CreatedAt)
+            .Take(batchSize)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        if (toPurge.Count == 0) return 0;
+
+        dbContext.Set<OutboxMessageEntity>().RemoveRange(toPurge);
+        await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        return toPurge.Count;
+    }
 }
+
+
+
 
