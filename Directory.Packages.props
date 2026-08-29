@@ -14,21 +14,21 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageVersion>
-    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.10" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.11" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="9.0.18" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="9.0.18" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.InMemory" Version="9.0.18" />
     <PackageVersion Include="Microsoft.Extensions.Caching.Memory" Version="8.0.1" />
-    <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.10" />
-    <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="10.0.10" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="10.0.11" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.10" />
-    <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.10" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.11" />
     <PackageVersion Include="Microsoft.Data.SqlClient" Version="7.0.2" />
     <PackageVersion Include="Dapper" Version="2.1.79" />
-    <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.10" />
-    <PackageVersion Include="Microsoft.Extensions.ObjectPool" Version="10.0.10" />
+    <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.ObjectPool" Version="10.0.11" />
     <PackageVersion Include="Npgsql" Version="10.0.3" />
-    <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.10" />
+    <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.11" />
     <PackageVersion Include="MySqlConnector" Version="2.6.1" />
     <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.0" />
     <PackageVersion Include="NServiceBus" Version="9.2.12" />
@@ -45,7 +45,7 @@
     <PackageVersion Include="StackExchange.Redis" Version="2.8.0" />
     <PackageVersion Include="Confluent.Kafka" Version="2.15.0" />
     <PackageVersion Include="Azure.Messaging.ServiceBus" Version="7.20.2" />
-    <PackageVersion Include="AWSSDK.SQS" Version="4.0.100.7" />
+    <PackageVersion Include="AWSSDK.SQS" Version="4.0.100.10" />
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="5.9.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="5.9.0" />
     <PackageVersion Include="BenchmarkDotNet" Version="0.15.8">
@@ -56,7 +56,7 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageVersion>
-    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.8.1" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.9.0" />
     <PackageVersion Include="Swashbuckle.AspNetCore" Version="10.2.3" />
     <PackageVersion Include="Testcontainers" Version="4.13.0" />
     <PackageVersion Include="Testcontainers.MsSql" Version="4.13.0" />
@@ -67,7 +67,7 @@
     <PackageVersion Include="Testcontainers.Toxiproxy" Version="4.13.0" />
     <PackageVersion Include="ToxiproxyNetCore" Version="1.0.50" />
     <PackageVersion Include="xunit" Version="2.9.3" />
-    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5">
+    <PackageVersion Include="xunit.runner.visualstudio" Version="4.0.0">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageVersion>
