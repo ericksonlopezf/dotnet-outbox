@@ -1,3 +1,4 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -43,6 +44,8 @@ public static class TestingOutboxExtensions
     /// <summary>
     /// Asserts that at least one message of type <typeparamref name="TMessage"/> was stored.
     /// </summary>
+    /// <typeparam name="TMessage">The type of the message to assert on.</typeparam>
+    /// <param name="store">The in-memory outbox store.</param>
     /// <returns>All stored messages of that type for further inspection.</returns>
     /// <exception cref="InvalidOperationException">Thrown when no messages of the type were found.</exception>
     public static IReadOnlyList<TMessage> ShouldHavePublished<TMessage>(
@@ -60,6 +63,9 @@ public static class TestingOutboxExtensions
     /// Asserts that at least one message of type <typeparamref name="TMessage"/> was stored
     /// and that at least one message matches the given predicate.
     /// </summary>
+    /// <typeparam name="TMessage">The type of the message to assert on.</typeparam>
+    /// <param name="store">The in-memory outbox store.</param>
+    /// <param name="predicate">A predicate to filter matching messages.</param>
     /// <returns>All stored messages of that type that match the predicate.</returns>
     public static IReadOnlyList<TMessage> ShouldHavePublished<TMessage>(
         this InMemoryOutboxStore store,
@@ -80,6 +86,8 @@ public static class TestingOutboxExtensions
     /// <summary>
     /// Asserts that exactly one message of type <typeparamref name="TMessage"/> was stored.
     /// </summary>
+    /// <typeparam name="TMessage">The type of the message to assert on.</typeparam>
+    /// <param name="store">The in-memory outbox store.</param>
     /// <returns>The single published message.</returns>
     /// <exception cref="InvalidOperationException">Thrown when the count is not exactly 1.</exception>
     public static TMessage ShouldHavePublishedOnce<TMessage>(
@@ -98,6 +106,9 @@ public static class TestingOutboxExtensions
     /// Asserts that exactly one message of type <typeparamref name="TMessage"/> matching the
     /// given predicate was stored.
     /// </summary>
+    /// <typeparam name="TMessage">The type of the message to assert on.</typeparam>
+    /// <param name="store">The in-memory outbox store.</param>
+    /// <param name="predicate">A predicate to filter matching messages.</param>
     /// <returns>The single matching message.</returns>
     public static TMessage ShouldHavePublishedOnce<TMessage>(
         this InMemoryOutboxStore store,
@@ -117,6 +128,9 @@ public static class TestingOutboxExtensions
     /// Asserts that exactly <paramref name="count"/> messages of type
     /// <typeparamref name="TMessage"/> were stored.
     /// </summary>
+    /// <typeparam name="TMessage">The type of the message to assert on.</typeparam>
+    /// <param name="store">The in-memory outbox store.</param>
+    /// <param name="count">The expected number of published messages.</param>
     /// <returns>All stored messages of that type.</returns>
     public static IReadOnlyList<TMessage> ShouldHavePublishedTimes<TMessage>(
         this InMemoryOutboxStore store,
@@ -134,6 +148,8 @@ public static class TestingOutboxExtensions
     /// <summary>
     /// Asserts that no messages of type <typeparamref name="TMessage"/> were stored.
     /// </summary>
+    /// <typeparam name="TMessage">The type of the message to assert on.</typeparam>
+    /// <param name="store">The in-memory outbox store.</param>
     /// <exception cref="InvalidOperationException">Thrown when any message of the type was found.</exception>
     public static void ShouldNotHavePublished<TMessage>(
         this InMemoryOutboxStore store)
@@ -149,6 +165,9 @@ public static class TestingOutboxExtensions
     /// Asserts that no messages of type <typeparamref name="TMessage"/> matching the given
     /// predicate were stored.
     /// </summary>
+    /// <typeparam name="TMessage">The type of the message to assert on.</typeparam>
+    /// <param name="store">The in-memory outbox store.</param>
+    /// <param name="predicate">A predicate to filter matching messages.</param>
     public static void ShouldNotHavePublished<TMessage>(
         this InMemoryOutboxStore store,
         Func<TMessage, bool> predicate)
@@ -166,6 +185,8 @@ public static class TestingOutboxExtensions
     /// Returns the total number of stored messages across all types.
     /// Useful for asserting that an operation produced a specific number of side effects.
     /// </summary>
+    /// <param name="store">The in-memory outbox store.</param>
+    /// <returns>The total count of published messages.</returns>
     public static int TotalPublishedCount(this InMemoryOutboxStore store)
         => store.GetPublishedMessages<object>().Count;
 
@@ -177,6 +198,8 @@ public static class TestingOutboxExtensions
     /// Asserts that no messages of type <typeparamref name="TMessage"/> were published.
     /// Syntactic sugar over <see cref="IOutboxAssertion{TMessage}.Never"/>.
     /// </summary>
+    /// <typeparam name="TMessage">The type of the message to assert on.</typeparam>
+    /// <param name="tester">The outbox tester instance.</param>
     /// <example>
     /// <code>
     /// tester.ShouldNotHavePublished&lt;OrderCancelledEvent&gt;();
@@ -190,6 +213,8 @@ public static class TestingOutboxExtensions
     /// Asserts that exactly one message of type <typeparamref name="TMessage"/> was published.
     /// Syntactic sugar over <see cref="IOutboxAssertion{TMessage}.Once"/>.
     /// </summary>
+    /// <typeparam name="TMessage">The type of the message to assert on.</typeparam>
+    /// <param name="tester">The outbox tester instance.</param>
     public static void ShouldHavePublishedOnce<TMessage>(this IOutboxTester tester)
         where TMessage : notnull
         => tester.ShouldHavePublished<TMessage>().Once();
@@ -198,6 +223,9 @@ public static class TestingOutboxExtensions
     /// Asserts that exactly one message of type <typeparamref name="TMessage"/> matching
     /// the given predicate was published.
     /// </summary>
+    /// <typeparam name="TMessage">The type of the message to assert on.</typeparam>
+    /// <param name="tester">The outbox tester instance.</param>
+    /// <param name="predicate">A predicate to filter matching messages.</param>
     public static void ShouldHavePublishedOnce<TMessage>(
         this IOutboxTester tester,
         Func<TMessage, bool> predicate)
@@ -208,6 +236,9 @@ public static class TestingOutboxExtensions
     /// Asserts that at least one message of type <typeparamref name="TMessage"/> was published
     /// matching the given predicate.
     /// </summary>
+    /// <typeparam name="TMessage">The type of the message to assert on.</typeparam>
+    /// <param name="tester">The outbox tester instance.</param>
+    /// <param name="predicate">A predicate to filter matching messages.</param>
     public static void ShouldHavePublished<TMessage>(
         this IOutboxTester tester,
         Func<TMessage, bool> predicate)
@@ -218,9 +249,13 @@ public static class TestingOutboxExtensions
     /// Asserts that exactly <paramref name="times"/> messages of type <typeparamref name="TMessage"/>
     /// were published.
     /// </summary>
+    /// <typeparam name="TMessage">The type of the message to assert on.</typeparam>
+    /// <param name="tester">The outbox tester instance.</param>
+    /// <param name="times">The expected occurrence count.</param>
     public static void ShouldHavePublishedTimes<TMessage>(
         this IOutboxTester tester,
         int times)
         where TMessage : notnull
         => tester.ShouldHavePublished<TMessage>().Times(times);
 }
+

@@ -1,4 +1,6 @@
+// Copyright © Erickson Lopez. MIT License.
 using AwesomeAssertions;
+using EricksonLopez.Result;
 using Xunit;
 
 namespace EricksonLopez.Outbox.Tests.Configuration;
@@ -61,3 +63,4 @@ public class OutboxRuntimeOptionsValidatorTests
         result.FailureMessage.Should().Contain("TableName");
     }
 }
+

@@ -1,3 +1,4 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 
 namespace EricksonLopez.Outbox;
@@ -68,3 +69,4 @@ public readonly record struct DeadLetterMessage(
             LastError: lastError);
     }
 }
+

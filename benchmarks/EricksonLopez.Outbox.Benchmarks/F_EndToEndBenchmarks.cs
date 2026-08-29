@@ -1,5 +1,9 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Buffers;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using EricksonLopez.Outbox.Serialization;
 using EricksonLopez.Outbox.Testing;
@@ -36,7 +40,7 @@ public class F_EndToEndBenchmarks
     /// Serialize -> Enqueue -> Dequeue -> Deserialize -> Handle
     /// </summary>
     [Benchmark]
-    public async System.Threading.Tasks.ValueTask EricksonLopezOutbox_Synthetic_E2E()
+    public async ValueTask EricksonLopezOutbox_Synthetic_E2E()
     {
         // 1. Serialize
         _buffer.Clear();
@@ -72,3 +76,7 @@ public class F_EndToEndBenchmarks
             throw new InvalidOperationException("Deserialization failed");
     }
 }
+
+
+
+

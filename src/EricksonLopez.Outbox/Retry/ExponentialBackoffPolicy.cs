@@ -1,9 +1,10 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 
 namespace EricksonLopez.Outbox.Retry;
 
 /// <summary>
-/// A retry policy that exponentially increases the delay between attempts.
+/// Provides a retry policy that exponentially increases the delay between attempts.
 /// This prevents overwhelming a recovering network broker.
 /// </summary>
 public sealed class ExponentialBackoffPolicy : IRetryPolicy
@@ -34,3 +35,4 @@ public sealed class ExponentialBackoffPolicy : IRetryPolicy
         return currentAttempt < _maxAttempts;
     }
 }
+

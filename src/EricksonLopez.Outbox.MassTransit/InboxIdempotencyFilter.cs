@@ -1,26 +1,23 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Data;
+using System.Threading;
 using System.Threading.Tasks;
-using MassTransit;
 using EricksonLopez.Outbox;
 using EricksonLopez.Outbox.Persistence;
+using MassTransit;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace EricksonLopez.Outbox.MassTransit;
 
 /// <summary>
-/// Represents a MassTransit filter that enforces the Inbox idempotency pattern by detecting
+/// Provides a MassTransit filter that enforces the Inbox idempotency pattern by detecting
 /// and suppressing duplicate messages before they reach the business consumer.
 /// </summary>
+/// <typeparam name="T">The type of the message being consumed.</typeparam>
 public sealed class InboxIdempotencyFilter<T> : IFilter<ConsumeContext<T>> where T : class
 {
-    /// <summary>
-    /// Performs idempotency checks and short-circuits the pipeline if a duplicate message is detected,
-    /// forwarding unique messages to the next filter in the chain.
-    /// </summary>
-    /// <param name="context">The MassTransit consume context for the current message.</param>
-    /// <param name="next">The next pipe in the filter chain, usually leading to the consumer.</param>
-    /// <returns>A task that represents the asynchronous filtering operation.</returns>
+    /// <inheritdoc/>
     public async Task Send(ConsumeContext<T> context, IPipe<ConsumeContext<T>> next)
     {
         var messageId = context.MessageId?.ToString();
@@ -78,5 +75,9 @@ public sealed class InboxIdempotencyFilter<T> : IFilter<ConsumeContext<T>> where
         context.CreateFilterScope("ericksonlopez-outbox-idempotency");
     }
 }
+
+
+
+
 
 

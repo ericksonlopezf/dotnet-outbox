@@ -1,20 +1,21 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using EricksonLopez.Outbox;
 using EricksonLopez.Outbox.EntityFrameworkCore.Entities;
 using EricksonLopez.Outbox.Persistence;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace EricksonLopez.Outbox.EntityFrameworkCore;
 
 /// <summary>
-/// Entity Framework Core implementation of <see cref="IDeadLetterRepository"/>.
+/// Provides an Entity Framework Core implementation of <see cref="IDeadLetterRepository"/>.
 /// </summary>
-/// <typeparamref name="TDbContext">The application's DbContext type.</typeparamref>
+/// <typeparam name="TDbContext">The application's <see cref="DbContext"/> type that contains outbox entities.</typeparam>
 public class EntityFrameworkCoreDeadLetterRepository<TDbContext> : IDeadLetterRepository
     where TDbContext : DbContext
 {
@@ -27,7 +28,8 @@ public class EntityFrameworkCoreDeadLetterRepository<TDbContext> : IDeadLetterRe
     /// <exception cref="ArgumentNullException"><paramref name="serviceProvider"/> is <see langword="null"/>.</exception>
     public EntityFrameworkCoreDeadLetterRepository(IServiceProvider serviceProvider)
     {
-        _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
+        ArgumentNullException.ThrowIfNull(serviceProvider);
+        _serviceProvider = serviceProvider;
     }
 
     /// <inheritdoc/>
@@ -101,7 +103,6 @@ public class EntityFrameworkCoreDeadLetterRepository<TDbContext> : IDeadLetterRe
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        // Stryker disable once all
         if (oldMessages.Count > 0)
         {
             dbContext.Set<DeadLetterMessageEntity>().RemoveRange(oldMessages);
@@ -109,4 +110,7 @@ public class EntityFrameworkCoreDeadLetterRepository<TDbContext> : IDeadLetterRe
         }
     }
 }
+
+
+
 

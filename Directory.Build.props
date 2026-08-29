@@ -1,27 +1,30 @@
+<!-- Copyright © Erickson Lopez. MIT License. -->
 <Project>
 
   <PropertyGroup>
-    <VersionPrefix>1.0.0</VersionPrefix>
+    <VersionPrefix>2.0.0</VersionPrefix>
     <VersionSuffix></VersionSuffix>
 
     <!-- NuGet package metadata -->
-    <Authors>Erickson López</Authors>
-    <Company>EricksonLopez</Company>
-    <Copyright>Copyright © 2026 Erickson López</Copyright>
+    <Authors>Erickson Lopez</Authors>
+    <Company>Erickson Lopez</Company>
+    <Copyright>Copyright © Erickson Lopez. MIT License.</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/ericksonlopezf/dotnet-outbox</PackageProjectUrl>
+    <PackageProjectUrl>https://ericksonlopez.dev/outbox</PackageProjectUrl>
     <RepositoryUrl>https://github.com/ericksonlopezf/dotnet-outbox</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>icon.png</PackageIcon>
-    <PackageTags>transactional-outbox;outbox-pattern;at-least-once;nativeaot;aot;zero-reflection;high-performance</PackageTags>
+    <CommonPackageTags>dotnet;csharp;outbox;transactional-outbox</CommonPackageTags>
+    <PackageTags>$(CommonPackageTags)</PackageTags>
     <Description>High-performance, Zero-Reflection, NativeAOT-ready Transactional Outbox pattern implementation for .NET.</Description>
     <PackageReleaseNotes>https://github.com/ericksonlopezf/dotnet-outbox/releases</PackageReleaseNotes>
+
     <!-- Build settings -->
     <LangVersion>latest</LangVersion>
     <IsAotCompatible Condition="!$(MSBuildProjectName.Contains('Tests')) And !$(MSBuildProjectName.Contains('Analyzers')) And !$(MSBuildProjectName.Contains('SourceGenerators')) And !$(MSBuildProjectName.Contains('Benchmarks')) And !$(MSBuildProjectName.Contains('Sample'))">true</IsAotCompatible>
     <IsTrimmable Condition="'$(IsAotCompatible)' == 'true'">true</IsTrimmable>
-    <EnableTrimAnalyzer Condition="'$(IsAotCompatible)' == 'true'">true</EnableTrimAnalyzer>
+    <EnableTrimAnalyzer Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0')) and '$(IsAotCompatible)' == 'true'">true</EnableTrimAnalyzer>
     <EnableAotAnalyzer Condition="'$(IsAotCompatible)' == 'true'">true</EnableAotAnalyzer>
     <PublishReadyToRun>true</PublishReadyToRun>
     <Nullable>enable</Nullable>
@@ -30,13 +33,18 @@
     <WarningLevel>5</WarningLevel>
     <AnalysisLevel>latest-recommended</AnalysisLevel>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
-    <NoWarn>$(NoWarn);CA1848;CA1873;CA1716;CA1062;CA1707;CA1711;CA1068</NoWarn>
+    <NoWarn>$(NoWarn);CA1848;CA1873;CA1716;CA1062;CA1711;CA1068</NoWarn>
+    <!-- ADR-030: Roy Osherove naming standard (Method_Scenario_Result) and BenchmarkDotNet runner method naming -->
+    <NoWarn Condition="$(MSBuildProjectName.Contains('Tests')) Or $(MSBuildProjectName.Contains('Benchmarks'))">$(NoWarn);IDE1006;CA1707;IL2026;IL3050</NoWarn>
 
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <GenerateDocumentationFile Condition="!$(MSBuildProjectDirectory.Contains('tests')) and !$(MSBuildProjectDirectory.Contains('benchmarks')) and !$(MSBuildProjectDirectory.Contains('samples'))">true</GenerateDocumentationFile>
+
     
     <!-- Strong Naming -->
     <SignAssembly Condition="Exists('$(MSBuildThisFileDirectory)EricksonLopez.snk')">true</SignAssembly>
     <AssemblyOriginatorKeyFile Condition="Exists('$(MSBuildThisFileDirectory)EricksonLopez.snk')">$(MSBuildThisFileDirectory)EricksonLopez.snk</AssemblyOriginatorKeyFile>
+    <PublicKey Condition="'$(SignAssembly)' == 'true'">0024000004800000940000000602000000240000525341310004000001000100655c867cb6d2e3a8d53e10d858994a49ea6b428de6e1e2eec19c71f0409345a7bf1649e9208282982347d90153f237f1aef003468e4a913598faa0b96815de53ede401790587fef88c7869884cdbf4372e74a44facf7dd6995e9b832285f8c548f531e1886d6712632139b617cd4f13988021b7cc32b5c3af18f52e19ae2a6cc</PublicKey>
+    <DefineConstants Condition="'$(SignAssembly)' == 'true'">$(DefineConstants);SIGN_ASSEMBLY</DefineConstants>
 
     <!-- Deterministic builds -->
     <Deterministic>true</Deterministic>
@@ -54,42 +62,28 @@
     <NuGetAuditLevel>low</NuGetAuditLevel>
     <MinClientVersion>6.0.0</MinClientVersion>
 
-    <!-- ISSUE-BIN1: PackageValidationBaselineVersion — ACTIVATE AFTER FIRST NUGET PUBLISH
-         
-         CURRENT STATUS: Commented out (pre-release). No published baseline exists yet.
-         
-         HOW TO ACTIVATE (do this immediately after publishing v1.0.0 to NuGet.org):
-           1. Confirm the package is live: https://www.nuget.org/packages/EricksonLopez.Outbox/1.0.0
-           2. Uncomment the XML element below and set the value to your published version:
-              <PackageValidationBaselineVersion>1.0.0</PackageValidationBaselineVersion>
-           3. Commit and push. From this point forward, every build automatically validates
-              that the public API surface is backwards-compatible with the 1.0.0 baseline.
-         
-         WHY THIS MATTERS:
-           Package Validation runs 'Microsoft.DotNet.ApiCompat' on every build/pack and fails
-           with a clear error if you:
-             - Remove a public method, property, or type
-             - Change a method signature (parameter type, return type)
-             - Add a required interface member without a default implementation
-             - Change a type's base class or implemented interfaces
-           Binary breaking changes silently crash consumers at runtime. This check makes them
-           compile-time failures — consistent with the library's "fail fast" philosophy.
-         
-         REFERENCE: https://learn.microsoft.com/en-us/dotnet/fundamentals/package-validation/baseline-version-validator
-         SUPPRESS FALSE POSITIVES: Add to .editorconfig or create CompatibilitySuppressions.xml
-    -->
-    <!-- <PackageValidationBaselineVersion>1.0.0</PackageValidationBaselineVersion> -->
+    <!-- Package Validation -->
     <EnablePackageValidation Condition="'$(IsPackable)' == 'true'">true</EnablePackageValidation>
-
   </PropertyGroup>
+
+  <ItemDefinitionGroup Condition="'$(SignAssembly)' == 'true'">
+    <InternalsVisibleTo>
+      <Key>$(PublicKey)</Key>
+    </InternalsVisibleTo>
+  </ItemDefinitionGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="All" />
   </ItemGroup>
 
-  <ItemGroup Condition="'$(IsPackable)' == 'true'">
-    <None Include="$(MSBuildThisFileDirectory)README.md" Pack="true" PackagePath="\"/>
-    <None Include="$(MSBuildThisFileDirectory)icon.png" Pack="true" PackagePath="\"/>
-  </ItemGroup>
+  <ItemGroup>
+    <!-- Project-specific readme takes precedence if present, otherwise root readme.md mapped to README.md in package -->
+    <None Include="$(MSBuildProjectDirectory)/readme.md" Pack="true" PackagePath="README.md" Condition="Exists('$(MSBuildProjectDirectory)/readme.md')" />
+    <None Include="$(MSBuildThisFileDirectory)readme.md" Pack="true" PackagePath="README.md" Condition="!Exists('$(MSBuildProjectDirectory)/readme.md') and Exists('$(MSBuildThisFileDirectory)readme.md')" />
 
+    <!-- Project-specific icon.png takes precedence if present, otherwise fallback to root or docs icon -->
+    <None Include="$(MSBuildProjectDirectory)/icon.png" Pack="true" PackagePath="icon.png" Condition="Exists('$(MSBuildProjectDirectory)/icon.png')" />
+    <None Include="$(MSBuildThisFileDirectory)icon.png" Pack="true" PackagePath="icon.png" Condition="!Exists('$(MSBuildProjectDirectory)/icon.png') and Exists('$(MSBuildThisFileDirectory)icon.png')" />
+    <None Include="$(MSBuildThisFileDirectory)docs/icon.png" Pack="true" PackagePath="icon.png" Link="icon.png" Condition="!Exists('$(MSBuildProjectDirectory)/icon.png') and !Exists('$(MSBuildThisFileDirectory)icon.png') and Exists('$(MSBuildThisFileDirectory)docs/icon.png')" />
+  </ItemGroup>
 </Project>

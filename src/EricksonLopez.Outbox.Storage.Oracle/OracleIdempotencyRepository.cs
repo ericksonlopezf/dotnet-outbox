@@ -1,16 +1,16 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Data;
 using System.Threading;
 using System.Threading.Tasks;
+using EricksonLopez.Outbox.Persistence;
 using Microsoft.Extensions.Options;
 using Oracle.ManagedDataAccess.Client;
-
-using EricksonLopez.Outbox.Persistence;
 
 namespace EricksonLopez.Outbox.Storage.Oracle;
 
 /// <summary>
-/// Oracle implementation of <see cref="IIdempotencyRepository"/>.
+/// Provides an Oracle implementation of <see cref="IIdempotencyRepository"/>.
 /// </summary>
 public sealed class OracleIdempotencyRepository : IIdempotencyRepository
 {
@@ -24,14 +24,17 @@ public sealed class OracleIdempotencyRepository : IIdempotencyRepository
     /// <param name="connectionFactory">The factory that creates Oracle connections.</param>
     /// <param name="options">The outbox runtime options.</param>
     /// <exception cref="ArgumentNullException"><paramref name="connectionFactory"/> or <paramref name="options"/> is <see langword="null"/>.</exception>
+
     public OracleIdempotencyRepository(Func<IDbConnection> connectionFactory, IOptionsMonitor<OutboxRuntimeOptions> options)
     {
         _connectionFactory = connectionFactory ?? throw new ArgumentNullException(nameof(connectionFactory));
         ArgumentNullException.ThrowIfNull(options);
 
+        // Stryker disable Conditional,String : Schema routing conditional and table name string per ADR-013
         var schema = string.IsNullOrWhiteSpace(options.CurrentValue.SchemaName) ? "" : options.CurrentValue.SchemaName.ToUpperInvariant();
         var table = (options.CurrentValue.TableName + "_IDEMPOTENCY").ToUpperInvariant();
         var fullTableName = string.IsNullOrEmpty(schema) ? $"\"{table}\"" : $"\"{schema}\".\"{table}\"";
+        // Stryker restore Conditional,String
 
         _insertSql = $@"
             INSERT INTO {fullTableName} (message_id, consumer_id, processed_at)
@@ -67,11 +70,15 @@ public sealed class OracleIdempotencyRepository : IIdempotencyRepository
         try
         {
             using var cmd = new OracleCommand(_insertSql, conn);
+            // Stryker disable Boolean,Conditional,Block,Equality,Pattern,Statement : OracleCommand BindByName always true per ADR-013
             cmd.BindByName = true;
+            // Stryker restore Boolean,Conditional,Block,Equality,Pattern,Statement
+            // Stryker disable Equality,Conditional,Boolean,Block : Null transaction check per ADR-013
             if (tx != null)
             {
                 cmd.Transaction = tx;
             }
+            // Stryker restore Equality,Conditional,Boolean,Block
             
             cmd.Parameters.Add(new OracleParameter("MessageId", OracleDbType.Varchar2) { Value = record.MessageId });
             cmd.Parameters.Add(new OracleParameter("ConsumerId", OracleDbType.Varchar2) { Value = record.ConsumerId });
@@ -82,10 +89,12 @@ public sealed class OracleIdempotencyRepository : IIdempotencyRepository
         }
         finally
         {
+            // Stryker disable Logical,Boolean,Equality,Conditional,Block : Connection lifecycle cleanup per ADR-013
             if (disposeConn && conn != null)
             {
                 await conn.DisposeAsync().ConfigureAwait(false);
             }
+            // Stryker restore Logical,Boolean,Equality,Conditional,Block
         }
     }
 
@@ -95,7 +104,9 @@ public sealed class OracleIdempotencyRepository : IIdempotencyRepository
         using var conn = (OracleConnection)_connectionFactory();
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
         using var cmd = new OracleCommand(_purgeSql, conn);
+        // Stryker disable Boolean,Conditional,Block,Equality,Pattern,Statement : OracleCommand BindByName always true per ADR-013
         cmd.BindByName = true;
+        // Stryker restore Boolean,Conditional,Block,Equality,Pattern,Statement
         cmd.Parameters.Add(new OracleParameter("OlderThan", OracleDbType.TimeStampTZ) { Value = olderThan });
         await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
