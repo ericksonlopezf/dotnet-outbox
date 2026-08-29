@@ -1,3 +1,5 @@
+<!-- Copyright © Erickson Lopez. MIT License. -->
+
 # Level 12: Testing Guide
 
 This level is the complete reference for testing code that uses `EricksonLopez.Outbox`. All testing utilities ship in the **core** `EricksonLopez.Outbox` package under the `EricksonLopez.Outbox.Testing` namespace — no additional package required.

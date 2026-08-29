@@ -1,3 +1,5 @@
+<!-- Copyright © Erickson Lopez. MIT License. -->
+
 # Troubleshooting & FAQ
 
 ## Frequently Asked Questions
@@ -36,13 +38,15 @@ Yes, fully. The library uses:
 | PostgreSQL | `Storage.PostgreSql` | `FOR UPDATE SKIP LOCKED` |
 | SQL Server | `Storage.SqlServer` | `WITH (UPDLOCK, READPAST)` |
 | MySQL 8.0+ | `Storage.MySql` | `FOR UPDATE SKIP LOCKED` |
+| MariaDB 10.6+ | `Storage.MariaDb` | `FOR UPDATE SKIP LOCKED` |
 | Oracle 12c+ | `Storage.Oracle` | `FOR UPDATE SKIP LOCKED` |
+| MongoDB 4.0+ | `Storage.MongoDb` | Atomic `FindOneAndUpdate` with `IClientSessionHandle` |
 | SQLite | `Storage.Sqlite` | WAL-mode table lock (single instance only) |
 | Any EF Core provider | `EntityFrameworkCore` | Via EF Core transactions |
 
 ### Can I use this with a NoSQL database like MongoDB?
 
-The core library is designed around relational databases with ACID transactions. However, you can implement your own `IOutboxRepository` for document databases. The `IOutboxTransactionContext.GetContext<T>()` escape hatch (Default Interface Method) was designed specifically for this — see the Marten example in the [API reference](api-reference.md#6-persistence--transaction-context).
+Yes! `EricksonLopez.Outbox.Storage.MongoDb` provides native transactional document storage with multi-document ACID transaction support via `IClientSessionHandle` and atomic state transitions using `FindOneAndUpdate`. You can also implement custom storage repositories using the `IOutboxTransactionContext.GetContext<T>()` escape hatch.
 
 ### What happens to messages marked as `Dispatched`?
 

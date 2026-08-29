@@ -1,0 +1,30 @@
+<!-- Copyright © Erickson Lopez. MIT License. -->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
+    <Nullable>enable</Nullable>
+    <NoWarn>$(NoWarn);CA1305;CS1591;CA1707;CS8618;CA2012;CA1806</NoWarn>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="AwesomeAssertions" />
+    <PackageReference Include="NSubstitute" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="coverlet.collector" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\EricksonLopez.Outbox.Inbox.Events\EricksonLopez.Outbox.Inbox.Events.csproj" />
+    <ProjectReference Include="..\..\src\EricksonLopez.Inbox\EricksonLopez.Inbox.csproj" />
+    <ProjectReference Include="..\..\..\dotnet-events\src\EricksonLopez.Events.Contracts\EricksonLopez.Events.Contracts.csproj" 
+                      Condition="Exists('..\..\..\dotnet-events\src\EricksonLopez.Events.Contracts\EricksonLopez.Events.Contracts.csproj')" />
+    <PackageReference Include="EricksonLopez.Events.Contracts" 
+                      Condition="!Exists('..\..\..\dotnet-events\src\EricksonLopez.Events.Contracts\EricksonLopez.Events.Contracts.csproj')" />
+  </ItemGroup>
+</Project>

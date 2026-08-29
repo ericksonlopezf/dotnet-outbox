@@ -1,3 +1,5 @@
+<!-- Copyright © Erickson Lopez. MIT License. -->
+
 # CI/CD Pipeline
 
 The `EricksonLopez.Outbox` ecosystem uses a GitHub Actions pipeline with 8 specialized
@@ -79,15 +81,17 @@ flowchart LR
     E --> F[Dispatch publish.yml]
 
     subgraph publish.yml
-        F --> G[Restore SNK key]
-        G --> H[dotnet restore + build Release]
-        H --> I[dotnet test — publish gate]
-        I --> J[Upload coverage — publish-gate flag]
-        J --> K[dotnet pack — all packages]
-        K --> L[Sigstore Provenance Attestation]
-        L --> M[NuGet OIDC login]
-        M --> N[dotnet nuget push --skip-duplicate]
-        N --> O[Create GitHub Release body with package table]
+        F --> G[Resolve Version]
+        G --> H[Validate Stryker Mutation Gate]
+        H --> I[Restore SNK key]
+        I --> J[dotnet restore + build Release]
+        J --> K[dotnet test — publish gate]
+        K --> L[Upload coverage — publish-gate flag]
+        L --> M[dotnet pack — all 36 packages]
+        M --> N[Sigstore Provenance Attestation]
+        N --> O[NuGet OIDC login]
+        O --> P[dotnet nuget push --skip-duplicate]
+        P --> Q[Create GitHub Release body with package table]
     end
 ```
 
@@ -160,28 +164,26 @@ This configuration causes the build to fail on any `IL2026` (Reflection) or
 
 ## 6. Mutation Testing — `mutation-testing.yml`
 
-Stryker runs **separately from CI** on a weekly schedule to avoid slowing down
-PR feedback loops.
+Stryker runs on a weekly schedule (and on manual dispatch) across a parallel matrix of 34 package jobs to ensure 100% test effectiveness across all components.
 
 | Parameter | Value |
 |---|---|
 | Schedule | Every Monday at 04:00 UTC |
-| Timeout | 60 minutes |
+| Matrix Jobs | 34 parallel jobs (one per package config, e.g. `stryker-postgresql-config.json`, `stryker-inbox-config.json`) |
 | Mutation Level | `Standard` (default); `Basic` or `Advanced` via `workflow_dispatch` |
-| CI Workflow Scope | `EricksonLopez.Outbox.csproj` (core package only, via `--project` flag) |
-| Full Config Scope | `stryker-config.json` includes all 16 test projects |
-| Report | HTML + JSON + progress; artifact retained 30 days |
-| Score threshold | high=100%, low=98%, break=95% |
+| Individual Summary | Recorded via `scripts/record-stryker-result.js` |
+| Quality Gate Aggregator | Consolidates matrix results and posts commit status `mutation-testing/stryker` |
+| Release Quality Gate | Enforced before NuGet pack in `publish.yml` via `scripts/verify-mutation-gate.js` |
+| Score Thresholds | `break=95%`, `low=98%`, `high=100%` |
 
-There are two Stryker configurations:
-- **`stryker-config.json`** — Full ecosystem: mutates all `src/` code against all 16 test projects
-- **`stryker-config-unit.json`** — Core only: mutates all `src/` code against `EricksonLopez.Outbox.Tests` only
-
-Stryker exclusions (configured in both config files):
+### Stryker Exclusions
+Configured across all Stryker config files:
 - Generated files (`*.g.cs`, `Generated/**`)
 - Source generators (`*Generator.cs`, `SourceGenerators/**`)
 - Analyzers (`EricksonLopez.Outbox.Analyzers/**`, `*Analyzer.cs`, `*CodeFixProviders.cs`)
-- Testing helpers (`Testing/**`)
+- Consumer test doubles (`Testing/**`)
+- Non-observable side-effects (`Log*`, `ConfigureAwait`, `ReturnArrayToPool`, `RecordMetrics`)
+
 
 ---
 

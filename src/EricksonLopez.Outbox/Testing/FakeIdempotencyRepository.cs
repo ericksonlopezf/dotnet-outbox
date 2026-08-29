@@ -1,7 +1,9 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Data.Common;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using EricksonLopez.Outbox;
@@ -99,3 +101,7 @@ public sealed class FakeIdempotencyRepository : IIdempotencyRepository
     private static string BuildKey(string messageId, string consumerId)
         => $"{messageId}:{consumerId}";
 }
+
+
+
+

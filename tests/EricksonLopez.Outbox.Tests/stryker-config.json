@@ -1,34 +1,47 @@
 {
   "stryker-config": {
-    "reporters": [
-      "progress",
-      "html",
-      "json"
-    ],
-    "ignore-methods": [
-      "ConfigureAwait",
-      "*Log*",
-      "*Throw*",
-      "RecordMetrics",
-      "RecordSpan",
-      "Record",
-      "CreateObservableGauge"
-    ],
+    "concurrency": 8,
+    "thresholds": {
+      "high": 100,
+      "low": 98,
+      "break": 50
+    },
+    "project": "EricksonLopez.Outbox.csproj",
     "mutate": [
       "**/*.cs",
-      "!Testing/**/*.cs",
-      "!Serialization/ArrayPoolBufferWriter.cs",
-      "!OutboxMessageBuilder.cs",
-      "!Dispatcher/OutboxChannel.cs",
-      "!Dispatcher/AdaptivePoller.cs",
-      "!DefaultOutbox.cs",
-      "!OutboxException.cs",
-      "!Configuration/*.cs"
+      "!**/Testing/**/*.cs",
+      "!**/*.g.cs",
+      "!**/Generated/**/*.cs"
     ],
-    "coverage-analysis": "perTest",
-    "project-info": {
-      "name": "EricksonLopez.Outbox",
-      "version": "1.0.0"
-    }
+    "reporters": [
+      "html",
+      "json",
+      "cleartext",
+      "progress"
+    ],
+    "ignore-mutations": [],
+    "ignore-methods": [
+      "Log*",
+      "LogDebug",
+      "LogInformation",
+      "LogWarning",
+      "LogError",
+      "PollerError",
+      "BatchFetched",
+      "ReclaimedStaleMessages",
+      "PayloadTooLarge",
+      "HeadersTooLarge",
+      "HeadersDeserializeFailed",
+      "MessageDispatched",
+      "MessageDispatchFailed",
+      "StartupValidationFailed",
+      "StartupValidationPassed",
+      "ProducerOnlyMode",
+      "ThirdPartyDeadLetterRepositoryRegistered",
+      "ConfigureAwait",
+      "ReturnArrayToPool",
+      "RecordMetrics",
+      "RecordMessageDispatched"
+    ]
   }
 }

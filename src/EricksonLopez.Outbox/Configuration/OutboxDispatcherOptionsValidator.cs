@@ -1,10 +1,9 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
-// Stryker disable all : Covered by ADR-013. Edge cases, micro-optimizations, logging, and validation strings are not rigorously mutated.
 using Microsoft.Extensions.Options;
 
 namespace EricksonLopez.Outbox;
 
-// Stryker disable String : Exception and validation messages are not tested for exact matching
 internal sealed class OutboxDispatcherOptionsValidator : IValidateOptions<OutboxDispatcherOptions>
 {
     public ValidateOptionsResult Validate(string? name, OutboxDispatcherOptions options)
@@ -60,3 +59,4 @@ internal sealed class OutboxDispatcherOptionsValidator : IValidateOptions<Outbox
         return ValidateOptionsResult.Success;
     }
 }
+

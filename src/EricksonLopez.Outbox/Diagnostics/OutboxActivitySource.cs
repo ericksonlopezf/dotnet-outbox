@@ -1,24 +1,29 @@
+// Copyright © Erickson Lopez. MIT License.
+using System;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace EricksonLopez.Outbox.Diagnostics;
 
 /// <summary>
-/// Provides strongly typed Tracing capabilities for W3C TraceContext propagation.
-/// By linking spans across time boundaries (Database -> Dispatcher), we guarantee end-to-end observability.
-///
-/// <para>
-/// OpenTelemetry Messaging Semantic Conventions: https://opentelemetry.io/docs/specs/semconv/messaging/
-/// </para>
+/// Provides strongly-typed OpenTelemetry tracing capabilities for the Outbox pattern, propagating W3C
+/// TraceContext across the transaction-boundary gap between message storage and broker dispatch.
 /// </summary>
-[ExcludeFromCodeCoverage]
+/// <remarks>
+/// Links producer spans across time boundaries (database write → dispatcher publish) to guarantee
+/// end-to-end observability in distributed systems.
+/// Follows the OpenTelemetry Messaging Semantic Conventions:
+/// https://opentelemetry.io/docs/specs/semconv/messaging/
+/// </remarks>
 public static class OutboxActivitySource
 {
     /// <summary>The name of the ActivitySource used for distributed tracing.</summary>
     public const string SourceName = "EricksonLopez.Outbox";
-    
+
     /// <summary>The <see cref="ActivitySource"/> instance used by the Outbox.</summary>
-    public static readonly ActivitySource Source = new(SourceName, "1.0.0");
+    public static readonly ActivitySource Source = new(SourceName, "2.0.0");
 
     /// <summary>
     /// The <c>messaging.system</c> value used when the actual broker name is not known.
@@ -144,7 +149,6 @@ public static class OutboxActivitySource
     /// <param name="messageId">The Guid of the outbox message, for correlation.</param>
     /// <param name="correlationId">Optional W3C conversation ID for distributed tracing.</param>
     /// <returns>The started activity, or <c>null</c> if no listeners are registered.</returns>
-    [ExcludeFromCodeCoverage]
     public static Activity? StartStoreActivity(
         string messageType,
         string messageId,
@@ -173,3 +177,6 @@ public static class OutboxActivitySource
         return activity;
     }
 }
+
+
+

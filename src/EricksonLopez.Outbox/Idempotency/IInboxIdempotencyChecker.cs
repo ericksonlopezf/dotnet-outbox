@@ -1,7 +1,9 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Threading;
 using System.Threading.Tasks;
 using EricksonLopez.Outbox.Persistence;
+using EricksonLopez.Result;
 
 namespace EricksonLopez.Outbox.Idempotency;
 
@@ -30,9 +32,9 @@ public interface IInboxIdempotencyChecker
     /// <param name="cancellationToken">A token that can be used to cancel the asynchronous operation.</param>
     /// <returns><see langword="true"/> if the record was successfully inserted and the message should be processed; otherwise, <see langword="false"/>.</returns>
     Task<bool> ShouldProcessAsync(
-        string messageId, 
-        string consumerId, 
-        IOutboxTransactionContext transaction, 
+        string messageId,
+        string consumerId,
+        IOutboxTransactionContext transaction,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -67,3 +69,7 @@ public interface IInboxIdempotencyChecker
         string consumerId = OutboxConstants.DispatcherConsumerId,
         CancellationToken cancellationToken = default);
 }
+
+
+
+

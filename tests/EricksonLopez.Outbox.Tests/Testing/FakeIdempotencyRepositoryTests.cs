@@ -1,4 +1,6 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using AwesomeAssertions;
 using EricksonLopez.Outbox.Testing;
@@ -46,6 +48,19 @@ public class FakeIdempotencyRepositoryTests
     }
 
     [Fact]
+    public async Task PurgeExpiredRecordsAsync_WhenProcessedAtEqualsOlderThan_RetainsRecord()
+    {
+        var exactTime = DateTimeOffset.UtcNow;
+        var record = new IdempotencyRecord("msg1", "cons1", exactTime);
+        await _repo.TryInsertAsync(record);
+
+        await _repo.PurgeExpiredRecordsAsync(exactTime);
+
+        _repo.Count.Should().Be(1);
+        _repo.WasProcessed("msg1", "cons1").Should().BeTrue();
+    }
+
+    [Fact]
     public async Task Clear_RemovesAllRecords()
     {
         var record = new IdempotencyRecord("msg1", "cons1", DateTimeOffset.UtcNow);
@@ -58,3 +73,6 @@ public class FakeIdempotencyRepositoryTests
         _repo.WasProcessed("msg1", "cons1").Should().BeFalse();
     }
 }
+
+
+

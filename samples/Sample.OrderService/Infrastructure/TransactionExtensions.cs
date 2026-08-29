@@ -1,3 +1,5 @@
+// Copyright © Erickson Lopez. MIT License.
+using System;
 using System.Data.Common;
 using EricksonLopez.Outbox.Persistence;
 
@@ -10,3 +12,4 @@ public static class TransactionExtensions
         return new OutboxTransactionContext(transaction.Connection!, transaction);
     }
 }
+

@@ -1,22 +1,23 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using EricksonLopez.Outbox;
+using EricksonLopez.Outbox.Hosting;
+using EricksonLopez.Outbox.MultiTenancy;
+using EricksonLopez.Outbox.Persistence;
+using EricksonLopez.Outbox.Pipeline;
+using EricksonLopez.Outbox.Serialization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.Mvc;
-using EricksonLopez.Outbox;
-using EricksonLopez.Outbox.Pipeline;
-using EricksonLopez.Outbox.Persistence;
-using EricksonLopez.Outbox.Serialization;
-using EricksonLopez.Outbox.Hosting;
+using Microsoft.AspNetCore.Routing;
 using Sample.OrderService.Infrastructure;
 using Sample.OrderService.Infrastructure.Customization;
 
 #pragma warning disable CA1861 // Prefer static readonly fields over constant array arguments
-
 namespace Sample.OrderService.Endpoints;
 
 /// <summary>
@@ -274,5 +275,158 @@ services.AddOutboxDispatcher(options =>
         })
         .WithSummary("Level 8f - IErrorSanitizer: cleaning exceptions")
         .WithTags("Level 8 — Customization");
+
+        // ─── Endpoint 8g: RouteGroup() — bulk routing for multiple types ─────
+        // OutboxOptions.RouteGroup(aliases...) allows routing multiple message types
+        // to the same broker in a single declaration, avoiding repetition.
+        // This is the complement of Route() for scenarios where N message types
+        // must be directed to the same non-default publisher.
+        app.MapGet("/api/level8/route-group", () =>
+        {
+            return Results.Ok(new
+            {
+                description = "OutboxOptions.RouteGroup() — bulk routing of multiple message type aliases to the same publisher.",
+                comparison = new
+                {
+                    Route = "Routes a SINGLE alias: options.Route(\"order.created.v1\").ToPublisher(...).",
+                    RouteGroup = "Routes MULTIPLE aliases in one call: options.RouteGroup(\"a\", \"b\", \"c\").ToPublisher(...)."
+                },
+                example = @"
+services.AddOutbox(options =>
+{
+    // Default broker for all messages not explicitly routed:
+    options.UseBroker<RabbitMQBrokerPublisher>();
+
+    // Route all order-related events to a dedicated Kafka topic (params array):
+    options.RouteGroup(""order.created.v1"", ""order.confirmed.v1"", ""order.cancelled.v1"")
+           .ToPublisher(sp => sp.GetRequiredService<KafkaBrokerPublisher>());
+
+    // Route payment events to Azure Service Bus (IEnumerable<string> overload):
+    var paymentAliases = new[] { ""payment.initiated.v1"", ""payment.captured.v1"", ""payment.refunded.v1"" };
+    options.RouteGroup(paymentAliases)
+           .ToPublisher<AzureServiceBusBrokerPublisher>();
+});",
+                overloads = new[]
+                {
+                    "RouteGroup(params string[] aliases) → BrokerRouteGroupBuilder — uses params, convenient for inline declaration.",
+                    "RouteGroup(IEnumerable<string> aliases) → BrokerRouteGroupBuilder — accepts any enumerable, useful when aliases come from config.",
+                },
+                whenToUse = "Use RouteGroup() whenever 2+ message types share the same non-default broker destination. " +
+                    "It reduces duplication compared to calling Route() individually for each alias."
+            });
+        })
+        .WithSummary("Level 8g - OutboxOptions.RouteGroup(): bulk routing for multiple message types")
+        .WithTags("Level 8 — Customization");
+
+        // ─── Endpoint 8h: Publisher struct — publisher identity ───────────────
+        // Publisher is a value type (readonly record struct) that identifies the
+        // logical publisher node in multi-publisher and multi-instance deployments.
+        // Publisher.Create(name) auto-generates a unique Id + RegisteredAt timestamp.
+        // Publisher.None is the null-object identity for scenarios where identity is irrelevant.
+        app.MapGet("/api/level8/publisher-identity", () =>
+        {
+            // Publisher.Create(name) — creates a named publisher with a unique auto-generated ID.
+            var pub1 = Publisher.Create("order-service-node-1");
+            var pub2 = Publisher.Create("order-service-node-2");
+
+            // Publisher.None — the null-object publisher. Used when identity is irrelevant.
+            var none = Publisher.None;
+
+            return Results.Ok(new
+            {
+                description = "Publisher struct — lightweight identity for publisher nodes in multi-instance or multi-publisher topologies.",
+                structFields = new[]
+                {
+                    "string Id — unique identifier (Guid, format 'N', no dashes)",
+                    "string Name — human-readable name of the publisher node",
+                    "DateTimeOffset RegisteredAt — timestamp when Create() was called",
+                },
+                statics = new[]
+                {
+                    "Publisher.Create(string name) → Publisher — creates a publisher with a new unique Id and the current timestamp.",
+                    "Publisher.None → Publisher — null-object publisher (Id = 000...000, Name = \"none\", RegisteredAt = MinValue).",
+                },
+                demo = new
+                {
+                    publisher1 = new { pub1.Id, pub1.Name, RegisteredAt = pub1.RegisteredAt.ToString("O") },
+                    publisher2 = new { pub2.Id, pub2.Name, RegisteredAt = pub2.RegisteredAt.ToString("O") },
+                    nonePublisher = new { none.Id, none.Name, RegisteredAt = none.RegisteredAt.ToString("O") },
+                },
+                note = "Publisher identity is stored in OutboxMessage.TenantId routing extensions and " +
+                    "is useful for operational tooling, distributed tracing, and multi-publisher audit logs."
+            });
+        })
+        .WithSummary("Level 8h - Publisher struct: Create(), Publisher.None, identity fields")
+        .WithTags("Level 8 — Customization");
+
+        // ─── Endpoint 8i: Multi-tenancy interfaces ───────────────────────────
+        // ITenantBrokerRouter and ITenantConnectionResolver are contracts for
+        // multi-tenant architectures where each tenant routes messages to a
+        // dedicated broker topic/queue or a separate database schema.
+        // These are the only two multi-tenancy extension points in the library.
+        app.MapGet("/api/level8/multi-tenancy", () =>
+        {
+            return Results.Ok(new
+            {
+                description = "ITenantBrokerRouter + ITenantConnectionResolver — multi-tenancy extension points.",
+                note = "These interfaces are defined in the library but are NOT automatically wired. " +
+                    "They are contracts for user-provided implementations, resolved via DI.",
+                interfaces = new[]
+                {
+                    new
+                    {
+                        interfaceName = "ITenantBrokerRouter",
+                        @namespace = "EricksonLopez.Outbox.MultiTenancy",
+                        method = "string ResolveDestination(string? tenantId, string baseDestination, string messageType)",
+                        purpose = "Determines the tenant-specific topic/queue name for message routing.",
+                        example = @"
+public sealed class TenantPrefixBrokerRouter : ITenantBrokerRouter
+{
+    // Routes: tenantId + '.' + messageType → e.g., 'acme.order.created.v1'
+    public string ResolveDestination(string? tenantId, string baseDestination, string messageType)
+        => tenantId is null ? baseDestination : $""{tenantId}.{messageType}"";
+}
+
+// Registration:
+services.AddSingleton<ITenantBrokerRouter, TenantPrefixBrokerRouter>();"
+                    },
+                    new
+                    {
+                        interfaceName = "ITenantConnectionResolver",
+                        @namespace = "EricksonLopez.Outbox.MultiTenancy",
+                        method = "ValueTask<string> ResolveConnectionStringAsync(string tenantId, CancellationToken ct)",
+                        purpose = "Resolves the database connection string or schema for a specific tenant (schema-per-tenant / DB-per-tenant patterns).",
+                        example = @"
+public sealed class TenantConnectionResolver : ITenantConnectionResolver
+{
+    private readonly IConfiguration _config;
+    public TenantConnectionResolver(IConfiguration config) => _config = config;
+
+    public ValueTask<string> ResolveConnectionStringAsync(string tenantId, CancellationToken ct)
+    {
+        var cs = _config[$""Tenants:{tenantId}:ConnectionString""]
+            ?? throw new InvalidOperationException($""No connection string for tenant '{tenantId}'."");
+        return ValueTask.FromResult(cs);
     }
 }
+
+// Registration:
+services.AddScoped<ITenantConnectionResolver, TenantConnectionResolver>();"
+                    }
+                },
+                multiTenantPublishingPattern = @"
+// Pattern: enrich message with tenant ID via WithTenantId() on the builder
+// (x-tenant-id header is stored in the outbox and forwarded to the broker):
+await outbox.Publish(new OrderCreatedEvent(...))
+    .WithTenantId(currentTenantId)
+    .WithTransaction(tx.ToOutboxContext())
+    .StoreAsync(ct);"
+            });
+        })
+        .WithSummary("Level 8i - Multi-tenancy: ITenantBrokerRouter + ITenantConnectionResolver + WithTenantId()")
+        .WithTags("Level 8 — Customization");
+    }
+}
+
+
+

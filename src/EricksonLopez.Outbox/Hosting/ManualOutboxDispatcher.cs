@@ -1,11 +1,13 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using EricksonLopez.Outbox;
+using EricksonLopez.Outbox.Diagnostics;
 using EricksonLopez.Outbox.Persistence;
 using EricksonLopez.Outbox.Serialization;
-using EricksonLopez.Outbox.Diagnostics;
+using EricksonLopez.Result;
 
 namespace EricksonLopez.Outbox.Hosting;
 
@@ -21,7 +23,6 @@ namespace EricksonLopez.Outbox.Hosting;
 /// The dispatcher operates synchronously in its trigger but executes asynchronously.
 /// </para>
 /// </remarks>
-[System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
 public sealed class ManualOutboxDispatcher
 {
     private readonly IServiceProvider _serviceProvider;
@@ -78,15 +79,15 @@ public sealed class ManualOutboxDispatcher
             {
                 // Unknown type — mark as dead-letter to avoid infinite fetch-reclaim loops.
                 await repository.MarkAsFailedAsync(
-                    new[] { message }, 
-                    $"Unknown message type: {message.MessageType}", 
-                    isDeadLetter: true, 
+                    new[] { message },
+                    $"Unknown message type: {message.MessageType}",
+                    isDeadLetter: true,
                     cancellationToken).ConfigureAwait(false);
                 continue;
             }
 
             var context = new DispatchContext(cancellationToken, attempt: 1);
-            var metadata = new MessageMetadata(message.CorrelationId, message.CausationId, message.MessageType);
+            var metadata = new OutboxMessageMetadata(message.CorrelationId, message.CausationId, message.MessageType);
 
             // We publish as raw bytes via a non-generic overload to avoid runtime generics
             var result = await _publisher.PublishRawAsync(message, metadata, context);
@@ -105,3 +106,8 @@ public sealed class ManualOutboxDispatcher
         return dispatched.Count;
     }
 }
+
+
+
+
+

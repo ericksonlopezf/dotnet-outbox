@@ -1,10 +1,14 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using EricksonLopez.Outbox;
-using EricksonLopez.Outbox.Testing;
-using Microsoft.Extensions.DependencyInjection;
 using EricksonLopez.Outbox.Hosting;
 using EricksonLopez.Outbox.Persistence;
+using EricksonLopez.Outbox.Testing;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace EricksonLopez.Outbox.Benchmarks;
 
@@ -47,7 +51,7 @@ public class D_BatchStoreBenchmarks
     }
 
     [GlobalCleanup]
-    public async System.Threading.Tasks.Task Cleanup()
+    public async Task Cleanup()
     {
         if (_host != null)
         {
@@ -59,7 +63,7 @@ public class D_BatchStoreBenchmarks
     private IOutboxTransactionContext _transaction = null!;
 
     [Benchmark]
-    public async System.Threading.Tasks.ValueTask EricksonLopezOutbox_StoreAsync_Batch()
+    public async ValueTask EricksonLopezOutbox_StoreAsync_Batch()
     {
         await _store.StoreAsync(new System.ReadOnlyMemory<OrderCreatedEvent>(_batchEvents), _transaction);
     }
@@ -72,26 +76,26 @@ public class D_BatchStoreBenchmarks
     
     private sealed class NullOutboxRepository : EricksonLopez.Outbox.Persistence.IOutboxRepository
     {
-        public System.Threading.Tasks.ValueTask InsertAsync(EricksonLopez.Outbox.OutboxMessage message, EricksonLopez.Outbox.Persistence.IOutboxTransactionContext? transaction, System.Threading.CancellationToken cancellationToken = default)
-            => System.Threading.Tasks.ValueTask.CompletedTask;
+        public ValueTask InsertAsync(EricksonLopez.Outbox.OutboxMessage message, EricksonLopez.Outbox.Persistence.IOutboxTransactionContext? transaction, CancellationToken cancellationToken = default)
+            => ValueTask.CompletedTask;
 
-        public System.Threading.Tasks.ValueTask InsertBatchAsync(System.ReadOnlyMemory<EricksonLopez.Outbox.OutboxMessage> messages, EricksonLopez.Outbox.Persistence.IOutboxTransactionContext? transaction, System.Threading.CancellationToken cancellationToken = default)
-            => System.Threading.Tasks.ValueTask.CompletedTask;
+        public ValueTask InsertBatchAsync(System.ReadOnlyMemory<EricksonLopez.Outbox.OutboxMessage> messages, EricksonLopez.Outbox.Persistence.IOutboxTransactionContext? transaction, CancellationToken cancellationToken = default)
+            => ValueTask.CompletedTask;
 
-        public System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<EricksonLopez.Outbox.OutboxMessage>> FetchPendingAsync(int maxBatchSize, System.Threading.CancellationToken cancellationToken = default)
-            => System.Threading.Tasks.ValueTask.FromResult<System.Collections.Generic.IReadOnlyList<EricksonLopez.Outbox.OutboxMessage>>(System.Array.Empty<EricksonLopez.Outbox.OutboxMessage>());
+        public ValueTask<IReadOnlyList<EricksonLopez.Outbox.OutboxMessage>> FetchPendingAsync(int maxBatchSize, CancellationToken cancellationToken = default)
+            => ValueTask.FromResult<IReadOnlyList<EricksonLopez.Outbox.OutboxMessage>>(System.Array.Empty<EricksonLopez.Outbox.OutboxMessage>());
 
-        public System.Threading.Tasks.ValueTask MarkAsDispatchedAsync(System.Collections.Generic.IReadOnlyList<EricksonLopez.Outbox.OutboxMessage> messages, System.Threading.CancellationToken cancellationToken = default)
-            => System.Threading.Tasks.ValueTask.CompletedTask;
+        public ValueTask MarkAsDispatchedAsync(IReadOnlyList<EricksonLopez.Outbox.OutboxMessage> messages, CancellationToken cancellationToken = default)
+            => ValueTask.CompletedTask;
 
-        public System.Threading.Tasks.ValueTask MarkAsFailedAsync(System.Collections.Generic.IReadOnlyList<EricksonLopez.Outbox.OutboxMessage> messages, string error, bool isDeadLetter = false, System.Threading.CancellationToken cancellationToken = default)
-            => System.Threading.Tasks.ValueTask.CompletedTask;
+        public ValueTask MarkAsFailedAsync(IReadOnlyList<EricksonLopez.Outbox.OutboxMessage> messages, string error, bool isDeadLetter = false, CancellationToken cancellationToken = default)
+            => ValueTask.CompletedTask;
 
-        public System.Threading.Tasks.ValueTask<int> ReclaimStaleMessagesAsync(System.TimeSpan staleTimeout, System.Threading.CancellationToken cancellationToken = default)
-            => System.Threading.Tasks.ValueTask.FromResult(0);
+        public ValueTask<int> ReclaimStaleMessagesAsync(TimeSpan staleTimeout, CancellationToken cancellationToken = default)
+            => ValueTask.FromResult(0);
 
-        public System.Threading.Tasks.ValueTask<long> GetPendingCountAsync(System.Threading.CancellationToken cancellationToken = default)
-            => System.Threading.Tasks.ValueTask.FromResult(0L);
+        public ValueTask<long> GetPendingCountAsync(CancellationToken cancellationToken = default)
+            => ValueTask.FromResult(0L);
     }
     
     private sealed class DummyTypeResolver : EricksonLopez.Outbox.Serialization.IOutboxMessageTypeResolver
@@ -101,6 +105,10 @@ public class D_BatchStoreBenchmarks
         public System.Type GetType(string alias) => typeof(OrderCreatedEvent);
         public bool TryGetType(string alias, out System.Type type) { type = typeof(OrderCreatedEvent); return true; }
         public System.Type Resolve(string alias) => typeof(OrderCreatedEvent);
-        public System.Collections.Generic.IReadOnlyDictionary<string, System.Type> GetAllMappings() => new System.Collections.Generic.Dictionary<string, System.Type>();
+        public IReadOnlyDictionary<string, System.Type> GetAllMappings() => new Dictionary<string, System.Type>();
     }
 }
+
+
+
+

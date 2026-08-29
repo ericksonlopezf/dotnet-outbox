@@ -1,0 +1,19 @@
+<!-- Copyright © Erickson Lopez. MIT License. -->
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>[INTEROP / COMPATIBILITY BRIDGE] Dapr Pub/Sub broker implementation for EricksonLopez.Outbox. Enables reliable event distribution through Dapr sidecar building blocks.</Description>
+    <PackageTags>$(CommonPackageTags);dapr;cloud-native;pubsub;microservices;native-aot</PackageTags>
+    <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Dapr.Client" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\EricksonLopez.Outbox\EricksonLopez.Outbox.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,11 +1,13 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Threading;
-using System.Threading.Tasks;
+using EricksonLopez.Outbox;
+using EricksonLopez.Outbox.Persistence;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.Mvc;
-using EricksonLopez.Outbox.Persistence;
+using Microsoft.AspNetCore.Routing;
+using System.Threading.Tasks;
 
 namespace Sample.OrderService.Endpoints;
 
@@ -80,5 +82,108 @@ public static class Level11_AdministrationEndpoints
         })
         .WithSummary("Level 11c - Delete message from Dead Letter Queue")
         .WithTags("Level 11 — Administration");
+
+        // ─── Endpoint 11d: GetMessageAsync — single message lookup ──────────
+        // IOutboxRepository.GetMessageAsync(id, ct) retrieves a single outbox message
+        // by its ID regardless of state. This is a Default Interface Method (DIM):
+        // it throws NotSupportedException unless the storage engine overrides it.
+        //
+        // The overload GetMessageAsync(id, createdAtHint, ct) adds a partition pruning
+        // hint for range-partitioned table deployments (e.g., PostgreSQL PARTITION BY RANGE).
+        app.MapGet("/api/level11/outbox/message/{id:guid}", async (
+            Guid id,
+            [FromQuery] DateTimeOffset? createdAt,
+            [FromServices] IOutboxRepository outboxRepository,
+            CancellationToken ct) =>
+        {
+            try
+            {
+                // If createdAt hint is provided, use the partition-pruning overload.
+                // This is significantly faster in range-partitioned deployments because
+                // the query planner can prune all partitions except the one containing this message.
+                OutboxMessage? message = createdAt.HasValue
+                    ? await outboxRepository.GetMessageAsync(id, createdAt.Value, ct)
+                    : await outboxRepository.GetMessageAsync(id, ct);
+
+                if (message is null)
+                {
+                    return Results.NotFound(new { error = $"Message {id} not found in the outbox." });
+                }
+
+                return Results.Ok(new
+                {
+                    description = "Single outbox message retrieved via IOutboxRepository.GetMessageAsync().",
+                    id = message.Id,
+                    messageType = message.MessageType,
+                    status = message.Status.ToString(),
+                    retryCount = message.RetryCount,
+                    createdAt = message.CreatedAt,
+                    deliverAt = message.DeliverAt,
+                    processedAt = message.ProcessedAt,
+                    error = message.Error,
+                    partitionPruningHintUsed = createdAt.HasValue,
+                });
+            }
+            catch (NotSupportedException ex)
+            {
+                return Results.Problem(
+                    title: "GetMessageAsync not supported",
+                    detail: ex.Message + " Note: This Default Interface Method requires an explicit " +
+                        "override in the storage engine implementation (e.g., PostgreSqlOutboxRepository).",
+                    statusCode: 501);
+            }
+        })
+        .WithSummary("Level 11d - GetMessageAsync(id) / GetMessageAsync(id, createdAtHint): single message lookup")
+        .WithTags("Level 11 — Administration");
+
+        // ─── Endpoint 11e: PurgeDispatchedMessagesAsync — manual retention ──
+        // IOutboxRepository.PurgeDispatchedMessagesAsync(cutoff, batchSize, ct)
+        // deletes dispatched messages older than 'cutoff' in batches.
+        // Only relevant when OutboxRuntimeOptions.DeleteOnDispatch = false (soft-delete mode).
+        // In the default configuration (DeleteOnDispatch = true), messages are deleted immediately
+        // on dispatch and this method has no effect.
+        //
+        // The OutboxCleanupService background worker calls this automatically when enabled.
+        // Use this endpoint for manual, on-demand retention control or administrative cleanup.
+        app.MapDelete("/api/level11/outbox/purge-dispatched", async (
+            [FromQuery] int? olderThanDays,
+            [FromServices] IOutboxRepository outboxRepository,
+            CancellationToken ct) =>
+        {
+            // Default: purge messages dispatched more than 7 days ago
+            var days = olderThanDays ?? 7;
+            var cutoff = DateTimeOffset.UtcNow.AddDays(-days);
+
+            // PurgeDispatchedMessagesAsync(cutoff, batchSize, ct):
+            //   cutoff   — delete messages with ProcessedAt < cutoff
+            //   batchSize — max rows per DELETE to avoid lock escalation (default: 1000)
+            //   returns  — count of rows deleted
+            //
+            // NOTE: This has NO EFFECT when DeleteOnDispatch = true (default).
+            // Enable soft-delete via: options.ConfigureRuntimeOptions(r => r.DeleteOnDispatch = false)
+            var purgedCount = await outboxRepository.PurgeDispatchedMessagesAsync(
+                cutoff: cutoff,
+                batchSize: 1000,
+                cancellationToken: ct);
+
+            return Results.Ok(new
+            {
+                description = "Manual purge of dispatched messages via IOutboxRepository.PurgeDispatchedMessagesAsync().",
+                cutoff = cutoff,
+                olderThanDays = days,
+                purgedCount,
+                note = purgedCount == 0
+                    ? "0 rows purged. Verify that DeleteOnDispatch=false is configured. " +
+                      "In the default configuration (DeleteOnDispatch=true) messages are deleted immediately on dispatch."
+                    : $"{purgedCount} dispatched messages purged successfully.",
+                automaticAlternative = "Use services.AddOutboxCleanupService(options => { options.Enabled = true; " +
+                    "options.RetentionPeriod = TimeSpan.FromDays(7); options.CleanupInterval = TimeSpan.FromHours(1); }) " +
+                    "to run this automatically in the background."
+            });
+        })
+        .WithSummary("Level 11e - PurgeDispatchedMessagesAsync(): manual retention control (soft-delete mode)")
+        .WithTags("Level 11 — Administration");
     }
 }
+
+

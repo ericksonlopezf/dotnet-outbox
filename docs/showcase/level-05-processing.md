@@ -1,3 +1,5 @@
+<!-- Copyright © Erickson Lopez. MIT License. -->
+
 # Level 5: Processing and Dispatching
 
 How does `EricksonLopez.Outbox` know when new messages are available, and how does it deliver them without exhausting your server's resources? This level explores the internals of the `OutboxDispatcherBackgroundService`.
@@ -235,6 +237,85 @@ public class OutboxDashboardService
 
 > [!NOTE]
 > Methods marked **(DIM)** are Default Interface Methods — they have a default implementation on the interface itself. Storage providers may override them for database-specific optimizations.
+
+---
+
+## 5. Scheduled Message Delivery (`WithDelay` / `WithDeliverAt`)
+
+The `OutboxMessageBuilder` supports two scheduling methods that set a `deliverAt` timestamp. The dispatcher will not process the message until `UtcNow >= deliverAt`:
+
+```csharp
+// WithDelay(TimeSpan) — deliver relative to now:
+// The message is stored immediately, but the dispatcher ignores it until the delay expires.
+await outbox.Publish(new OrderReminderEvent(...))
+    .WithTransaction(tx.ToOutboxContext())
+    .WithDelay(TimeSpan.FromMinutes(30))    // dispatch no earlier than 30 minutes from now
+    .StoreAsync(ct);
+
+// WithDeliverAt(DateTimeOffset) — explicit absolute UTC timestamp:
+var campaignTime = new DateTimeOffset(2026, 12, 31, 12, 0, 0, TimeSpan.Zero);
+await outbox.Publish(new CampaignLaunchEvent(...))
+    .WithTransaction(tx.ToOutboxContext())
+    .WithDeliverAt(campaignTime)
+    .StoreAsync(ct);
+```
+
+### Scheduling Constraints
+
+| Constraint | Behavior |
+|---|---|
+| `deliverAt > UtcNow + MaxMessageAge` | `StoreAsync` throws `ArgumentOutOfRangeException` |
+| `deliverAt <= UtcNow` | Treated as "deliver immediately" — no scheduling delay |
+| `MaxMessageAge` (default: 30 days) | Upper bound on how far in the future you can schedule |
+
+> [!IMPORTANT]
+> If you need to schedule messages more than 30 days ahead, increase `OutboxRuntimeOptions.MaxMessageAge` before storing. Messages with `deliverAt` beyond `MaxMessageAge` will be **rejected at store time**, not at dispatch time.
+
+```csharp
+builder.Services.AddOutbox(options =>
+{
+    options.ConfigureRuntimeOptions(runtime =>
+    {
+        runtime.MaxMessageAge = TimeSpan.FromDays(90); // Allow scheduling up to 90 days ahead
+    });
+});
+```
+
+---
+
+## 6. `EnqueueAsync()` — Semantic Alias for `StoreAsync()`
+
+`OutboxPublishExtensions` exposes `EnqueueAsync()` as a semantic alias for `StoreAsync()`. Both are identical in behavior; use whichever name fits your team's domain language:
+
+```csharp
+using EricksonLopez.Outbox;
+
+// Overload 1: single message
+await outbox.EnqueueAsync(new OrderCreatedEvent(...), tx.ToOutboxContext(), ct);
+
+// Overload 2: batch (zero-alloc — ReadOnlyMemory<T>)
+ReadOnlyMemory<OrderCreatedEvent> batch = new OrderCreatedEvent[] { ev1, ev2, ev3 };
+await outbox.EnqueueAsync(batch, tx.ToOutboxContext(), ct);
+
+// Overload 3: batch (IEnumerable<T> — LINQ-friendly)
+var events = orders.Select(o => new OrderCreatedEvent(o.Id, o.CustomerId, o.Total, o.PlacedAt));
+await outbox.EnqueueAsync(events, tx.ToOutboxContext(), ct);
+
+// Overload 4: full control (with metadata + scheduled delivery)
+await outbox.EnqueueAsync(
+    new OrderCreatedEvent(...),
+    tx.ToOutboxContext(),
+    metadata: new OutboxMessageMetadata(correlationId: "corr-123", causationId: "cause-123"),
+    deliverAt: DateTimeOffset.UtcNow.AddMinutes(5),
+    ct);
+```
+
+| `EnqueueAsync` Overload | Equivalent `StoreAsync` |
+|---|---|
+| `EnqueueAsync(TMsg, ctx, ct)` | `StoreAsync(TMsg, ctx, ct)` |
+| `EnqueueAsync(ReadOnlyMemory<T>, ctx, ct)` | `StoreAsync(ReadOnlyMemory<T>, ctx, ct)` |
+| `EnqueueAsync(IEnumerable<T>, ctx, ct)` | `StoreAsync(IEnumerable<T>, ctx, ct)` |
+| `EnqueueAsync(TMsg, ctx, metadata, deliverAt, ct)` | `StoreAsync(TMsg, ctx, metadata, deliverAt, ct)` |
 
 ---
 

@@ -1,4 +1,7 @@
+// Copyright © Erickson Lopez. MIT License.
+using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using EricksonLopez.Outbox;
 using Microsoft.Extensions.Logging;
@@ -58,7 +61,7 @@ public sealed class TypedBrokerPublisher : ITypedBrokerPublisher
     /// <inheritdoc/>
     public ValueTask<DispatchResult> PublishRawAsync(
         OutboxMessage message,
-        MessageMetadata metadata,
+        OutboxMessageMetadata metadata,
         DispatchContext context)
     {
         // ITypedBrokerPublisher inherits from IBrokerPublisher.
@@ -68,3 +71,8 @@ public sealed class TypedBrokerPublisher : ITypedBrokerPublisher
         return ValueTask.FromResult(DispatchResult.Ok());
     }
 }
+
+
+
+
+
