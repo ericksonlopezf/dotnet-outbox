@@ -1,13 +1,16 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
+using EricksonLopez.Outbox;
+using EricksonLopez.Outbox.Hosting;
+using EricksonLopez.Outbox.Persistence;
+using EricksonLopez.Outbox.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using EricksonLopez.Outbox;
-using EricksonLopez.Outbox.Testing;
-using EricksonLopez.Outbox.Persistence;
-using EricksonLopez.Outbox.Hosting;
 
 namespace EricksonLopez.Outbox.Benchmarks;
 
@@ -23,34 +26,34 @@ public class J_ParallelBenchmarks
 
     private sealed class NullOutboxRepository : IOutboxRepository
     {
-        public ValueTask InsertAsync(OutboxMessage message, IOutboxTransactionContext? transaction, System.Threading.CancellationToken cancellationToken = default)
+        public ValueTask InsertAsync(OutboxMessage message, IOutboxTransactionContext? transaction, CancellationToken cancellationToken = default)
             => ValueTask.CompletedTask;
 
-        public ValueTask InsertBatchAsync(System.Collections.Generic.IEnumerable<OutboxMessage> messages, IOutboxTransactionContext? transaction, System.Threading.CancellationToken cancellationToken = default)
+        public ValueTask InsertBatchAsync(IEnumerable<OutboxMessage> messages, IOutboxTransactionContext? transaction, CancellationToken cancellationToken = default)
             => ValueTask.CompletedTask;
             
-        public ValueTask InsertBatchAsync(ReadOnlyMemory<OutboxMessage> messages, IOutboxTransactionContext? transaction, System.Threading.CancellationToken cancellationToken = default)
+        public ValueTask InsertBatchAsync(ReadOnlyMemory<OutboxMessage> messages, IOutboxTransactionContext? transaction, CancellationToken cancellationToken = default)
             => ValueTask.CompletedTask;
             
-        public ValueTask<System.Collections.Generic.IReadOnlyList<OutboxMessage>> GetPendingMessagesAsync(int batchSize, System.Threading.CancellationToken cancellationToken = default)
-            => ValueTask.FromResult<System.Collections.Generic.IReadOnlyList<OutboxMessage>>(Array.Empty<OutboxMessage>());
+        public ValueTask<IReadOnlyList<OutboxMessage>> GetPendingMessagesAsync(int batchSize, CancellationToken cancellationToken = default)
+            => ValueTask.FromResult<IReadOnlyList<OutboxMessage>>(Array.Empty<OutboxMessage>());
             
-        public ValueTask<System.Collections.Generic.IReadOnlyList<OutboxMessage>> FetchPendingAsync(int batchSize, System.Threading.CancellationToken cancellationToken = default)
-            => ValueTask.FromResult<System.Collections.Generic.IReadOnlyList<OutboxMessage>>(Array.Empty<OutboxMessage>());
+        public ValueTask<IReadOnlyList<OutboxMessage>> FetchPendingAsync(int batchSize, CancellationToken cancellationToken = default)
+            => ValueTask.FromResult<IReadOnlyList<OutboxMessage>>(Array.Empty<OutboxMessage>());
             
-        public ValueTask MarkAsDispatchedAsync(System.Collections.Generic.IEnumerable<Guid> messageIds, System.Threading.CancellationToken cancellationToken = default)
+        public ValueTask MarkAsDispatchedAsync(IEnumerable<Guid> messageIds, CancellationToken cancellationToken = default)
             => ValueTask.CompletedTask;
             
-        public ValueTask MarkAsDispatchedAsync(System.Collections.Generic.IReadOnlyList<OutboxMessage> messages, System.Threading.CancellationToken cancellationToken = default)
+        public ValueTask MarkAsDispatchedAsync(IReadOnlyList<OutboxMessage> messages, CancellationToken cancellationToken = default)
             => ValueTask.CompletedTask;
             
-        public ValueTask MarkAsFailedAsync(System.Collections.Generic.IReadOnlyList<OutboxMessage> messages, string error, bool isDeadLetter, System.Threading.CancellationToken cancellationToken = default)
+        public ValueTask MarkAsFailedAsync(IReadOnlyList<OutboxMessage> messages, string error, bool isDeadLetter, CancellationToken cancellationToken = default)
             => ValueTask.CompletedTask;
             
-        public ValueTask<int> ReclaimStaleMessagesAsync(TimeSpan timeout, System.Threading.CancellationToken cancellationToken = default)
+        public ValueTask<int> ReclaimStaleMessagesAsync(TimeSpan timeout, CancellationToken cancellationToken = default)
             => ValueTask.FromResult(0);
             
-        public ValueTask<long> GetPendingCountAsync(System.Threading.CancellationToken cancellationToken = default)
+        public ValueTask<long> GetPendingCountAsync(CancellationToken cancellationToken = default)
             => ValueTask.FromResult(0L);
     }
 
@@ -59,7 +62,7 @@ public class J_ParallelBenchmarks
         public string GetAlias(System.Type messageType) => messageType.Name;
         public bool TryGetAlias(Type messageType, out string? alias) { alias = messageType.Name; return true; }
         public System.Type Resolve(string alias) => typeof(OrderCreatedEvent);
-        public System.Collections.Generic.IReadOnlyDictionary<string, System.Type> GetAllMappings() => new System.Collections.Generic.Dictionary<string, System.Type>();
+        public IReadOnlyDictionary<string, System.Type> GetAllMappings() => new Dictionary<string, System.Type>();
     }
 
     private Microsoft.Extensions.Hosting.IHost _host = null!;
@@ -107,3 +110,7 @@ public class J_ParallelBenchmarks
         await Task.WhenAll(tasks);
     }
 }
+
+
+
+

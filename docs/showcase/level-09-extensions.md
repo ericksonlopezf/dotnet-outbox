@@ -1,3 +1,5 @@
+<!-- Copyright © Erickson Lopez. MIT License. -->
+
 # Level 9: Framework Integrations
 
 This level explores the official framework integration packages: Entity Framework Core and MassTransit.

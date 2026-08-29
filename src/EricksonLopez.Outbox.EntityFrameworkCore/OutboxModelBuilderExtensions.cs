@@ -1,6 +1,7 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
-using Microsoft.EntityFrameworkCore;
 using EricksonLopez.Outbox.EntityFrameworkCore.Entities;
+using Microsoft.EntityFrameworkCore;
 
 namespace EricksonLopez.Outbox.EntityFrameworkCore;
 
@@ -29,7 +30,7 @@ public static class OutboxModelBuilderExtensions
         {
             builder.ToTable("messages", schema);
 
-            // Stryker disable once Statement : EF Core convention makes this redundant but we want it explicit
+
             builder.HasKey(m => m.Id);
 
             builder.Property(m => m.Id)
@@ -108,7 +109,7 @@ public static class OutboxModelBuilderExtensions
         {
             builder.ToTable("dead_letters", schema);
 
-            // Stryker disable once Statement : EF Core convention makes this redundant but we want it explicit
+
             builder.HasKey(d => d.Id);
 
             builder.Property(d => d.Id)
@@ -162,3 +163,4 @@ public static class OutboxModelBuilderExtensions
         return modelBuilder;
     }
 }
+

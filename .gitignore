@@ -1,65 +1,146 @@
-# .NET Core
-bin/
-obj/
+# ====================================================================
+# .NET Build Artifacts & Output
+# ====================================================================
+[Bb]in/
+[Oo]bj/
+[Pp]ublish/
+[Bb]uild[Aa]rtifacts/
 
+# NuGet Packages & Tooling
+*.nupkg
+*.snupkg
+packages/
+*.nuget.props
+*.nuget.targets
+project.lock.json
+project.assets.json
+
+# Source Generators intermediate outputs (if emitted)
+Generated_Files/
+[Gg]enerated/
+
+# ====================================================================
+# Visual Studio & Windows Development
+# ====================================================================
+.vs/
+*.user
+*.userprefs
+*.suo
+*.userosscache
+*.sln.docstates
+*.slnx.sqlite
+*.vssscc
+*.vspscc
+*.pidb
+*.aps
+
+# ====================================================================
 # Visual Studio Code
+# ====================================================================
 .vscode/*
 !.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
 *.code-workspace
+.history/
+.ionide/
 
-# Visual Studio
-.vs/
-*.user
-*.suo
-*.userosscache
-*.sln.docstates
-
-# ReSharper / JetBrains
+# ====================================================================
+# JetBrains Rider & ReSharper
+# ====================================================================
+.idea/
 _ReSharper*/
 *.[Rr]e[Ss]harper
 *.DotSettings.user
-.idea/
+*.DotSettings
+*.Rider*/
+riderModule.iml
 
+# ====================================================================
+# Testing & Code Coverage
+# ====================================================================
+[Tt]est[Rr]esults*/
+[Cc]overage/
+[Cc]overagereport*/
+[Cc]overage-results/
+local-test-results/
+check_cov/
+*.trx
+*.coverage
+*.cobertura.xml
+*coverage*.xml
+*_missing.txt
+missing_*.txt
+
+# Mutation Testing (Stryker)
+[Ss]tryker[Oo]utput/
+.stryker/
+stryker_survivors/
+
+# Benchmarks (BenchmarkDotNet)
+BenchmarkDotNet.Artifacts/
+
+# ====================================================================
+# Code Quality & Static Analysis (SonarQube / SonarCloud)
+# ====================================================================
+.sonarqube/
+.sonar/
+.scannerwork/
+
+# ====================================================================
+# Environment, Secrets & Certificates
+# ====================================================================
+appsettings.Development.json
+appsettings.Local.json
+appsettings.*.local.json
+secrets.json
+.env
+.env.*
+!.env.example
+!.env.template
+
+# Certificates & Private Keys
+*.pfx
+*.p12
+*.key
+*.pem
+# Preserve Strong Name repository public key
+!*.snk
+
+# ====================================================================
+# Temporary & Diagnostic Scratch Files
+# ====================================================================
+[Ss]cratch/
+[Ss]cratch[Tt]est/
+*.tmp
+*.bak
+*.swp
+*.log
+*.orig
+*.dmp
+
+# Internal Audit / Review drafts
+AUDIT.md
+REVIEW.md
+
+# ====================================================================
+# Operating System Artifacts
+# ====================================================================
 # Windows
 Thumbs.db
 ehthumbs.db
 Desktop.ini
+$RECYCLE.BIN/
 
-# Mac
+# macOS
 .DS_Store
+.AppleDouble
+.LSOverride
+._*
 
-# Test results
-scratch/
-TestResults/
-*.coverage
-*.coveragexml
-
-# Secrets
-appsettings.Development.json
-appsettings.Local.json
-secrets.json
-
-# Temporary files
-*.tmp
-*.bak
-*.swp
-
-# Benchmarks
-BenchmarkDotNet.Artifacts/
-benchmarks/results/
-
-# Audit
-AUDIT.md
-
-# Mutation Testing
-StrykerOutput/
-stryker_survivors/
-
-# Code Coverage Reports
-coveragereport/
-coveragereport_unit/
-local-test-results/
-coverage.*.xml
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*

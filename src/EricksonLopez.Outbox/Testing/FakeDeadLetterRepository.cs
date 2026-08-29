@@ -1,3 +1,4 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Collections.Generic;
 using System.Data.Common;
@@ -6,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using EricksonLopez.Outbox;
 using EricksonLopez.Outbox.Persistence;
+using EricksonLopez.Result;
 
 namespace EricksonLopez.Outbox.Testing;
 
@@ -114,3 +116,7 @@ public sealed class FakeDeadLetterRepository : IDeadLetterRepository
         return ValueTask.CompletedTask;
     }
 }
+
+
+
+

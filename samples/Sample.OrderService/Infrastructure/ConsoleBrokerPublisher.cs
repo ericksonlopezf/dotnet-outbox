@@ -1,7 +1,8 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Collections.Generic;
 using EricksonLopez.Outbox;
 using Microsoft.Extensions.Logging;
 
@@ -46,7 +47,7 @@ public sealed class ConsoleBrokerPublisher : IBrokerPublisher
         return ValueTask.FromResult<IReadOnlyList<DispatchResult>>(results);
     }
 
-    public ValueTask<DispatchResult> PublishRawAsync(OutboxMessage message, MessageMetadata metadata, DispatchContext context)
+    public ValueTask<DispatchResult> PublishRawAsync(OutboxMessage message, OutboxMessageMetadata metadata, DispatchContext context)
     {
         var payload = System.Text.Encoding.UTF8.GetString(message.Payload.Span);
         _logger.LogInformation(
@@ -60,4 +61,8 @@ public sealed class ConsoleBrokerPublisher : IBrokerPublisher
         return ValueTask.FromResult(DispatchResult.Ok());
     }
 }
+
+
+
+
 

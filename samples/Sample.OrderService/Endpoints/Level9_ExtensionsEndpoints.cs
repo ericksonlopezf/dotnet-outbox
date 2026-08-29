@@ -1,19 +1,20 @@
+// Copyright © Erickson Lopez. MIT License.
+#pragma warning disable CA1861 // Prefer static readonly fields over constant array arguments
 using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Routing;
-using Microsoft.AspNetCore.Mvc;
 using EricksonLopez.Outbox;
 using EricksonLopez.Outbox.Hosting;
 using EricksonLopez.Outbox.Persistence;
 using EricksonLopez.Outbox.Testing;
+using EricksonLopez.Result;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Routing;
 using Sample.OrderService.Domain.Aggregates.OrderAggregate;
 using Sample.OrderService.Infrastructure.Testing;
-
-#pragma warning disable CA1861 // Prefer static readonly fields over constant array arguments
 
 namespace Sample.OrderService.Endpoints;
 
@@ -94,3 +95,6 @@ public static class Level9_ExtensionsEndpoints
         .WithTags("Level 9 — Extensions");
     }
 }
+
+
+
