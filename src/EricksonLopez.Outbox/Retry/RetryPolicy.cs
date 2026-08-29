@@ -1,3 +1,4 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 
 namespace EricksonLopez.Outbox.Retry;
@@ -26,47 +27,3 @@ public abstract record RetryPolicy
     public abstract TimeSpan? GetNextDelay(int currentAttempt);
 }
 
-/// <summary>
-/// A retry policy that uses a fixed delay between attempts.
-/// </summary>
-/// <param name="Delay">The fixed delay to apply between attempts.</param>
-/// <param name="MaxAttempts">The maximum number of retry attempts.</param>
-public sealed record FixedDelayRetryPolicy(TimeSpan Delay, int MaxAttempts) : RetryPolicy
-{
-    /// <inheritdoc/>
-    public override TimeSpan? GetNextDelay(int currentAttempt)
-    {
-        if (currentAttempt >= MaxAttempts) return null;
-        return Delay;
-    }
-}
-
-/// <summary>
-/// A retry policy that exponentially backs off between attempts.
-/// </summary>
-/// <param name="InitialDelay">The initial delay for the first retry attempt.</param>
-/// <param name="MaxAttempts">The maximum number of retry attempts.</param>
-/// <param name="Factor">The multiplier factor applied to the delay after each attempt.</param>
-/// <param name="MaxDelay">The maximum delay allowed. If the calculated delay exceeds this value, this value is used instead.</param>
-public sealed record ExponentialBackoffRetryPolicy(
-    TimeSpan InitialDelay, 
-    int MaxAttempts, 
-    double Factor = 2.0, 
-    TimeSpan? MaxDelay = null) : RetryPolicy
-{
-    /// <inheritdoc/>
-    public override TimeSpan? GetNextDelay(int currentAttempt)
-    {
-        if (currentAttempt >= MaxAttempts) return null;
-        
-        var delay = TimeSpan.FromMilliseconds(InitialDelay.TotalMilliseconds * Math.Pow(Factor, currentAttempt - 1));
-        
-        // Stryker disable once Equality : Delay exact equality is brittle to unit test
-        if (MaxDelay.HasValue && delay > MaxDelay.Value)
-        {
-            return MaxDelay.Value;
-        }
-
-        return delay;
-    }
-}

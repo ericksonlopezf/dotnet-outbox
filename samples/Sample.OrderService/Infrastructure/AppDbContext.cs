@@ -1,3 +1,4 @@
+// Copyright © Erickson Lopez. MIT License.
 using EricksonLopez.Outbox.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Sample.OrderService.Domain.Aggregates.OrderAggregate;

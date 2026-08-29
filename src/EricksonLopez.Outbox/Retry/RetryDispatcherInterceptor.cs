@@ -1,16 +1,18 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 using EricksonLopez.Outbox;
+using EricksonLopez.Result;
+using Microsoft.Extensions.Logging;
 
 namespace EricksonLopez.Outbox.Retry;
 
 // CircuitBreakerOpenException is defined in CircuitBreakerOpenException.cs
 
 /// <summary>
-/// Interceptor that wraps the broker publishing process and applies the configured RetryPolicy.
+/// Provides an interceptor that wraps the broker publishing process and applies the configured <see cref="RetryPolicy"/>.
 /// Uses a shared retry loop via <see cref="ExecuteWithRetryAsync"/> to avoid code duplication
 /// between the generic and raw publish paths.
 /// </summary>
@@ -20,6 +22,7 @@ public sealed partial class RetryDispatcherInterceptor : IBrokerPublisher
     private readonly RetryPolicy _policy;
     private readonly CircuitBreakerState _circuitBreaker;
     private readonly ILogger<RetryDispatcherInterceptor> _logger;
+    private readonly Func<TimeSpan, CancellationToken, Task> _delayFunc;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="RetryDispatcherInterceptor"/> class.
@@ -29,16 +32,29 @@ public sealed partial class RetryDispatcherInterceptor : IBrokerPublisher
     /// <param name="circuitBreaker">The circuit breaker state tracker.</param>
     /// <param name="logger">The logger instance.</param>
     public RetryDispatcherInterceptor(IBrokerPublisher inner, RetryPolicy policy, CircuitBreakerState circuitBreaker, ILogger<RetryDispatcherInterceptor> logger)
+        : this(inner, policy, circuitBreaker, logger, Task.Delay)
+    {
+    }
+
+    internal RetryDispatcherInterceptor(
+        IBrokerPublisher inner,
+        RetryPolicy policy,
+        CircuitBreakerState circuitBreaker,
+        ILogger<RetryDispatcherInterceptor> logger,
+        Func<TimeSpan, CancellationToken, Task>? delayFunc)
     {
         _inner = inner;
         _policy = policy;
         _circuitBreaker = circuitBreaker;
         _logger = logger;
+        _delayFunc = delayFunc ?? Task.Delay;
     }
 
+    internal CircuitBreakerState CircuitBreaker => _circuitBreaker;
+    internal RetryPolicy Policy => _policy;
 
     /// <inheritdoc/>
-    public ValueTask<DispatchResult> PublishRawAsync(OutboxMessage message, MessageMetadata metadata, DispatchContext context)
+    public ValueTask<DispatchResult> PublishRawAsync(OutboxMessage message, OutboxMessageMetadata metadata, DispatchContext context)
     {
         return ExecuteWithRetryAsync(
             attempt => _inner.PublishRawAsync(message, metadata, new DispatchContext(context.CancellationToken, attempt)),
@@ -63,7 +79,6 @@ public sealed partial class RetryDispatcherInterceptor : IBrokerPublisher
         {
             var result = await operation(attempt);
 
-            // Stryker disable once all : Removing this block falls through to !ShouldRetry which also returns, just with a false positive log
             if (result.Success)
             {
                 _circuitBreaker.RecordSuccess();
@@ -93,16 +108,14 @@ public sealed partial class RetryDispatcherInterceptor : IBrokerPublisher
 
             LogPublishFailed(result.Error, nextDelay.Value.TotalMilliseconds, attempt);
 
-            // Stryker disable all : Delay statement removal or break removal only affects timing/performance, not outcome
             try
             {
-                await Task.Delay(nextDelay.Value, cancellationToken);
+                await _delayFunc(nextDelay.Value, cancellationToken);
             }
             catch (OperationCanceledException)
             {
                 break;
             }
-            // Stryker restore all
 
             attempt++;
         }
@@ -119,7 +132,6 @@ public sealed partial class RetryDispatcherInterceptor : IBrokerPublisher
         // The next startup will pick it up within ReclaimTimeout (default 5 minutes).
         var cancelEx = new OperationCanceledException();
         LogPublishCancelled();
-        // Stryker disable once boolean : Changing incrementRetryCount to true is untestable in a unit test
         return DispatchResult.FailAndRetry(cancelEx, incrementRetryCount: false);
     }
 
@@ -145,3 +157,8 @@ public sealed partial class RetryDispatcherInterceptor : IBrokerPublisher
     [LoggerMessage(Level = LogLevel.Warning, Message = "Publish loop cancelled due to shutdown signal. Message will be reclaimed on next startup (retry count unchanged).")]
     private partial void LogPublishCancelled();
 }
+
+
+
+
+

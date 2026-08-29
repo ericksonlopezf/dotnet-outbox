@@ -1,7 +1,9 @@
-﻿using System;
+// Copyright © Erickson Lopez. MIT License.
+using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Collections.Generic;
+
 namespace Sample.OrderService.Shared;
 
 public abstract class AggregateRoot
@@ -20,4 +22,6 @@ public abstract class AggregateRoot
         _domainEvents.Clear();
     }
 }
+
+
 

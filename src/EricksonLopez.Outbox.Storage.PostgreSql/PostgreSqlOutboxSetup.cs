@@ -1,5 +1,5 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
-
 using EricksonLopez.Outbox.Persistence;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
@@ -7,7 +7,7 @@ using Npgsql;
 namespace EricksonLopez.Outbox.Storage.PostgreSql;
 
 /// <summary>
-/// Dependency Injection setup extensions for PostgreSQL Outbox Storage.
+/// Provides extension methods for configuring PostgreSQL outbox storage.
 /// </summary>
 public static class PostgreSqlOutboxSetup
 {
@@ -64,7 +64,7 @@ public static class PostgreSqlOutboxSetup
     /// the dispatcher immediately instead of waiting for the next polling interval.
     /// </para>
     /// <para>
-    /// <b>Prerequisites:</b> The SQL trigger defined in <c>01_Init_Outbox.sql</c> must be installed
+    /// <b>Prerequisites:</b> The SQL trigger defined in <c>Outbox_DDL.sql</c> must be installed
     /// on the database. Execute <i>after</i> <see cref="UsePostgreSql(OutboxOptions, string)"/>.
     /// </para>
     /// <para>
@@ -99,4 +99,6 @@ public static class PostgreSqlOutboxSetup
         return options;
     }
 }
+
+
 

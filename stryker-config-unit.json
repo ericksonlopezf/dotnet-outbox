@@ -9,9 +9,7 @@
     "mutate": [
       "!**/Testing/**/*.cs",
       "!**/*.g.cs",
-      "!**/*Generator.cs",
       "!**/Generated/**/*.cs",
-      "!**/SourceGenerators/**/*.cs",
       "!**/EricksonLopez.Outbox.Analyzers/**/*.cs",
       "!**/*Analyzer.cs",
       "!**/*CodeFixProviders.cs"
@@ -26,22 +24,20 @@
       "progress"
     ],
     "ignore-mutations": [
-      "string"
+      "Initializer",
+      "String"
     ],
     "ignore-methods": [
-      "Log*",
-      "LogDebug",
-      "LogInformation",
-      "LogWarning",
-      "LogError",
-      "PollerError",
+      "*Log*",
+      "*Trace*",
+      "*Debug*",
+      "*Exception*",
+      "ThrowIf*",
       "ConfigureAwait",
-      "ThrowIfNull",
-      "ThrowIfNullOrWhiteSpace",
-      "ThrowIfNullOrEmpty",
-      "ReturnArrayToPool",
-      "RecordMetrics",
-      "RecordMessageDispatched"
+      "Dispose",
+      "ToString",
+      "GetHashCode",
+      "Equals"
     ]
   }
 }

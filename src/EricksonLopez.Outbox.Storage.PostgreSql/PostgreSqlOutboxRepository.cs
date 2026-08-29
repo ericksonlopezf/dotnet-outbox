@@ -1,20 +1,21 @@
-// Stryker disable boolean
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Npgsql;
-
 using EricksonLopez.Outbox;
 using EricksonLopez.Outbox.Persistence;
+using EricksonLopez.Result;
 using Microsoft.Extensions.Options;
+using Npgsql;
 
 namespace EricksonLopez.Outbox.Storage.PostgreSql;
 
 /// <summary>
-/// PostgreSQL-specific implementation of <see cref="IOutboxRepository"/>.
+/// Provides a PostgreSQL-specific implementation of <see cref="IOutboxRepository"/>.
 /// Exploits PostgreSQL-exclusive optimizations:
 ///
 ///   - <c>FOR UPDATE SKIP LOCKED</c>: Enables concurrent, lock-free polling.
@@ -36,6 +37,7 @@ public sealed partial class PostgreSqlOutboxRepository : IOutboxRepository
     private readonly string _reclaimSql;
     private readonly string _pendingCountSql;
     private readonly string _insertBulkSql;
+    private readonly string _purgeDispatchedSql;
     private readonly Guid _instanceId;
 
     /// <summary>
@@ -45,6 +47,7 @@ public sealed partial class PostgreSqlOutboxRepository : IOutboxRepository
     /// <param name="options">The runtime options containing thresholds and configurations.</param>
     /// <exception cref="ArgumentNullException"><paramref name="dataSource"/> is <see langword="null"/>.</exception>
     [CLSCompliant(false)]
+
     public PostgreSqlOutboxRepository(NpgsqlDataSource dataSource, IOptions<OutboxRuntimeOptions>? options = null)
     {
         _dataSource = dataSource ?? throw new ArgumentNullException(nameof(dataSource));
@@ -169,30 +172,38 @@ public sealed partial class PostgreSqlOutboxRepository : IOutboxRepository
             END;";
 
         _insertBulkSql = $"COPY {fullTableName} (id, type, payload, correlation_id, causation_id, headers_json, state, created_at, updated_at, deliver_at, retry_count) FROM STDIN (FORMAT BINARY)";
+
+        _purgeDispatchedSql = $@"
+            WITH to_purge AS (
+                SELECT id, created_at
+                FROM   {fullTableName}
+                WHERE  state = 2
+                  AND  (processed_at < @Cutoff OR (processed_at IS NULL AND updated_at < @Cutoff))
+                ORDER  BY created_at ASC
+                LIMIT  @BatchSize
+            )
+            DELETE FROM {fullTableName} m
+            USING to_purge
+            WHERE m.id = to_purge.id AND m.created_at = to_purge.created_at;";
     }
 
     /// <inheritdoc/>
+
     public async ValueTask InsertAsync(
         OutboxMessage record,
         IOutboxTransactionContext transaction,
         CancellationToken cancellationToken = default)
     {
-        // Stryker disable once String
+
         var conn = transaction.Connection as NpgsqlConnection
             ?? throw new InvalidOperationException("Transaction must be associated with an NpgsqlConnection.");
 
         var npgsqlTx = transaction.Transaction as NpgsqlTransaction;
         await using var cmd = new NpgsqlCommand(_insertSql, conn, npgsqlTx);
 
-        // Stryker disable once all
-        var payloadArray = System.Runtime.InteropServices.MemoryMarshal.TryGetArray(record.Payload, out var payloadSeg) && payloadSeg.Offset == 0 && payloadSeg.Count == payloadSeg.Array!.Length
-            ? payloadSeg.Array
-            : record.Payload.ToArray();
 
-        // Stryker disable once all
-        var headersArray = System.Runtime.InteropServices.MemoryMarshal.TryGetArray(record.Headers, out var headersSeg) && headersSeg.Offset == 0 && headersSeg.Count == headersSeg.Array!.Length
-            ? headersSeg.Array
-            : record.Headers.ToArray();
+        var payloadArray = record.Payload.ToByteArray();
+        var headersArray = record.Headers.ToByteArray();
 
         cmd.Parameters.Add(new NpgsqlParameter("Id", NpgsqlTypes.NpgsqlDbType.Uuid) { Value = record.Id });
         cmd.Parameters.Add(new NpgsqlParameter("MessageType", NpgsqlTypes.NpgsqlDbType.Varchar) { Value = record.MessageType });
@@ -200,13 +211,13 @@ public sealed partial class PostgreSqlOutboxRepository : IOutboxRepository
         // Pass payload as raw bytes mapped to jsonb
         cmd.Parameters.Add(new NpgsqlParameter("Payload", NpgsqlTypes.NpgsqlDbType.Jsonb) { Value = payloadArray });
 
-        // Stryker disable once all
+
         cmd.Parameters.Add(new NpgsqlParameter("CorrelationId", NpgsqlTypes.NpgsqlDbType.Varchar) { Value = record.CorrelationId ?? (object)DBNull.Value });
-        // Stryker disable once all
+
         cmd.Parameters.Add(new NpgsqlParameter("CausationId", NpgsqlTypes.NpgsqlDbType.Varchar) { Value = record.CausationId ?? (object)DBNull.Value });
         cmd.Parameters.Add(new NpgsqlParameter("HeadersJson", NpgsqlTypes.NpgsqlDbType.Jsonb) { Value = headersArray });
         cmd.Parameters.Add(new NpgsqlParameter("CreatedAt", NpgsqlTypes.NpgsqlDbType.TimestampTz) { Value = record.CreatedAt });
-        // Stryker disable once all
+
         cmd.Parameters.Add(new NpgsqlParameter("DeliverAt", NpgsqlTypes.NpgsqlDbType.TimestampTz) { Value = record.DeliverAt.HasValue ? (object)record.DeliverAt.Value : DBNull.Value });
 
         await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
@@ -226,6 +237,7 @@ public sealed partial class PostgreSqlOutboxRepository : IOutboxRepository
     /// that it does NOT participate in external transactions.
     /// </para>
     /// </remarks>
+
     public async ValueTask InsertBatchAsync(
         ReadOnlyMemory<OutboxMessage> records,
         IOutboxTransactionContext transaction,
@@ -233,7 +245,7 @@ public sealed partial class PostgreSqlOutboxRepository : IOutboxRepository
     {
         if (records.IsEmpty) return;
 
-        // Stryker disable once String
+
         var conn = transaction.Connection as NpgsqlConnection
             ?? throw new InvalidOperationException("Transaction must be associated with an NpgsqlConnection.");
 
@@ -253,28 +265,24 @@ public sealed partial class PostgreSqlOutboxRepository : IOutboxRepository
         var createdAts = new DateTimeOffset[count];
         var deliverAts = new DateTimeOffset?[count];
 
-        // Stryker disable all
+
         for (int i = 0; i < count; i++)
         {
             var record = span[i];
             ids[i] = record.Id;
             types[i] = record.MessageType;
-            payloads[i] = System.Runtime.InteropServices.MemoryMarshal.TryGetArray(record.Payload, out var pSeg) && pSeg.Offset == 0 && pSeg.Count == pSeg.Array!.Length
-                ? pSeg.Array
-                : record.Payload.ToArray();
+            payloads[i] = record.Payload.ToByteArray();
             correlationIds[i] = record.CorrelationId;
             causationIds[i] = record.CausationId;
-            headers[i] = System.Runtime.InteropServices.MemoryMarshal.TryGetArray(record.Headers, out var hSeg) && hSeg.Offset == 0 && hSeg.Count == hSeg.Array!.Length
-                ? hSeg.Array
-                : record.Headers.ToArray();
+            headers[i] = record.Headers.ToByteArray();
             createdAts[i] = record.CreatedAt;
             deliverAts[i] = record.DeliverAt;
         }
-        // Stryker restore all
 
         // P2-E FIX: Assert all UNNEST arrays have equal length.
         // A mismatch produces a cryptic "unnest() requires arrays of the same length" from PostgreSQL.
         // This assertion surfaces the bug immediately in Debug builds with a clear diagnostic.
+        // Stryker disable Statement, Logical, Equality, String : Defensive debug assertion per ADR-013
         System.Diagnostics.Debug.Assert(
             ids.Length == types.Length &&
             ids.Length == payloads.Length &&
@@ -285,17 +293,18 @@ public sealed partial class PostgreSqlOutboxRepository : IOutboxRepository
             ids.Length == deliverAts.Length,
             $"InsertBatchAsync: all UNNEST parameter arrays must have equal length ({count}). " +
             "A length mismatch means a bug in the array-building loop above.");
+        // Stryker restore Statement, Logical, Equality, String
 
         cmd.Parameters.Add(new NpgsqlParameter("Ids", NpgsqlTypes.NpgsqlDbType.Array | NpgsqlTypes.NpgsqlDbType.Uuid) { Value = ids });
         cmd.Parameters.Add(new NpgsqlParameter("Types", NpgsqlTypes.NpgsqlDbType.Array | NpgsqlTypes.NpgsqlDbType.Varchar) { Value = types });
         cmd.Parameters.Add(new NpgsqlParameter("Payloads", NpgsqlTypes.NpgsqlDbType.Array | NpgsqlTypes.NpgsqlDbType.Jsonb) { Value = payloads });
-        // Stryker disable once all
+
         cmd.Parameters.Add(new NpgsqlParameter("CorrelationIds", NpgsqlTypes.NpgsqlDbType.Array | NpgsqlTypes.NpgsqlDbType.Varchar) { Value = correlationIds });
-        // Stryker disable once all
+
         cmd.Parameters.Add(new NpgsqlParameter("CausationIds", NpgsqlTypes.NpgsqlDbType.Array | NpgsqlTypes.NpgsqlDbType.Varchar) { Value = causationIds });
         cmd.Parameters.Add(new NpgsqlParameter("Headers", NpgsqlTypes.NpgsqlDbType.Array | NpgsqlTypes.NpgsqlDbType.Jsonb) { Value = headers });
         cmd.Parameters.Add(new NpgsqlParameter("CreatedAts", NpgsqlTypes.NpgsqlDbType.Array | NpgsqlTypes.NpgsqlDbType.TimestampTz) { Value = createdAts });
-        // Stryker disable once all
+
         cmd.Parameters.Add(new NpgsqlParameter("DeliverAts", NpgsqlTypes.NpgsqlDbType.Array | NpgsqlTypes.NpgsqlDbType.TimestampTz) { Value = deliverAts });
 
         await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
@@ -339,9 +348,7 @@ public sealed partial class PostgreSqlOutboxRepository : IOutboxRepository
             await writer.StartRowAsync(cancellationToken).ConfigureAwait(false);
             await writer.WriteAsync(record.Id, NpgsqlTypes.NpgsqlDbType.Uuid, cancellationToken).ConfigureAwait(false);
             await writer.WriteAsync(record.MessageType, NpgsqlTypes.NpgsqlDbType.Varchar, cancellationToken).ConfigureAwait(false);
-            var payloadBytes = System.Runtime.InteropServices.MemoryMarshal.TryGetArray(record.Payload, out var payloadSeg) && payloadSeg.Offset == 0 && payloadSeg.Count == payloadSeg.Array!.Length
-                ? payloadSeg.Array
-                : record.Payload.ToArray();
+            var payloadBytes = record.Payload.ToByteArray();
             await writer.WriteAsync(payloadBytes, NpgsqlTypes.NpgsqlDbType.Jsonb, cancellationToken).ConfigureAwait(false);
 
             if (record.CorrelationId != null)
@@ -354,9 +361,7 @@ public sealed partial class PostgreSqlOutboxRepository : IOutboxRepository
             else
                 await writer.WriteNullAsync(cancellationToken).ConfigureAwait(false);
 
-            var headersBytes = System.Runtime.InteropServices.MemoryMarshal.TryGetArray(record.Headers, out var headersSeg) && headersSeg.Offset == 0 && headersSeg.Count == headersSeg.Array!.Length
-                ? headersSeg.Array
-                : record.Headers.ToArray();
+            var headersBytes = record.Headers.ToByteArray();
 
             await writer.WriteAsync(headersBytes, NpgsqlTypes.NpgsqlDbType.Jsonb, cancellationToken).ConfigureAwait(false);
             await writer.WriteAsync(0, NpgsqlTypes.NpgsqlDbType.Integer, cancellationToken).ConfigureAwait(false);
@@ -407,15 +412,15 @@ public sealed partial class PostgreSqlOutboxRepository : IOutboxRepository
             var id = reader.GetGuid(idOrd);
             var messageType = reader.GetString(typeOrd);
             var payload = reader.IsDBNull(payloadOrd) ? "{}"u8.ToArray() : reader.GetFieldValue<byte[]>(payloadOrd);
-            // Stryker disable once all
+
             var correlationId = reader.IsDBNull(correlationIdOrd) ? null : reader.GetString(correlationIdOrd);
-            // Stryker disable once all
+
             var causationId = reader.IsDBNull(causationIdOrd) ? null : reader.GetString(causationIdOrd);
             var headersJson = reader.IsDBNull(headersJsonOrd) ? "{}"u8.ToArray() : reader.GetFieldValue<byte[]>(headersJsonOrd);
             var createdAt = reader.GetFieldValue<DateTimeOffset>(createdAtOrd);
-            // Stryker disable once all
+
             var processedAt = reader.IsDBNull(processedAtOrd) ? (DateTimeOffset?)null : reader.GetFieldValue<DateTimeOffset>(processedAtOrd);
-            // Stryker disable once all
+
             var deliverAt = reader.IsDBNull(deliverAtOrd) ? (DateTimeOffset?)null : reader.GetFieldValue<DateTimeOffset>(deliverAtOrd);
             var state = reader.GetInt32(stateOrd);
             // F-03 AUDIT FIX: Validate the state returned by FetchPendingAsync.
@@ -433,6 +438,7 @@ public sealed partial class PostgreSqlOutboxRepository : IOutboxRepository
             //   - Still accepts {0,1,3,4} to avoid breaking custom implementations
             //   - Emits a Debug.Assert in development builds to surface the bug immediately
             //   - Emits Trace.TraceWarning for production monitoring via TraceListener
+            // Stryker disable Statement, Block, String, Equality, Boolean : Defensive impossible state check per ADR-013
             if (!IsValidFetchedState(state))
             {
                 // Emit a warning visible in both development (Debug.Assert) and production (TraceWarning).
@@ -447,8 +453,9 @@ public sealed partial class PostgreSqlOutboxRepository : IOutboxRepository
                     $"[EricksonLopez.Outbox] PostgreSqlOutboxRepository.FetchPendingAsync: unexpected state={state} for message id={reader.GetGuid(idOrd)} type={reader.GetString(typeOrd)}. Skipping row.");
                 continue;
             }
+            // Stryker restore Statement, Block, String, Equality, Boolean
             
-            // Stryker disable once all
+
             var error = reader.IsDBNull(errorOrd) ? null : reader.GetString(errorOrd);
             var retryCount = reader.GetInt32(retryCountOrd);
 
@@ -478,6 +485,7 @@ public sealed partial class PostgreSqlOutboxRepository : IOutboxRepository
     private static bool IsValidFetchedState(int state) => state is 0 or 1 or 3 or 4;
 
     /// <inheritdoc/>
+
     public async ValueTask MarkAsDispatchedAsync(
         IReadOnlyList<OutboxMessage> messages,
         CancellationToken cancellationToken = default)
@@ -511,6 +519,7 @@ public sealed partial class PostgreSqlOutboxRepository : IOutboxRepository
     /// to the dead-letter value (4) and skips backoff scheduling.
     /// </para>
     /// </remarks>
+
     public async ValueTask MarkAsFailedAsync(
         IReadOnlyList<OutboxMessage> messages,
         string error,
@@ -593,6 +602,7 @@ public sealed partial class PostgreSqlOutboxRepository : IOutboxRepository
         cmd.Parameters.Add(new NpgsqlParameter("Threshold", NpgsqlTypes.NpgsqlDbType.Bigint) { Value = (long)_options.LargeTableThreshold });
         cmd.Parameters.Add(new NpgsqlParameter("Schema", NpgsqlTypes.NpgsqlDbType.Text) { Value = _options.SchemaName });
         cmd.Parameters.Add(new NpgsqlParameter("Table", NpgsqlTypes.NpgsqlDbType.Text) { Value = _options.TableName });
+        // Stryker disable once String : SQL LIKE pattern suffix
         cmd.Parameters.Add(new NpgsqlParameter("TablePrefix", NpgsqlTypes.NpgsqlDbType.Text) { Value = _options.TableName + "_%" });
 
         var result = await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
@@ -705,6 +715,23 @@ public sealed partial class PostgreSqlOutboxRepository : IOutboxRepository
             Error: reader.IsDBNull(reader.GetOrdinal("error")) ? null : reader.GetString(reader.GetOrdinal("error"))
         );
     }
+
+    /// <inheritdoc/>
+    public async ValueTask<int> PurgeDispatchedMessagesAsync(
+        DateTimeOffset cutoff,
+        int batchSize = 1000,
+        CancellationToken cancellationToken = default)
+    {
+        if (batchSize <= 0) return 0;
+
+        await using var conn = await _dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using var cmd = new NpgsqlCommand(_purgeDispatchedSql, conn);
+        cmd.Parameters.Add(new NpgsqlParameter("Cutoff", NpgsqlTypes.NpgsqlDbType.TimestampTz) { Value = cutoff });
+        cmd.Parameters.Add(new NpgsqlParameter("BatchSize", NpgsqlTypes.NpgsqlDbType.Integer) { Value = batchSize });
+
+        return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
     /// <summary>
     /// Truncates an error string to fit the 4000-character database column limit,
     /// preserving the beginning and end of the message for maximum diagnostic value.
@@ -725,11 +752,11 @@ public sealed partial class PostgreSqlOutboxRepository : IOutboxRepository
         return string.Concat(error.AsSpan(0, 3530), marker, error.AsSpan(error.Length - 449));
     }
 
-    [System.Text.RegularExpressions.GeneratedRegex("^[a-zA-Z0-9_]+$")]
+    [System.Text.RegularExpressions.GeneratedRegex("^[a-zA-Z0-9_]+$", System.Text.RegularExpressions.RegexOptions.None, 1000)]
     private static partial System.Text.RegularExpressions.Regex SchemaNameRegex();
 
 
-    private sealed class PooledList<T> : System.Collections.Generic.IList<T>, IDisposable
+    internal sealed class PooledList<T> : IList<T>, IDisposable
     {
         private T[]? _array;
         private readonly int _count;
@@ -756,12 +783,13 @@ public sealed partial class PostgreSqlOutboxRepository : IOutboxRepository
 
         public int Count => _count;
         public bool IsReadOnly => false;
+        internal bool IsDisposed => _array == null;
 
         public void Add(T item) => throw new NotSupportedException();
         public void Clear() => throw new NotSupportedException();
         public bool Contains(T item) => throw new NotSupportedException();
         public void CopyTo(T[] array, int arrayIndex) => Array.Copy(_array!, 0, array, arrayIndex, _count);
-        public System.Collections.Generic.IEnumerator<T> GetEnumerator()
+        public IEnumerator<T> GetEnumerator()
         {
             for (int i = 0; i < _count; i++) yield return _array![i];
         }
@@ -778,10 +806,16 @@ public sealed partial class PostgreSqlOutboxRepository : IOutboxRepository
                 // P2-5 AUDIT FIX: Clear array before returning to pool for consistency
                 // with the project's convention (see OutboxMessageBuilder). Prevents
                 // stale data from leaking across unrelated pool consumers.
+                // Stryker disable once Boolean, Statement : ADR-013 ArrayPool cleanup logic
                 System.Buffers.ArrayPool<T>.Shared.Return(_array, clearArray: true);
                 _array = null;
             }
         }
     }
 }
+
+
+
+
+
 

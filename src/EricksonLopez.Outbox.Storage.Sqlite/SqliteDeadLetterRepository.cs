@@ -1,18 +1,18 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Threading;
 using System.Threading.Tasks;
+using EricksonLopez.Outbox;
+using EricksonLopez.Outbox.Persistence;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Options;
-using EricksonLopez.Outbox;
-
-using EricksonLopez.Outbox.Persistence;
 
 namespace EricksonLopez.Outbox.Storage.Sqlite;
 
 /// <summary>
-/// SQLite implementation of <see cref="IDeadLetterRepository"/>.
+/// Provides an SQLite implementation of <see cref="IDeadLetterRepository"/>.
 /// </summary>
 public sealed class SqliteDeadLetterRepository : IDeadLetterRepository
 {
@@ -31,6 +31,7 @@ public sealed class SqliteDeadLetterRepository : IDeadLetterRepository
     /// <param name="connectionFactory">The factory that creates SQLite connections.</param>
     /// <param name="options">The outbox runtime options.</param>
     /// <exception cref="ArgumentNullException"><paramref name="connectionFactory"/> or <paramref name="options"/> is <see langword="null"/>.</exception>
+
     public SqliteDeadLetterRepository(Func<IDbConnection> connectionFactory, IOptionsMonitor<OutboxRuntimeOptions> options)
     {
         _connectionFactory = connectionFactory ?? throw new ArgumentNullException(nameof(connectionFactory));
@@ -55,6 +56,7 @@ public sealed class SqliteDeadLetterRepository : IDeadLetterRepository
     }
 
     /// <inheritdoc/>
+
     public async ValueTask InsertAsync(
         DeadLetterMessage message,
         IOutboxTransactionContext? transaction = default,
@@ -158,3 +160,6 @@ public sealed class SqliteDeadLetterRepository : IDeadLetterRepository
         await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 }
+
+
+

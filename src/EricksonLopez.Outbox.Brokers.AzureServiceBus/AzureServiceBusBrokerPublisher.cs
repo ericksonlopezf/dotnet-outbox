@@ -1,6 +1,8 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Azure.Messaging.ServiceBus;
 using EricksonLopez.Outbox;
@@ -9,7 +11,7 @@ using EricksonLopez.Outbox.Serialization;
 namespace EricksonLopez.Outbox.Brokers.AzureServiceBus;
 
 /// <summary>
-/// Publishes outbox messages to Azure Service Bus.
+/// Provides a broker publisher implementation that dispatches outbox messages to Azure Service Bus.
 /// </summary>
 public sealed class AzureServiceBusBrokerPublisher : IBrokerPublisher
 {
@@ -21,7 +23,7 @@ public sealed class AzureServiceBusBrokerPublisher : IBrokerPublisher
     /// </summary>
     /// <param name="sender">The Azure Service Bus sender client.</param>
     /// <param name="serializer">The serializer that converts message payloads to byte arrays.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="sender"/> or <paramref name="serializer"/> is null.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="sender"/> or <paramref name="serializer"/> is <see langword="null"/>.</exception>
     public AzureServiceBusBrokerPublisher(ServiceBusSender sender, IOutboxSerializer serializer)
     {
         _sender = sender ?? throw new ArgumentNullException(nameof(sender));
@@ -73,7 +75,7 @@ public sealed class AzureServiceBusBrokerPublisher : IBrokerPublisher
         }
     }
 
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
+
     private static void EnsureMessageAdded(ServiceBusMessageBatch batch, ServiceBusMessage message)
     {
         if (!batch.TryAddMessage(message))
@@ -117,7 +119,7 @@ public sealed class AzureServiceBusBrokerPublisher : IBrokerPublisher
     /// <inheritdoc/>
     public async ValueTask<DispatchResult> PublishRawAsync(
         OutboxMessage message,
-        MessageMetadata metadata,
+        OutboxMessageMetadata metadata,
         DispatchContext context)
     {
         try
@@ -144,3 +146,8 @@ public sealed class AzureServiceBusBrokerPublisher : IBrokerPublisher
         }
     }
 }
+
+
+
+
+
