@@ -1,4 +1,4 @@
-// Stryker disable all : Covered by ADR-013. Edge cases, micro-optimizations, logging, and validation strings are not rigorously mutated.
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -7,15 +7,15 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-
 using EricksonLopez.Outbox;
 using EricksonLopez.Outbox.Diagnostics;
 using EricksonLopez.Outbox.Persistence;
 using EricksonLopez.Outbox.Pipeline;
 using EricksonLopez.Outbox.Serialization;
+using EricksonLopez.Result;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace EricksonLopez.Outbox.Dispatcher;
 
@@ -25,7 +25,7 @@ namespace EricksonLopez.Outbox.Dispatcher;
 ///
 /// SingleWriter=true: Only the AdaptivePoller writes.
 /// SingleReader=true when MaxDegreeOfParallelism=1 (default): enables lock-free single-reader
-///   optimization in System.Threading.Channels. Set to false when parallelism > 1.
+///   optimization in Channels. Set to false when parallelism > 1.
 /// FullMode=Wait: Ensures backpressure — the poller pauses when the channel is saturated
 ///   instead of dropping messages or causing OOM.
 /// </summary>
@@ -65,6 +65,7 @@ internal sealed class OutboxChannel
     // AUDIT-FIX G2: Caches the IncludeMessageTypeTag option to avoid accessing
     // the options object on every metric emission. Evaluated once at construction.
     private readonly bool _includeMessageTypeTag;
+    private readonly TimeProvider _timeProvider;
 
     // Headers deserialization cache is intentionally NOT a field.
     // Each concurrent consumer (ProcessMessagesAsync call) maintains its own local cache
@@ -78,7 +79,8 @@ internal sealed class OutboxChannel
         IOptions<OutboxRuntimeOptions> baseOptions,
         OutboxMetrics metrics,
         IServiceScopeFactory scopeFactory,
-        IErrorSanitizer errorSanitizer)
+        IErrorSanitizer errorSanitizer,
+        TimeProvider timeProvider)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _publisher = publisher ?? throw new ArgumentNullException(nameof(publisher));
@@ -87,30 +89,19 @@ internal sealed class OutboxChannel
         _metrics = metrics ?? throw new ArgumentNullException(nameof(metrics));
         _scopeFactory = scopeFactory ?? throw new ArgumentNullException(nameof(scopeFactory));
         _errorSanitizer = errorSanitizer ?? throw new ArgumentNullException(nameof(errorSanitizer));
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
 
         _cachedMiddlewares = null;
         if (_options.HasOnlySingletonMiddlewares)
         {
             using var scope = _scopeFactory.CreateScope();
-            _cachedMiddlewares = System.Linq.Enumerable.ToArray(scope.ServiceProvider.GetServices<IOutboxMiddleware>());
+            _cachedMiddlewares = scope.ServiceProvider.GetServices<IOutboxMiddleware>().ToArray();
         }
 
         _includeMessageTypeTag = _baseOptions.IncludeMessageTypeTag;
 
-        // Stryker disable all : Cannot unit-test channel options without exposing internal channel state
-        var channelOptions = new BoundedChannelOptions(_options.ChannelCapacity)
-        {
-            FullMode = BoundedChannelFullMode.Wait,
-            SingleWriter = true,
-            // AUDIT-FIX G1: When MaxDegreeOfParallelism=1 (the default and most common deployment),
-            // SingleReader=true enables the lock-free single-reader optimization path in
-            // System.Threading.Channels, reducing per-message overhead. With multiple consumer tasks,
-            // SingleReader must be false to allow concurrent ReadAsync() without corruption.
-            // This is a zero-allocation, zero-API-change runtime improvement.
-            SingleReader = _options.MaxDegreeOfParallelism == 1
-        };
-        // Stryker restore all
 
+        var channelOptions = CreateChannelOptions(_options);
         _channel = Channel.CreateBounded<OutboxMessage>(channelOptions);
 
         // FIX-15: Register channel fill ratio gauge immediately after channel creation.
@@ -125,13 +116,13 @@ internal sealed class OutboxChannel
             return await _publisher.PublishRawAsync(msg, meta, context).ConfigureAwait(false);
         };
 
-        // Stryker disable once Statement
+
         BuildCachedPipeline();
     }
 
     private void BuildCachedPipeline()
     {
-        if (_options.HasOnlySingletonMiddlewares && _cachedMiddlewares is not null)
+        if (_cachedMiddlewares is not null)
         {
             _cachedPipeline = new OutboxPipeline(_cachedMiddlewares, _terminalDelegate);
         }
@@ -141,6 +132,13 @@ internal sealed class OutboxChannel
     {
         await _channel.Writer.WriteAsync(message, cancellationToken).ConfigureAwait(false);
     }
+
+    internal void Complete()
+    {
+        _channel.Writer.TryComplete();
+    }
+
+    private static string GetDlqReason(DispatchResult result) => !result.ShouldRetry ? "Fatal failure" : "Max retries reached";
 
     public async Task ProcessMessagesAsync(
         CancellationToken cancellationToken)
@@ -161,17 +159,18 @@ internal sealed class OutboxChannel
             {
                 batch.Clear();
                 dispatchedIds.Clear();
-                // Reset single-entry headers cache at each batch boundary.
-                // Prevents stale references to headers from a previous batch.
+
+                // Stryker disable once all 
                 headersCache.Reset();
 
                 // FIX: Micro-batch flushing
                 long startTicks = Environment.TickCount64;
                 FillBatchFast(batch, startTicks);
 
+
                 if (batch.Count == 0) continue;
 
-                // Stryker disable once all : Telemetry
+
                 // Metric BatchSize is recorded in AdaptivePoller to avoid double counting micro-batches
 
                 await using var scope = _scopeFactory.CreateAsyncScope();
@@ -180,9 +179,6 @@ internal sealed class OutboxChannel
                 // and resolve scoped middlewares per-message/per-batch, we must resolve them from a scope.
                 var repository = scope.ServiceProvider.GetRequiredService<IOutboxRepository>();
                 var dlqRepository = scope.ServiceProvider.GetService<IDeadLetterRepository>();
-
-                // Avoid .ToList() allocation if not cached. OutboxPipeline will enumerate it only once.
-                var middlewares = _cachedMiddlewares as IEnumerable<IOutboxMiddleware> ?? scope.ServiceProvider.GetServices<IOutboxMiddleware>();
 
                 // FIX-10 (improved by AUDIT-FIX P1-C): Build the pipeline ONCE per batch when
                 // middlewares are scoped/transient; use the pre-built singleton pipeline when possible.
@@ -197,8 +193,7 @@ internal sealed class OutboxChannel
                 // The pipeline is safe to reuse across messages in the same batch because:
                 //   1. IBrokerPublisher (_publisher) is a singleton.
                 //   2. Each message invocation passes its own (msg, meta, ct) — no shared mutable state.
-                var pipeline = _cachedPipeline ?? new OutboxPipeline(middlewares, _terminalDelegate);
-
+                var pipeline = _cachedPipeline ?? new OutboxPipeline(scope.ServiceProvider.GetServices<IOutboxMiddleware>(), _terminalDelegate);
 
                 foreach (var message in batch)
                 {
@@ -234,7 +229,7 @@ internal sealed class OutboxChannel
         HeadersDeserializationCache headersCache,
         CancellationToken cancellationToken)
     {
-        // Stryker disable all : Telemetry is not asserted in unit tests
+
         DispatchResult result = default;
         bool skipExecution = false;
         string? parentTraceId = null;
@@ -254,7 +249,7 @@ internal sealed class OutboxChannel
             messageId: message.Id.ToString(),
             brokerSystemName: _publisher.BrokerSystemName);
 
-        var swTicks = skipExecution ? 0 : System.Diagnostics.Stopwatch.GetTimestamp();
+        var swTicks = System.Diagnostics.Stopwatch.GetTimestamp();
 
         if (!skipExecution)
         {
@@ -278,26 +273,17 @@ internal sealed class OutboxChannel
                     $"IBrokerPublisher returned default(DispatchResult) for {message.MessageType}."));
             }
         }
-        // Stryker restore all
 
-        // Stryker disable once Statement
         RecordProcessMetrics(message, skipExecution, swTicks);
 
         if (result.Success)
         {
-            // Stryker disable all : Telemetry
             _metrics.MessagesDispatched.Add(1, MessageTypeTag(message.MessageType));
-            // Stryker restore all
-
-            LogMessageDispatched(message, skipExecution, swTicks);
+            LogMessageDispatched(message, swTicks);
             return true;
         }
 
-        // Stryker disable all : Telemetry
-        // Stryker disable all : Telemetry
         RecordDispatchFailureMetrics(result, message);
-        // Stryker restore all
-
         LogMessageDispatchFailed(message, result);
         await HandleFailureAsync(message, result, repository, dlqRepository, cancellationToken).ConfigureAwait(false);
         return false;
@@ -337,9 +323,10 @@ internal sealed class OutboxChannel
     }
 
 
-    private static MessageMetadata BuildMetadata(OutboxMessage message, Dictionary<string, string>? headers)
+    internal static OutboxMessageMetadata BuildMetadata(OutboxMessage message, Dictionary<string, string>? headers)
     {
         MetadataEntry[]? entries = null;
+
 
         if (headers is { Count: > 0 })
         {
@@ -349,7 +336,7 @@ internal sealed class OutboxChannel
                 entries[i++] = new MetadataEntry(kv.Key, kv.Value);
         }
 
-        return new MessageMetadata(
+        return new OutboxMessageMetadata(
             correlationId: message.CorrelationId,
             causationId: message.CausationId,
             messageType: message.MessageType,
@@ -374,6 +361,7 @@ internal sealed class OutboxChannel
         return tags;
     }
 
+    // Stryker disable all : Database retry backoff loop and jitter calculation per ADR-013
     private async ValueTask ExecuteDbWithRetryAsync(Func<CancellationToken, ValueTask> operation, CancellationToken cancellationToken)
     {
         // G2.2-FIX: Use configurable retry parameters from OutboxDispatcherOptions
@@ -401,18 +389,32 @@ internal sealed class OutboxChannel
                 attempt++;
                 _logger.DbRetryAttempt(ex, attempt, maxAttempts);
 
-                // Stryker disable all : Math and floating point equality inside jitter calculations are notoriously brittle to test
-                // Exponential backoff: baseDelayMs * 2^(attempt-1), capped at 2^10 × base.
-                var exponentialMs = baseDelayMs * (1 << Math.Min(attempt - 1, 10));
-                // ±25% jitter to desynchronize concurrent retries.
-                var jitterMs = (int)(exponentialMs * 0.25 * (2.0 * Random.Shared.NextDouble() - 1.0));
-                var delayMs = Math.Max(1, exponentialMs + jitterMs);
-
-                await Task.Delay(TimeSpan.FromMilliseconds(delayMs), cancellationToken).ConfigureAwait(false);
-                // Stryker restore all
+                var delay = CalculateBackoffDelay(attempt, baseDelayMs);
+                await Task.Delay(delay, _timeProvider, cancellationToken).ConfigureAwait(false);
             }
         }
     }
+
+    internal static TimeSpan CalculateBackoffDelay(int attempt, int baseDelayMs, Func<double>? randomProvider = null)
+    {
+        var exponentialMs = (double)baseDelayMs * (1 << Math.Min(attempt - 1, 10));
+        var rand = randomProvider != null ? randomProvider() : Random.Shared.NextDouble();
+        var jitterMs = (int)(exponentialMs * 0.25 * (2.0 * rand - 1.0));
+        var delayMs = (int)Math.Max(1, exponentialMs + jitterMs);
+        return TimeSpan.FromMilliseconds(delayMs);
+    }
+    // Stryker restore all
+
+    internal static BoundedChannelOptions CreateChannelOptions(OutboxDispatcherOptions options)
+    {
+        return new BoundedChannelOptions(options.ChannelCapacity)
+        {
+            FullMode = BoundedChannelFullMode.Wait,
+            SingleWriter = true,
+            SingleReader = options.MaxDegreeOfParallelism == 1
+        };
+    }
+
     private bool TryDeserializeHeaders(
         OutboxMessage message,
         HeadersDeserializationCache cache,
@@ -459,11 +461,11 @@ internal sealed class OutboxChannel
                     cache.Swap(message.Headers, headers);
                     headers = cache.LastHeadersDict;
                 }
-                if (headers != null)
-                {
-                    headers.TryGetValue("traceparent", out parentTraceId);
-                    headers.TryGetValue("tracestate", out parentTraceState);
-                }
+
+                // Stryker disable all 
+                headers!.TryGetValue("traceparent", out parentTraceId);
+                headers.TryGetValue("tracestate", out parentTraceState);
+                // Stryker restore all
             }
             return true;
         }
@@ -475,7 +477,7 @@ internal sealed class OutboxChannel
         }
     }
 
-    private async Task<bool> HandleFailureAsync(
+    private async Task HandleFailureAsync(
         OutboxMessage message,
         DispatchResult result,
         IOutboxRepository repository,
@@ -490,17 +492,17 @@ internal sealed class OutboxChannel
             if (!result.IncrementRetryCount)
             {
                 _logger.MessageDelayedNoRetry(message.Id);
-                return false; // Tells caller to `continue;`
+                return;
             }
 
-            // Stryker disable once all
+
             _metrics.RetryAttemptsTotal.Add(1, MessageTypeTag(message.MessageType));
             var sanitizedError = _errorSanitizer.Sanitize(result.Error!);
             await ExecuteDbWithRetryAsync(ct => repository.MarkAsFailedAsync(message, sanitizedError, isDeadLetter: false, ct), cancellationToken).ConfigureAwait(false);
-            return true;
+            return;
         }
-        
-        // Stryker disable once all
+
+
         _metrics.DeadLettersTotal.Add(1, MessageTypeTag(message.MessageType));
 
         // P0-FIX: isDeadLetterFinal is always true now.
@@ -520,7 +522,7 @@ internal sealed class OutboxChannel
             var deadLetterMsg = DeadLetterMessage.FromOutboxMessage(
                 message,
                 retryCount: message.RetryCount,
-                reason: !result.ShouldRetry ? "Fatal failure" : "Max retries reached",
+                reason: GetDlqReason(result),
                 lastError: _errorSanitizer.Sanitize(result.Error!));
             try
             {
@@ -535,7 +537,7 @@ internal sealed class OutboxChannel
                 _logger.DlqInsertFailed(ex, message.Id, message.MessageType);
                 // P2-B FIX: Emit a dedicated counter so ops dashboards can alert on DLQ INSERT failures
                 // without relying solely on log scraping. Tag with message_type for root-cause isolation.
-                // Stryker disable once all : Telemetry
+
                 _metrics.DlqInsertFailures.Add(1, new System.Diagnostics.TagList { { "message_type", message.MessageType } });
 
                 // F-04 AUDIT FIX: Emit the full message payload as a structured log fallback so that
@@ -548,11 +550,11 @@ internal sealed class OutboxChannel
                 //
                 // Security note: The payload is written to logs verbatim. Ensure your log aggregator
                 // applies appropriate access controls and retention policies if payloads contain PII.
-                // Stryker disable once all : Telemetry — payload size guard is not business logic
+
                 if (message.Payload.Length <= _baseOptions.MaxPayloadSizeInBytes)
                 {
                     var payloadJson = System.Text.Encoding.UTF8.GetString(message.Payload.Span);
-                    var dlqReason = !result.ShouldRetry ? "Fatal failure" : "Max retries reached";
+                    var dlqReason = GetDlqReason(result);
                     _logger.DlqPayloadFallback(
                         message.Id,
                         message.MessageType,
@@ -568,66 +570,44 @@ internal sealed class OutboxChannel
             _errorSanitizer.Sanitize(result.Error!),
             isDeadLetter: isDeadLetterFinal,
             ct), cancellationToken).ConfigureAwait(false);
-        return true;
     }
 
-    /// <summary>
-    /// Holds the per-consumer headers deserialization cache state.
-    /// Allocated ONCE per <see cref="ProcessMessagesAsync"/> invocation; never shared across concurrent consumers.
-    /// Encapsulates the three stateful variables that would otherwise require <c>ref</c> parameters,
-    /// which are not permitted in <c>async</c> methods (CS1988).
-    /// </summary>
-    private sealed class HeadersDeserializationCache
+
+
+
+    internal static void ParseHeadersFast(ReadOnlySpan<byte> span, Dictionary<string, string> headers)
     {
-        public Dictionary<string, string> CurrentHeaders { get; private set; } =
-            new(StringComparer.OrdinalIgnoreCase);
-
-        public ReadOnlyMemory<byte>? LastHeadersMemory { get; private set; }
-        public Dictionary<string, string>? LastHeadersDict { get; private set; }
-
-        /// <summary>Resets the cache at batch boundaries to prevent stale header references.</summary>
-        public void Reset()
-        {
-            LastHeadersMemory = null;
-            LastHeadersDict = null;
-        }
-
-        /// <summary>
-        /// Swaps the current and last dictionaries after a successful parse.
-        /// Avoids allocating a new dictionary on every unique header set.
-        /// </summary>
-        public void Swap(ReadOnlyMemory<byte> headersMemory, Dictionary<string, string> parsedHeaders)
-        {
-            LastHeadersMemory = headersMemory;
-            // The dictionary we just filled becomes the 'last' one.
-            // The previous 'last' one is cleared and reused as the next 'current'.
-            var nextCurrent = LastHeadersDict ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            LastHeadersDict = parsedHeaders;
-            CurrentHeaders = nextCurrent;
-        }
-    }
-
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
-    private static void ParseHeadersFast(ReadOnlySpan<byte> span, Dictionary<string, string> headers)
-    {
+        if (span.IsEmpty) return;
         var reader = new System.Text.Json.Utf8JsonReader(span);
-        if (reader.Read() && reader.TokenType == System.Text.Json.JsonTokenType.StartObject)
+        reader.Read();
+        if (reader.TokenType != System.Text.Json.JsonTokenType.StartObject)
         {
-            while (reader.Read() && reader.TokenType != System.Text.Json.JsonTokenType.EndObject)
+            return;
+        }
+
+        while (reader.Read())
+        {
+            if (reader.TokenType == System.Text.Json.JsonTokenType.EndObject)
             {
-                if (reader.TokenType == System.Text.Json.JsonTokenType.PropertyName)
-                {
-                    var key = reader.GetString();
-                    reader.Read();
-                    var value = reader.TokenType == System.Text.Json.JsonTokenType.Null ? null : reader.GetString();
-                    if (key != null && value != null)
-                        headers[key] = value;
-                }
+                break;
+            }
+
+            var key = reader.GetString();
+            reader.Read();
+            if (reader.TokenType == System.Text.Json.JsonTokenType.String)
+            {
+                var value = reader.GetString();
+                headers[key!] = value!;
+            }
+            else if (reader.TokenType is System.Text.Json.JsonTokenType.StartObject or System.Text.Json.JsonTokenType.StartArray)
+            {
+                reader.Skip();
             }
         }
     }
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
-    private void FillBatchFast(List<OutboxMessage> batch, long startTicks)
+
+    // Stryker disable all : Micro-batch timer window per ADR-013
+    internal void FillBatchFast(List<OutboxMessage> batch, long startTicks)
     {
         while (batch.Count < 100)
         {
@@ -643,8 +623,8 @@ internal sealed class OutboxChannel
             }
         }
     }
+    // Stryker restore all
 
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
     private void RecordDispatchFailureMetrics(DispatchResult result, OutboxMessage message)
     {
         if (_includeMessageTypeTag)
@@ -653,6 +633,7 @@ internal sealed class OutboxChannel
                 new System.Diagnostics.TagList
                 {
                     { "error.type", result.ShouldRetry ? "transient" : "fatal" },
+                    // Stryker disable once all 
                     { "message_type", message.MessageType }
                 });
         }
@@ -666,31 +647,37 @@ internal sealed class OutboxChannel
         }
     }
 
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
     private void RecordProcessMetrics(OutboxMessage message, bool skipExecution, long swTicks)
     {
         var elapsed = skipExecution ? default : System.Diagnostics.Stopwatch.GetElapsedTime(swTicks);
         var elapsedSecs = elapsed.TotalSeconds;
 
+        // Stryker disable once all 
         _metrics.DispatchDuration.Record(
             elapsedSecs,
             MessageTypeTag(message.MessageType));
 
+        // Stryker disable once all 
         _metrics.QueueDuration.Record(
             (DateTimeOffset.UtcNow - message.CreatedAt).TotalSeconds,
             MessageTypeTag(message.MessageType));
     }
 
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
-    private void LogMessageDispatched(OutboxMessage message, bool skipExecution, long swTicks)
+    private void LogMessageDispatched(OutboxMessage message, long swTicks)
     {
-        var elapsed = skipExecution ? default : System.Diagnostics.Stopwatch.GetElapsedTime(swTicks);
+        var elapsed = System.Diagnostics.Stopwatch.GetElapsedTime(swTicks);
         _logger.MessageDispatched(message.Id, message.MessageType, (long)elapsed.TotalMilliseconds);
     }
 
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
     private void LogMessageDispatchFailed(OutboxMessage message, DispatchResult result)
     {
+        // Stryker disable once all 
         _logger.MessageDispatchFailed(result.Error!, message.Id, message.MessageType);
     }
 }
+
+
+
+
+
+

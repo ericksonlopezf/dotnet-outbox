@@ -1,143 +1,154 @@
+<!-- Copyright © Erickson Lopez. MIT License. -->
+
 # Repository Inventory
 
-## Projects and Target Frameworks
+This document provides a comprehensive inventory of all projects, target frameworks, package classifications, and dependencies in the `dotnet-outbox` repository.
 
-| Project | Type | Target Framework(s) |
+---
+
+## 1. Projects and Target Frameworks
+
+### 1.1. Core Library Projects (6 projects)
+
+| Project | Target Framework(s) | Description | Classification |
+| :--- | :--- | :--- | :--- |
+| `EricksonLopez.Outbox` | `net8.0;net9.0;net10.0` | Core transactional outbox engine, background dispatcher, poller, pipeline, retry, diagnostics | **Core Library** |
+| `EricksonLopez.Outbox.Abstractions` | `net8.0;net9.0;net10.0` | Foundational contracts (`IOutbox`, `IOutboxTransactionContext`, `IOutboxSerializer`, attributes) | **Core Library** |
+| `EricksonLopez.Inbox` | `net8.0;net9.0;net10.0` | Standalone consumer deduplication and inbox engine (`IInboxStore`, `IdempotencyChecker`) | **Core Library** |
+| `EricksonLopez.Inbox.Abstractions` | `net8.0;net9.0;net10.0` | Foundational contracts for consumer idempotency (`IdempotencyKey`, `IInboxEntry`) | **Core Library** |
+| `EricksonLopez.Outbox.Events` | `net8.0;net9.0;net10.0` | Domain & integration events integration with `EricksonLopez.Events` (`OutboxEventPublisher`) | **Core Library** |
+| `EricksonLopez.Outbox.Inbox.Events` | `net8.0;net9.0;net10.0` | Idempotent event handling pipeline (`IdempotentEventHandler<TEvent>`) | **Core Library** |
+
+---
+
+### 1.2. Infrastructure: Storage Providers (8 projects)
+
+| Project | Target Framework(s) | Underlying Technology | Classification |
+| :--- | :--- | :--- | :--- |
+| `EricksonLopez.Outbox.Storage.PostgreSql` | `net8.0;net9.0;net10.0` | Npgsql / PostgreSQL raw ADO.NET with `SKIP LOCKED` | **Infrastructure** |
+| `EricksonLopez.Outbox.Storage.SqlServer` | `net8.0;net9.0;net10.0` | Microsoft.Data.SqlClient / SQL Server with `ROWLOCK, READPAST` | **Infrastructure** |
+| `EricksonLopez.Outbox.Storage.Sqlite` | `net8.0;net9.0;net10.0` | Microsoft.Data.Sqlite / SQLite for embedded / edge | **Infrastructure** |
+| `EricksonLopez.Outbox.Storage.MySql` | `net8.0;net9.0;net10.0` | MySqlConnector / MySQL with `FOR UPDATE SKIP LOCKED` | **Infrastructure** |
+| `EricksonLopez.Outbox.Storage.MariaDb` | `net8.0;net9.0;net10.0` | MySqlConnector / MariaDB | **Infrastructure** |
+| `EricksonLopez.Outbox.Storage.Oracle` | `net8.0;net9.0;net10.0` | Oracle.ManagedDataAccess.Core / Oracle Database | **Infrastructure** |
+| `EricksonLopez.Outbox.Storage.MongoDb` | `net8.0;net9.0;net10.0` | MongoDB.Driver / Document Outbox | **Infrastructure** |
+| `EricksonLopez.Outbox.EntityFrameworkCore` | `net8.0;net9.0;net10.0` | Microsoft.EntityFrameworkCore generic provider | **Infrastructure** |
+
+---
+
+### 1.3. Infrastructure: Broker Publishers (8 projects)
+
+| Project | Target Framework(s) | Client Driver | Classification |
+| :--- | :--- | :--- | :--- |
+| `EricksonLopez.Outbox.Brokers.RabbitMQ` | `net8.0;net9.0;net10.0` | `RabbitMQ.Client` 7.x | **Infrastructure** |
+| `EricksonLopez.Outbox.Brokers.Kafka` | `net8.0;net9.0;net10.0` | `Confluent.Kafka` 2.x | **Infrastructure** |
+| `EricksonLopez.Outbox.Brokers.AzureServiceBus` | `net8.0;net9.0;net10.0` | `Azure.Messaging.ServiceBus` 7.x | **Infrastructure** |
+| `EricksonLopez.Outbox.Brokers.AzureEventHubs` | `net8.0;net9.0;net10.0` | `Azure.Messaging.EventHubs` 5.x | **Infrastructure** |
+| `EricksonLopez.Outbox.Brokers.AwsSqs` | `net8.0;net9.0;net10.0` | `AWSSDK.SQS` 3.x | **Infrastructure** |
+| `EricksonLopez.Outbox.Brokers.GooglePubSub` | `net8.0;net9.0;net10.0` | `Google.Cloud.PubSub.V1` 3.x | **Infrastructure** |
+| `EricksonLopez.Outbox.Brokers.Nats` | `net8.0;net9.0;net10.0` | `NATS.Client.Core` 2.x | **Infrastructure** |
+| `EricksonLopez.Outbox.Brokers.RedisStreams` | `net8.0;net9.0;net10.0` | `StackExchange.Redis` 2.x | **Infrastructure** |
+
+---
+
+### 1.4. Infrastructure: Ecosystem Integrations & Serialization (12 projects)
+
+| Project | Target Framework(s) | Integration Target | Classification |
+| :--- | :--- | :--- | :--- |
+| `EricksonLopez.Outbox.MassTransit` | `net8.0;net9.0;net10.0` | MassTransit 8.x (`IPublishEndpoint`, `InboxIdempotencyFilter`) | **Infrastructure** |
+| `EricksonLopez.Outbox.Mediator` | `net8.0;net9.0;net10.0` | `EricksonLopez.Mediator` zero-allocation mediator | **Infrastructure** |
+| `EricksonLopez.Outbox.MediatR` | `net8.0;net9.0;net10.0` | MediatR 12.x/14.x notification publisher | **Infrastructure** |
+| `EricksonLopez.Outbox.NServiceBus` | `net8.0;net9.0;net10.0` | NServiceBus 8.x/10.x pipeline behavior | **Infrastructure** |
+| `EricksonLopez.Outbox.Rebus` | `net8.0;net9.0;net10.0` | Rebus 8.x outgoing pipeline step | **Infrastructure** |
+| `EricksonLopez.Outbox.Brighter` | `net8.0;net9.0;net10.0` | Paramore.Brighter command processor | **Infrastructure** |
+| `EricksonLopez.Outbox.Dapr` | `net8.0;net9.0;net10.0` | Dapr Pub/Sub component integration | **Infrastructure** |
+| `EricksonLopez.Outbox.Aspire` | `net8.0;net9.0;net10.0` | .NET Aspire hosting and service defaults | **Infrastructure** |
+| `EricksonLopez.Outbox.Inbox` | `net8.0;net9.0;net10.0` | Outbox-to-Inbox bridge deduplication filter | **Infrastructure** |
+| `EricksonLopez.Outbox.Inbox.AspNetCore` | `net8.0;net9.0;net10.0` | ASP.NET Core `Idempotency-Key` HTTP endpoint filter | **Infrastructure** |
+| `EricksonLopez.Outbox.Serialization.MessagePack` | `net8.0;net9.0;net10.0` | MessagePack binary serializer | **Infrastructure** |
+| `EricksonLopez.Outbox.Serialization.Protobuf` | `net8.0;net9.0;net10.0` | Protocol Buffers (protobuf-net) binary serializer | **Infrastructure** |
+
+---
+
+### 1.5. Internal & Compiler Tooling (2 projects)
+
+| Project | Target Framework | Roslyn / Engine | Classification |
+| :--- | :--- | :--- | :--- |
+| `EricksonLopez.Outbox.Analyzers` | `netstandard2.0` | Roslyn Diagnostics (`OUTBOX001` to `OUTBOX013`) | **Internal / Tooling** |
+| `EricksonLopez.Outbox.SourceGenerators` | `netstandard2.0` | Roslyn IIncrementalGenerator for `[OutboxMessage]` | **Internal / Tooling** |
+
+---
+
+### 1.6. Samples / Showcase (1 project)
+
+| Project | Target Framework | Description | Classification |
+| :--- | :--- | :--- | :--- |
+| `Sample.OrderService` | `net10.0` (Native AOT) | Official executable reference implementation and learning guide | **Samples (Showcase)** |
+
+---
+
+### 1.7. Benchmarks (1 project)
+
+| Project | Target Framework | Benchmark Harness | Classification |
+| :--- | :--- | :--- | :--- |
+| `EricksonLopez.Outbox.Benchmarks` | `net10.0` | BenchmarkDotNet micro & macro benchmarks | **Benchmarks** |
+
+---
+
+### 1.8. Test Projects (36 projects)
+
+| Test Project | SUT / Target Area | Classification |
 | :--- | :--- | :--- |
-| `EricksonLopez.Outbox` | Library (Core) | `net8.0;net9.0;net10.0` |
-| `EricksonLopez.Outbox.EntityFrameworkCore` | Library (EF Core) | `net8.0;net9.0;net10.0` |
-| `EricksonLopez.Outbox.MassTransit` | Library (Integration) | `net8.0;net9.0;net10.0` |
-| `EricksonLopez.Outbox.Storage.PostgreSql` | Library (Storage) | `net8.0;net9.0;net10.0` |
-| `EricksonLopez.Outbox.Storage.SqlServer` | Library (Storage) | `net8.0;net9.0;net10.0` |
-| `EricksonLopez.Outbox.Storage.MySql` | Library (Storage) | `net8.0;net9.0;net10.0` |
-| `EricksonLopez.Outbox.Storage.Oracle` | Library (Storage) | `net8.0;net9.0;net10.0` |
-| `EricksonLopez.Outbox.Storage.Sqlite` | Library (Storage) | `net8.0;net9.0;net10.0` |
-| `EricksonLopez.Outbox.Brokers.RabbitMQ` | Library (Broker) | `net8.0;net9.0;net10.0` |
-| `EricksonLopez.Outbox.Brokers.Kafka` | Library (Broker) | `net8.0;net9.0;net10.0` |
-| `EricksonLopez.Outbox.Brokers.AzureServiceBus` | Library (Broker) | `net8.0;net9.0;net10.0` |
-| `EricksonLopez.Outbox.Brokers.AwsSqs` | Library (Broker) | `net8.0;net9.0;net10.0` |
-| `EricksonLopez.Outbox.Brokers.GooglePubSub` | Library (Broker) | `net8.0;net9.0;net10.0` |
-| `EricksonLopez.Outbox.Brokers.Nats` | Library (Broker) | `net8.0;net9.0;net10.0` |
-| `EricksonLopez.Outbox.Brokers.RedisStreams` | Library (Broker) | `net8.0;net9.0;net10.0` |
-| `EricksonLopez.Outbox.Analyzers` | Library (Roslyn) | `netstandard2.0` |
-| `EricksonLopez.Outbox.SourceGenerators` | Library (Roslyn) | `netstandard2.0` |
+| `EricksonLopez.Outbox.Tests` | Core engine, poller, builder, channel, health checks, testing APIs | **Tests** |
+| `EricksonLopez.Outbox.AotSmokeTest` | Native AOT compilation & smoke execution | **Tests** |
+| `EricksonLopez.Outbox.IntegrationTests` | End-to-end database + broker integration (Testcontainers) | **Tests** |
+| `EricksonLopez.Inbox.Tests` | Standalone inbox deduplication tests | **Tests** |
+| `EricksonLopez.Outbox.Analyzers.Tests` | Roslyn analyzer diagnostic and codefix tests | **Tests** |
+| `EricksonLopez.Outbox.SourceGenerators.Tests` | Roslyn incremental source generator tests | **Tests** |
+| `EricksonLopez.Outbox.EntityFrameworkCore.Tests` | EF Core outbox repository & model builder tests | **Tests** |
+| `EricksonLopez.Outbox.Storage.PostgreSql.Tests` | PostgreSQL raw ADO.NET repository tests | **Tests** |
+| `EricksonLopez.Outbox.Storage.SqlServer.Tests` | SQL Server raw ADO.NET repository tests | **Tests** |
+| `EricksonLopez.Outbox.Storage.Sqlite.Tests` | SQLite raw ADO.NET repository tests | **Tests** |
+| `EricksonLopez.Outbox.Storage.MySql.Tests` | MySQL raw ADO.NET repository tests | **Tests** |
+| `EricksonLopez.Outbox.Storage.MariaDb.Tests` | MariaDB raw ADO.NET repository tests | **Tests** |
+| `EricksonLopez.Outbox.Storage.Oracle.Tests` | Oracle Database raw ADO.NET repository tests | **Tests** |
+| `EricksonLopez.Outbox.Storage.MongoDb.Tests` | MongoDB document outbox repository tests | **Tests** |
+| `EricksonLopez.Outbox.Brokers.RabbitMQ.Tests` | RabbitMQ broker publisher tests | **Tests** |
+| `EricksonLopez.Outbox.Brokers.Kafka.Tests` | Apache Kafka broker publisher tests | **Tests** |
+| `EricksonLopez.Outbox.Brokers.AzureServiceBus.Tests` | Azure Service Bus publisher tests | **Tests** |
+| `EricksonLopez.Outbox.Brokers.AzureEventHubs.Tests` | Azure Event Hubs publisher tests | **Tests** |
+| `EricksonLopez.Outbox.Brokers.AwsSqs.Tests` | AWS SQS broker publisher tests | **Tests** |
+| `EricksonLopez.Outbox.Brokers.GooglePubSub.Tests` | Google Cloud Pub/Sub publisher tests | **Tests** |
+| `EricksonLopez.Outbox.Brokers.Nats.Tests` | NATS Core broker publisher tests | **Tests** |
+| `EricksonLopez.Outbox.Brokers.RedisStreams.Tests` | Redis Streams broker publisher tests | **Tests** |
+| `EricksonLopez.Outbox.MassTransit.Tests` | MassTransit filter & publisher tests | **Tests** |
+| `EricksonLopez.Outbox.Mediator.Tests` | EricksonLopez.Mediator notification handler tests | **Tests** |
+| `EricksonLopez.Outbox.MediatR.Tests` | MediatR notification publisher tests | **Tests** |
+| `EricksonLopez.Outbox.NServiceBus.Tests` | NServiceBus pipeline behavior tests | **Tests** |
+| `EricksonLopez.Outbox.Rebus.Tests` | Rebus outgoing step tests | **Tests** |
+| `EricksonLopez.Outbox.Brighter.Tests` | Paramore.Brighter processor tests | **Tests** |
+| `EricksonLopez.Outbox.Dapr.Tests` | Dapr pubsub publisher tests | **Tests** |
+| `EricksonLopez.Outbox.Aspire.Tests` | .NET Aspire configuration tests | **Tests** |
+| `EricksonLopez.Outbox.Inbox.Tests` | Outbox inbox deduplication tests | **Tests** |
+| `EricksonLopez.Outbox.Inbox.AspNetCore.Tests` | ASP.NET Core HTTP filter tests | **Tests** |
+| `EricksonLopez.Outbox.Inbox.Events.Tests` | Idempotent event handler tests | **Tests** |
+| `EricksonLopez.Outbox.Events.Tests` | Event publisher transactional outbox tests | **Tests** |
+| `EricksonLopez.Outbox.Serialization.MessagePack.Tests` | MessagePack serialization tests | **Tests** |
+| `EricksonLopez.Outbox.Serialization.Protobuf.Tests` | Protobuf serialization tests | **Tests** |
 
-### Test Projects
+---
 
-| Project | Type | Target Framework(s) |
+## 2. Quality & Security Gates
+
+| Tool | Configuration | Enforcement |
 | :--- | :--- | :--- |
-| `EricksonLopez.Outbox.Tests` | Unit Tests | `net10.0` |
-| `EricksonLopez.Outbox.AotTests` | AOT Smoke Tests | `net10.0` |
-| `EricksonLopez.Outbox.IntegrationTests` | Integration Tests | `net10.0` |
-| `EricksonLopez.Outbox.EntityFrameworkCore.Tests` | Unit Tests | `net10.0` |
-| `EricksonLopez.Outbox.Storage.*.Tests` | Unit Tests (5 projects) | `net10.0` |
-| `EricksonLopez.Outbox.Brokers.*.Tests` | Unit Tests (7 projects) | `net10.0` |
+| **Code Coverage** | `coverlet.runsettings` | Line Coverage ≥ 90%, Branch Coverage ≥ 80% |
+| **Mutation Testing** | `mutation-testing.yml` + 34 Stryker configs | Break Gate < 95%, Low Threshold ≥ 98%, High Target = 100% |
+| **Release Mutation Gate** | `scripts/verify-mutation-gate.js` | Enforces 95% threshold before packaging & release |
+| **Roslyn Analyzers** | `EricksonLopez.Outbox.Analyzers` | Build-time errors (`OUTBOX001`–`OUTBOX013`) |
+| **Code Style** | `EnforceCodeStyleInBuild=true` in `Directory.Build.props` | All IDE style rules strictly enforced |
+| **Native AOT Validation** | `IsAotCompatible=true`, `PublishAot=true` | Zero trim warnings, dedicated CI smoke test |
+| **Strong Naming** | `EricksonLopez.snk` | All shipped assemblies signed |
+| **Provenance & Attestation**| Sigstore (`actions/attest-build-provenance@v2`) | Cryptographic build provenance for NuGet packages |
+| **Trusted Publishing** | `NuGet/login@v1` | Keyless OIDC authentication to NuGet.org |
 
-### Benchmark & Sample Projects
-
-| Project | Type |
-| :--- | :--- |
-| `EricksonLopez.Outbox.Benchmarks` | BenchmarkDotNet benchmarks |
-| `Sample.OrderService` | Sample ASP.NET Core API (with Dockerfile + docker-compose) |
-
-## NuGet Dependencies (Central Package Management)
-
-The repository uses Central Package Management (`Directory.Packages.props`). Key dependencies include:
-
-### Runtime Dependencies
-
-| Category | Package | Version |
-|---|---|---|
-| Framework | `Microsoft.Extensions.Hosting.Abstractions` | `10.0.10` |
-| Framework | `Microsoft.Extensions.DependencyInjection.Abstractions` | `10.0.10` |
-| Framework | `Microsoft.Extensions.Diagnostics.HealthChecks` | `10.0.10` |
-| Framework | `Microsoft.Extensions.ObjectPool` | `10.0.10` |
-| Framework | `Microsoft.Extensions.Logging` | `10.0.10` |
-| ORM | `Microsoft.EntityFrameworkCore` | `8.0.13` |
-| ORM | `Microsoft.EntityFrameworkCore.Relational` | `8.0.13` |
-| Database | `Npgsql` | `9.0.0` |
-| Database | `Microsoft.Data.SqlClient` | `5.2.1` |
-| Database | `Microsoft.Data.Sqlite` | `8.0.4` |
-| Database | `MySqlConnector` | `2.3.6` |
-| Database | `Oracle.ManagedDataAccess.Core` | `23.4.0` |
-| Broker | `RabbitMQ.Client` | `7.1.1` |
-| Broker | `Confluent.Kafka` | `2.3.0` |
-| Broker | `Azure.Messaging.ServiceBus` | `7.17.4` |
-| Broker | `AWSSDK.SQS` | `3.7.300.73` |
-| Broker | `Google.Cloud.PubSub.V1` | `3.23.0` |
-| Broker | `NATS.Client.Core` | `2.5.5` |
-| Broker | `StackExchange.Redis` | `2.8.0` |
-| Broker | `MassTransit` | `8.2.1` |
-| Roslyn | `Microsoft.CodeAnalysis.CSharp` | `4.8.0` |
-| Build | `Microsoft.SourceLink.GitHub` | `8.0.0` |
-
-### Test & Tooling Dependencies
-
-| Category | Package | Version |
-|---|---|---|
-| Testing | `xunit` | `2.7.0` |
-| Testing | `AwesomeAssertions` | `9.5.0` |
-| Testing | `NSubstitute` | `5.1.0` |
-| Testing | `Moq` | `4.20.70` |
-| Testing | `AutoFixture` | `4.18.1` |
-| Testing | `FsCheck.Xunit` | `3.0.0-rc3` |
-| Testing | `Testcontainers` | `4.13.0` |
-| Coverage | `coverlet.collector` | `6.0.1` |
-| Coverage | `coverlet.msbuild` | `10.0.1` |
-| Benchmarks | `BenchmarkDotNet` | `0.13.12` |
-
-### CPM Note: Packages Pinned But Not Used in src/
-
-The following packages are pinned in `Directory.Packages.props` but only referenced by test or sample projects (not by any `src/` library project):
-
-- `Dapper` `2.1.35` — used in storage test projects only (integration test helpers)
-- `NServiceBus` `10.2.8` — pinned for future integration (see [ROADMAP.md](../ROADMAP.md))
-- `WolverineFx` `6.24.7` — pinned for future integration
-- `DotNetCore.CAP` `8.2.0` — pinned for future integration
-- `MediatR` `14.2.0` — pinned for future integration
-- `Swashbuckle.AspNetCore` `10.2.3` — used by Sample.OrderService only
-
-## Quality Tools
-
-| Tool | Configuration | Integration |
-|---|---|---|
-| Code Coverage | `coverlet.runsettings` | Codecov (via `codecov/codecov-action@v5`) |
-| Mutation Testing | `stryker-config.json`, `stryker-config-unit.json` | GitHub Actions (scheduled + manual) |
-| Static Analysis | SonarCloud (`dotnet-sonarscanner`) | GitHub Actions (CI workflow) |
-| Roslyn Analyzers | `EricksonLopez.Outbox.Analyzers` (OUTBOX001, OUTBOX002) | IDE + build-time |
-| Code Style | `EnforceCodeStyleInBuild=true` in `Directory.Build.props` | Build-time enforcement |
-
-## CI/CD Artifacts
-
-*   **SDK Version:** `10.0.100` (`global.json` with `rollForward: latestFeature`)
-*   **Solution File:** `EricksonLopez.Outbox.slnx` (XML-based solution format)
-*   **Workflows:**
-    *   `ci.yml` — CI orchestrator (calls build-test + AOT smoke test)
-    *   `dotnet-build-test.yml` — Reusable build, test, SonarCloud, and Codecov workflow
-    *   `aot-smoke-test.yml` — NativeAOT compilation + execution validation
-    *   `mutation-testing.yml` — Stryker mutation analysis (weekly schedule + manual)
-    *   `benchmarks.yml` — BenchmarkDotNet baseline capture (on tag push + manual)
-    *   `weekly-benchmarks.yml` — Deep performance benchmarks (weekly schedule)
-    *   `publish.yml` — NuGet packaging and publishing (on tag push + manual)
-    *   `release-please.yml` — Automated release management via Conventional Commits
-*   **Secrets Required:**
-    *   `SNK_KEY` — Base64-encoded Strong Name key for assembly signing
-    *   `CODECOV_TOKEN` — Codecov upload token
-    *   `SONAR_TOKEN` — SonarCloud analysis token
-    *   `GITHUB_TOKEN` — Provided automatically by GitHub Actions
-
-## Security Artifacts
-
-*   **Strong Naming:** `EricksonLopez.snk` signs all assemblies (decoded from `SNK_KEY` secret in CI)
-*   **Trusted Publishing:** OIDC via `NuGet/login@v1` (no static API key)
-*   **Sigstore Attestation:** `actions/attest-build-provenance@v2` on all `.nupkg` files
-*   **NuGet Audit:** `NuGetAudit=true`, `NuGetAuditMode=all`, `NuGetAuditLevel=low`
-*   **Package Validation:** `EnablePackageValidation=true` for all packable projects
-
-## Additional Artifacts
-
-| Artifact | Path | Purpose |
-|---|---|---|
-| Grafana Dashboard | `grafana/dashboards/outbox-dashboard.json` | Observability dashboard template |
-| Coverlet Settings | `coverlet.runsettings` | Coverage exclusion configuration |
-| Dependabot Config | `.github/dependabot.yml` | NuGet (weekly) + GitHub Actions (monthly) dependency updates |

@@ -1,3 +1,4 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Linq;
 using AwesomeAssertions;
@@ -205,4 +206,29 @@ public class OutboxModelBuilderExtensionsTests
         var lastErrorProp = entityType.GetProperty("LastError");
         lastErrorProp.GetColumnName().Should().Be("last_error");
     }
+
+    [Fact]
+    public void ApplyOutboxEntityConfigurations_ExplicitKeys_ConfiguredWithoutConventions()
+    {
+        var modelBuilder = new ModelBuilder(new Microsoft.EntityFrameworkCore.Metadata.Conventions.ConventionSet());
+        modelBuilder.ApplyOutboxEntityConfigurations("outbox");
+
+        var outboxEntity = modelBuilder.Model.FindEntityType(typeof(OutboxMessageEntity));
+        outboxEntity.Should().NotBeNull();
+        outboxEntity!.FindPrimaryKey().Should().NotBeNull();
+        outboxEntity.FindPrimaryKey()!.Properties.Single().Name.Should().Be("Id");
+
+        var deadLetterEntity = modelBuilder.Model.FindEntityType(typeof(DeadLetterMessageEntity));
+        deadLetterEntity.Should().NotBeNull();
+        deadLetterEntity!.FindPrimaryKey().Should().NotBeNull();
+        deadLetterEntity.FindPrimaryKey()!.Properties.Single().Name.Should().Be("Id");
+
+        var idemEntity = modelBuilder.Model.FindEntityType(typeof(IdempotencyRecordEntity));
+        idemEntity.Should().NotBeNull();
+        idemEntity!.FindPrimaryKey().Should().NotBeNull();
+        idemEntity.FindPrimaryKey()!.Properties.Should().HaveCount(2);
+        idemEntity.FindPrimaryKey()!.Properties.Should().Contain(p => p.Name == "MessageId");
+        idemEntity.FindPrimaryKey()!.Properties.Should().Contain(p => p.Name == "ConsumerId");
+    }
 }
+

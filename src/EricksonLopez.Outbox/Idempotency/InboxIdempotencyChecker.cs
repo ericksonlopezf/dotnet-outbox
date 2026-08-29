@@ -1,3 +1,4 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -23,6 +24,7 @@ public sealed class InboxIdempotencyChecker : IInboxIdempotencyChecker
     /// <param name="idempotencyRepository">The repository that stores and verify idempotency records.</param>
     public InboxIdempotencyChecker(IIdempotencyRepository idempotencyRepository)
     {
+        ArgumentNullException.ThrowIfNull(idempotencyRepository);
         _idempotencyRepository = idempotencyRepository;
     }
 
@@ -35,9 +37,9 @@ public sealed class InboxIdempotencyChecker : IInboxIdempotencyChecker
     /// <param name="cancellationToken">A token that can be used to cancel the asynchronous operation.</param>
     /// <returns><see langword="true"/> if the record was successfully inserted and the message should be processed; otherwise, <see langword="false"/>.</returns>
     public async Task<bool> ShouldProcessAsync(
-        string messageId, 
-        string consumerId, 
-        IOutboxTransactionContext transaction, 
+        string messageId,
+        string consumerId,
+        IOutboxTransactionContext transaction,
         CancellationToken cancellationToken = default)
     {
         var record = new IdempotencyRecord(messageId, consumerId, DateTimeOffset.UtcNow);
@@ -69,3 +71,6 @@ public sealed class InboxIdempotencyChecker : IInboxIdempotencyChecker
         return !inserted;
     }
 }
+
+
+

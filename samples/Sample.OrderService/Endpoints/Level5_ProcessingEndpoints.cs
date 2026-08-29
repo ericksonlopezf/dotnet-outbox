@@ -1,17 +1,19 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Collections.Generic;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Routing;
+using System.Linq;
+using System.Threading;
 using EricksonLopez.Outbox;
 using EricksonLopez.Outbox.Persistence;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Routing;
 using Npgsql;
 using Sample.OrderService.Domain.Aggregates.OrderAggregate;
-using System.Linq;
+using System.Threading.Tasks;
 
+#pragma warning disable CA1861 // Prefer static readonly fields over constant array arguments
 namespace Sample.OrderService.Endpoints;
 
 /// <summary>
@@ -100,9 +102,9 @@ public static class Level5_ProcessingEndpoints
 
             var @event = new BatchTestEvent(Index: 42, Data: "explicit-metadata-demo");
 
-            // We build MessageMetadata directly — without builder.
+            // We build OutboxMessageMetadata directly — without builder.
             // Useful in infrastructure code where metadata already exists.
-            var metadata = new MessageMetadata(
+            var metadata = new OutboxMessageMetadata(
                 correlationId: Guid.NewGuid().ToString("N"),
                 causationId: Guid.NewGuid().ToString("N"),
                 messageType: null,  // null → the serializer uses the alias from the [OutboxMessage] attribute
@@ -117,9 +119,120 @@ public static class Level5_ProcessingEndpoints
 
             await tx.CommitAsync(ct);
 
-            return Results.Ok(new { message = "Level 5c: StoreAsync with explicit MessageMetadata." });
+            return Results.Ok(new { message = "Level 5c: StoreAsync with explicit OutboxMessageMetadata." });
         })
         .WithSummary("Level 5c - IOutbox.StoreAsync(msg, tx, metadata, deliverAt) — full control overload")
         .WithTags("Level 5 — Processing");
+
+        // ─── Endpoint 5d: Scheduled message delivery ──────────────────────────
+        // OutboxMessageBuilder exposes two scheduling methods:
+        //   - WithDelay(TimeSpan delay)       → deliverAt = UtcNow + delay
+        //   - WithDeliverAt(DateTimeOffset)   → explicit absolute timestamp
+        //
+        // The message stays in Pending state (invisible to the dispatcher)
+        // until the current UTC time >= deliverAt.
+        //
+        // IMPORTANT: deliverAt must not exceed OutboxRuntimeOptions.MaxMessageAge.
+        // If it does, StoreAsync throws ArgumentOutOfRangeException.
+        // Increase MaxMessageAge if you need scheduling horizons > 30 days (the default).
+        app.MapPost("/api/level5/scheduled-delivery", async (
+            [FromServices] IOutbox outbox,
+            [FromServices] NpgsqlDataSource dataSource,
+            CancellationToken ct) =>
+        {
+            await using var conn = await dataSource.OpenConnectionAsync(ct);
+            await using var tx = await conn.BeginTransactionAsync(ct);
+
+            var @event = new OrderCreatedEvent(Guid.NewGuid(), "CUST-SCHED", 500m, DateTimeOffset.UtcNow);
+
+            // WithDelay: stores the message now, but delays dispatch by 30 seconds.
+            // Use case: retry-after-a-period, delayed notifications, scheduled reminders.
+            await outbox.Publish(@event)
+                .WithTransaction(tx.ToOutboxContext())
+                .WithDelay(TimeSpan.FromSeconds(30))
+                .StoreAsync(ct);
+
+            // WithDeliverAt: explicit absolute UTC timestamp.
+            // Use case: scheduled campaigns, time-zone-aware scheduling, future events.
+            var futureEvent = new OrderConfirmedEvent(Guid.NewGuid(), DateTimeOffset.UtcNow);
+            var deliverAt = DateTimeOffset.UtcNow.AddMinutes(5);
+
+            await outbox.Publish(futureEvent)
+                .WithTransaction(tx.ToOutboxContext())
+                .WithDeliverAt(deliverAt)
+                .StoreAsync(ct);
+
+            await tx.CommitAsync(ct);
+
+            return Results.Ok(new
+            {
+                message = "Level 5d: Two scheduled messages stored.",
+                withDelay = new
+                {
+                    description = "WithDelay(30s) — dispatches 30 seconds from now.",
+                    apiSignature = "OutboxMessageBuilder<TMessage>.WithDelay(TimeSpan delay)",
+                    effectiveDeliverAt = DateTimeOffset.UtcNow.AddSeconds(30),
+                },
+                withDeliverAt = new
+                {
+                    description = "WithDeliverAt — explicit absolute timestamp.",
+                    apiSignature = "OutboxMessageBuilder<TMessage>.WithDeliverAt(DateTimeOffset deliverAt)",
+                    effectiveDeliverAt = deliverAt,
+                },
+                warning = "If deliverAt >= (UtcNow + OutboxRuntimeOptions.MaxMessageAge), StoreAsync throws ArgumentOutOfRangeException. " +
+                    "Increase MaxMessageAge to support longer scheduling horizons."
+            });
+        })
+        .WithSummary("Level 5d - WithDelay() and WithDeliverAt(): scheduled message delivery")
+        .WithTags("Level 5 — Processing");
+
+        // ─── Endpoint 5e: EnqueueAsync() — semantic alias for StoreAsync() ────
+        // OutboxPublishExtensions.EnqueueAsync() is a semantic alias for StoreAsync().
+        // It provides the same functionality with a different name that aligns better
+        // with queue-oriented mental models (MediatR, NServiceBus, MassTransit terminology).
+        //
+        // Available overloads:
+        //   1. EnqueueAsync<T>(message, transaction, ct)                   → single message
+        //   2. EnqueueAsync<T>(ReadOnlyMemory<T>, transaction, ct)          → batch (zero-alloc)
+        //   3. EnqueueAsync<T>(IEnumerable<T>, transaction, ct)             → batch (LINQ-friendly)
+        //   4. EnqueueAsync<T>(msg, tx, OutboxMessageMetadata, deliverAt, ct) → full control
+        app.MapPost("/api/level5/enqueue-async", async (
+            [FromServices] IOutbox outbox,
+            [FromServices] NpgsqlDataSource dataSource,
+            CancellationToken ct) =>
+        {
+            await using var conn = await dataSource.OpenConnectionAsync(ct);
+            await using var tx = await conn.BeginTransactionAsync(ct);
+            var context = tx.ToOutboxContext();
+
+            // Overload 1: single message — direct semantic alias for StoreAsync<T>(msg, tx, ct)
+            var singleEvent = new OrderCreatedEvent(Guid.NewGuid(), "CUST-ENQ", 100m, DateTimeOffset.UtcNow);
+            await outbox.EnqueueAsync(singleEvent, context, ct);
+
+            // Overload 3: IEnumerable batch — alias for StoreAsync(IEnumerable<T>, ...)
+            var batchEvents = Enumerable.Range(1, 3)
+                .Select(i => new OrderCreatedEvent(Guid.NewGuid(), $"CUST-ENQ-BATCH-{i}", 50m * i, DateTimeOffset.UtcNow));
+            await outbox.EnqueueAsync(batchEvents, context, ct);
+
+            await tx.CommitAsync(ct);
+
+            return Results.Ok(new
+            {
+                message = "Level 5e: EnqueueAsync() overloads demonstrated.",
+                note = "EnqueueAsync() is a semantic alias for StoreAsync(). Use whichever name fits your team's domain language.",
+                overloads = new[]
+                {
+                    "EnqueueAsync<T>(TMessage msg, IOutboxTransactionContext tx, CancellationToken ct) — single message",
+                    "EnqueueAsync<T>(ReadOnlyMemory<T> msgs, IOutboxTransactionContext tx, CancellationToken ct) — batch (zero-alloc)",
+                    "EnqueueAsync<T>(IEnumerable<T> msgs, IOutboxTransactionContext tx, CancellationToken ct) — batch",
+                    "EnqueueAsync<T>(TMessage msg, IOutboxTransactionContext tx, OutboxMessageMetadata metadata, DateTimeOffset? deliverAt, CancellationToken ct) — full control",
+                }
+            });
+        })
+        .WithSummary("Level 5e - EnqueueAsync(): semantic alias for StoreAsync() with all overloads")
+        .WithTags("Level 5 — Processing");
     }
 }
+
+
+

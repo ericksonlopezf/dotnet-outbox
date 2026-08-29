@@ -1,3 +1,4 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using BenchmarkDotNet.Attributes;
 using EricksonLopez.Outbox.Serialization;
@@ -36,3 +37,4 @@ public class E_TypeResolutionBenchmarks
         return type?.Name;
     }
 }
+

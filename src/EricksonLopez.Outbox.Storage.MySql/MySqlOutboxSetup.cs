@@ -1,5 +1,5 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
-
 using EricksonLopez.Outbox.Persistence;
 using Microsoft.Extensions.DependencyInjection;
 using MySqlConnector;
@@ -7,7 +7,7 @@ using MySqlConnector;
 namespace EricksonLopez.Outbox.Storage.MySql;
 
 /// <summary>
-/// Dependency Injection setup extensions for MySQL Outbox Storage.
+/// Provides extension methods for configuring MySQL outbox storage.
 /// </summary>
 public static class MySqlOutboxSetup
 {
@@ -34,3 +34,4 @@ public static class MySqlOutboxSetup
         return options;
     }
 }
+

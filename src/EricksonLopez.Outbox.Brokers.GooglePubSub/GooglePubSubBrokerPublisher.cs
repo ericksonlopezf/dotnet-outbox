@@ -1,15 +1,17 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using EricksonLopez.Outbox;
 using Google.Cloud.PubSub.V1;
 using Google.Protobuf;
-using EricksonLopez.Outbox;
 
 namespace EricksonLopez.Outbox.Brokers.GooglePubSub;
 
 /// <summary>
-/// Publishes outbox messages to Google Cloud Pub/Sub using the official Google.Cloud.PubSub.V1 client.
+/// Provides a broker publisher implementation that dispatches outbox messages to Google Cloud Pub/Sub using the official Google.Cloud.PubSub.V1 client.
 /// </summary>
 /// <remarks>
 /// Design decisions:
@@ -37,7 +39,7 @@ public sealed class GooglePubSubBrokerPublisher : IBrokerPublisher
     /// <param name="projectId">The Google Cloud project identifier containing the target topics.</param>
     /// <param name="topicNamingStrategy">An optional function that derives the topic name from the message type alias. If <see langword="null"/>, a default strategy is used.</param>
     /// <exception cref="ArgumentNullException"><paramref name="client"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ArgumentException"><paramref name="projectId"/> is <see langword="null"/> or white space.</exception>
+    /// <exception cref="ArgumentException"><paramref name="projectId"/> is <see langword="null"/>, empty, or consists only of white-space characters.</exception>
     public GooglePubSubBrokerPublisher(
         PublisherServiceApiClient client,
         string projectId,
@@ -78,7 +80,7 @@ public sealed class GooglePubSubBrokerPublisher : IBrokerPublisher
     /// <inheritdoc/>
     public async ValueTask<DispatchResult> PublishRawAsync(
         OutboxMessage message,
-        MessageMetadata metadata,
+        OutboxMessageMetadata metadata,
         DispatchContext context)
     {
         try
@@ -104,7 +106,7 @@ public sealed class GooglePubSubBrokerPublisher : IBrokerPublisher
             foreach (var entry in metadata.Entries.Span)
                 pubsubMessage.Attributes[entry.Key] = entry.Value;
 
-            await _client.PublishAsync(topicName, new[] { pubsubMessage });
+            await _client.PublishAsync(topicName, new[] { pubsubMessage }, context.CancellationToken);
 
             return DispatchResult.Ok();
         }
@@ -114,3 +116,8 @@ public sealed class GooglePubSubBrokerPublisher : IBrokerPublisher
         }
     }
 }
+
+
+
+
+

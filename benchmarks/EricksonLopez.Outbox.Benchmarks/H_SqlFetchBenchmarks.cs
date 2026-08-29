@@ -1,10 +1,12 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using Dapper;
 using EricksonLopez.Outbox;
-
 using EricksonLopez.Outbox.Storage.PostgreSql;
+using EricksonLopez.Result;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -27,8 +29,15 @@ public class H_SqlFetchBenchmarks
     [GlobalSetup]
     public async Task Setup()
     {
-        var connString = "Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=postgres";
-        _dataSource = NpgsqlDataSource.Create(connString);
+        var builder = new NpgsqlConnectionStringBuilder
+        {
+            Host = "localhost",
+            Port = 5432,
+            Database = "postgres",
+            Username = "postgres",
+            Password = Environment.GetEnvironmentVariable("POSTGRES_PASSWORD") ?? "dev_postgres_pwd"
+        };
+        _dataSource = NpgsqlDataSource.Create(builder.ConnectionString);
 
         // Try to create the table and seed a few messages for benchmarking, ignoring errors if DB not reachable
         try
@@ -55,12 +64,17 @@ public class H_SqlFetchBenchmarks
             ";
             await cmd.ExecuteNonQueryAsync();
 
+            cmd.CommandText = $@"
+                INSERT INTO {TableName} (id, message_type, payload, headers, created_at, state, retry_count)
+                VALUES (@Id, 'type', '\x00', '\x00', NOW(), 0, 0) ON CONFLICT DO NOTHING;
+            ";
+            var idParam = cmd.CreateParameter();
+            idParam.ParameterName = "@Id";
+            cmd.Parameters.Add(idParam);
+
             for (int i = 0; i < 100; i++)
             {
-                cmd.CommandText = $@"
-                    INSERT INTO {TableName} (id, message_type, payload, headers, created_at, state, retry_count)
-                    VALUES ('{Guid.NewGuid()}', 'type', '\x00', '\x00', NOW(), 0, 0) ON CONFLICT DO NOTHING;
-                ";
+                idParam.Value = Guid.NewGuid();
                 await cmd.ExecuteNonQueryAsync();
             }
         }
@@ -120,3 +134,7 @@ public class H_SqlFetchBenchmarks
         catch { } // Ignore if DB is down during local bench runs
     }
 }
+
+
+
+

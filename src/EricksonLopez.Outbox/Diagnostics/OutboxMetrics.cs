@@ -1,6 +1,9 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
-using System.Diagnostics.Metrics;
 using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.Metrics;
+using System.Threading;
+using EricksonLopez.Result;
 
 namespace EricksonLopez.Outbox.Diagnostics;
 
@@ -59,7 +62,6 @@ namespace EricksonLopez.Outbox.Diagnostics;
 /// </list>
 /// </para>
 /// </remarks>
-[ExcludeFromCodeCoverage]
 public sealed class OutboxMetrics : IDisposable
 {
 
@@ -135,14 +137,14 @@ public sealed class OutboxMetrics : IDisposable
     /// <param name="meterFactory">An optional meter factory to resolve the meter instance.</param>
     public OutboxMetrics(IMeterFactory? meterFactory = null)
     {
-        Meter = meterFactory?.Create(new MeterOptions(MeterName) { Version = "1.0.0" }) 
-                ?? new Meter(MeterName, "1.0.0");
+        Meter = meterFactory?.Create(new MeterOptions(MeterName) { Version = "2.0.0" })
+                ?? new Meter(MeterName, "2.0.0");
 
         MessagesDispatched = Meter.CreateCounter<long>("messaging.outbox.messages.dispatched", "{message}", "Total messages successfully dispatched to the broker.");
         DispatchFailures = Meter.CreateCounter<long>("messaging.outbox.dispatch.errors", "{message}", "Total dispatch failures. Tag 'error.type' = 'transient' | 'fatal'.");
         DeadLettersTotal = Meter.CreateCounter<long>("messaging.outbox.messages.dead_lettered", "{message}", "Total messages moved to the dead-letter queue after exhausting retries.");
         RetryAttemptsTotal = Meter.CreateCounter<long>("messaging.outbox.retry.attempts", "{attempt}", "Total retry attempts performed by the dispatcher.");
-        
+
         QueueDuration = Meter.CreateHistogram<double>("messaging.outbox.message.queue_duration", "s", "Time between message creation and dispatch attempt (queue latency). Note: Exemplars (like trace_id) are automatically attached by the OpenTelemetry .NET SDK when an Activity is present.");
         DispatchDuration = Meter.CreateHistogram<double>("messaging.outbox.publish.duration", "s", "Time taken by the broker publisher to send a single message. Note: Exemplars are automatically attached by the OpenTelemetry .NET SDK.");
         StoreDuration = Meter.CreateHistogram<double>("messaging.outbox.store.duration", "s", "Time taken to build and persist an outbox message to the database. Note: Exemplars are automatically attached by the OpenTelemetry .NET SDK.");
@@ -170,6 +172,16 @@ public sealed class OutboxMetrics : IDisposable
     }
 
     /// <summary>
+    /// Records the time taken to store a message or batch in the database.
+    /// </summary>
+    /// <param name="seconds">The duration in seconds.</param>
+    /// <param name="messageType">The message type alias or 'batch'.</param>
+    public void RecordStoreDuration(double seconds, string messageType)
+    {
+        StoreDuration.Record(seconds, new System.Diagnostics.TagList { { "message_type", messageType } });
+    }
+
+    /// <summary>
     /// Disposes the underlying meter instance and releases associated resources.
     /// </summary>
     public void Dispose()
@@ -177,3 +189,6 @@ public sealed class OutboxMetrics : IDisposable
         Meter.Dispose();
     }
 }
+
+
+

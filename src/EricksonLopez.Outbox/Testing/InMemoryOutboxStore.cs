@@ -1,10 +1,11 @@
-using EricksonLopez.Outbox.Persistence;
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using EricksonLopez.Outbox.Persistence;
 
 namespace EricksonLopez.Outbox.Testing;
 
@@ -47,7 +48,7 @@ public sealed class InMemoryOutboxStore : IOutbox
     public ValueTask StoreAsync<TMessage>(
         TMessage message,
         IOutboxTransactionContext transaction,
-        MessageMetadata metadata,
+        OutboxMessageMetadata metadata,
         DateTimeOffset? deliverAt,
         CancellationToken cancellationToken = default) where TMessage : notnull
     {
@@ -55,7 +56,12 @@ public sealed class InMemoryOutboxStore : IOutbox
         return ValueTask.CompletedTask;
     }
 
-    /// <inheritdoc/>
+    /// <summary>
+    /// Begins a fluent message-building chain for enriching a message before persisting it to this in-memory store.
+    /// </summary>
+    /// <typeparam name="TMessage">The type of the message being built.</typeparam>
+    /// <param name="message">The initial message payload to begin enriching.</param>
+    /// <returns>A fluent builder instance to configure transaction, delay, and metadata.</returns>
     public OutboxMessageBuilder<TMessage> Publish<TMessage>(TMessage message) where TMessage : notnull
     {
         return new OutboxMessageBuilder<TMessage>(this, message);
@@ -74,6 +80,10 @@ public sealed class InMemoryOutboxStore : IOutbox
     /// </summary>
     public void Reset()
     {
-        while (_messages.TryDequeue(out _)) { }
+        _messages.Clear();
     }
 }
+
+
+
+

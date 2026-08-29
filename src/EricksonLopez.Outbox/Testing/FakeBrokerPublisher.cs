@@ -1,14 +1,17 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using EricksonLopez.Outbox;
+using EricksonLopez.Result;
 
 namespace EricksonLopez.Outbox.Testing;
 
 /// <summary>
-/// A fake <see cref="IBrokerPublisher"/> implementation designed for use in unit and integration tests.
+/// Provides a fake <see cref="IBrokerPublisher"/> implementation designed for use in unit and integration tests.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -90,7 +93,7 @@ public sealed class FakeBrokerPublisher : IBrokerPublisher
     /// <inheritdoc/>
     public ValueTask<DispatchResult> PublishRawAsync(
         OutboxMessage message,
-        MessageMetadata metadata,
+        OutboxMessageMetadata metadata,
         DispatchContext context)
     {
         if (_shouldFail)
@@ -118,108 +121,8 @@ public sealed class FakeBrokerPublisher : IBrokerPublisher
     public void Reset() => _rawMessages.Clear();
 }
 
-/// <summary>
-/// Represents a raw message that was published and captured by the fake broker.
-/// </summary>
-/// <param name="MessageType">The string alias of the message type.</param>
-/// <param name="Payload">The raw serialized payload of the message.</param>
-/// <param name="Metadata">The metadata associated with the message.</param>
-public sealed record PublishedRawMessage(
-    string MessageType,
-    ReadOnlyMemory<byte> Payload,
-    MessageMetadata Metadata);
 
-/// <summary>
-/// Defines a fluent assertion interface for verifying messages published to the fake broker.
-/// </summary>
-public interface IFakeBrokerAssertion
-{
-    /// <summary>
-    /// Constrains the assertion to match only messages with the specified correlation ID.
-    /// </summary>
-    /// <param name="correlationId">The correlation ID to filter by.</param>
-    /// <returns>The current assertion interface for chaining.</returns>
-    IFakeBrokerAssertion WithCorrelationId(string correlationId);
-    
-    /// <summary>
-    /// Asserts that the matching message was published exactly once.
-    /// </summary>
-    void Once();
-    
-    /// <summary>
-    /// Asserts that the matching message was published exactly the specified number of times.
-    /// </summary>
-    /// <param name="count">The exact number of times the message should have been published.</param>
-    void Times(int count);
-    
-    /// <summary>
-    /// Asserts that the matching message was published at least once.
-    /// </summary>
-    void AtLeastOnce();
-    
-    /// <summary>
-    /// Asserts that the matching message was never published.
-    /// </summary>
-    void Never();
-}
 
-internal sealed class FakeBrokerAssertion : IFakeBrokerAssertion
-{
-    private readonly IEnumerable<PublishedRawMessage> _captured;
-    private readonly string _typeAlias;
-    private string? _correlationId;
 
-    public FakeBrokerAssertion(IEnumerable<PublishedRawMessage> captured, string typeAlias)
-    {
-        _captured = captured;
-        _typeAlias = typeAlias;
-    }
 
-    public IFakeBrokerAssertion WithCorrelationId(string correlationId)
-    {
-        _correlationId = correlationId;
-        return this;
-    }
 
-    public void Once() => Times(1);
-
-    public void Times(int count)
-    {
-        var actual = CountMatching();
-        if (actual != count)
-            throw new InvalidOperationException(
-                $"Expected '{_typeAlias}' to be published {count} time(s), but was {actual}.");
-    }
-
-    public void AtLeastOnce()
-    {
-        if (CountMatching() == 0)
-            throw new InvalidOperationException(
-                $"Expected '{_typeAlias}' to be published at least once, but it was never published.");
-    }
-
-    public void Never()
-    {
-        var count = CountMatching();
-        if (count > 0)
-            throw new InvalidOperationException(
-                $"Expected '{_typeAlias}' to never be published, but it was published {count} time(s).");
-    }
-
-    private int CountMatching()
-    {
-        int count = 0;
-        foreach (var msg in _captured)
-        {
-            if (!string.Equals(msg.MessageType, _typeAlias, StringComparison.OrdinalIgnoreCase))
-                continue;
-
-            if (_correlationId is not null
-                && !string.Equals(msg.Metadata.CorrelationId, _correlationId, StringComparison.Ordinal))
-                continue;
-
-            count++;
-        }
-        return count;
-    }
-}

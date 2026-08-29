@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+<meta charset='utf-8' />
+<title>EricksonLopez.Outbox.Benchmarks.B_MessageConstructionBenchmarks-20260806-182621</title>
+
+<style type="text/css">
+	table { border-collapse: collapse; display: block; width: 100%; overflow: auto; }
+	td, th { padding: 6px 13px; border: 1px solid #ddd; text-align: right; }
+	tr { background-color: #fff; border-top: 1px solid #ccc; }
+	tr:nth-child(even) { background: #f8f8f8; }
+</style>
+</head>
+<body>
+<pre><code>
+BenchmarkDotNet v0.13.12, Windows 11 (10.0.26200.8875)
+Unknown processor
+.NET SDK 10.0.302
+  [Host]     : .NET 10.0.10 (10.0.1026.32716), X64 RyuJIT AVX-512F+CD+BW+DQ+VL+VBMI
+  Job-BVYALF : .NET 10.0.10 (10.0.1026.32716), X64 RyuJIT AVX-512F+CD+BW+DQ+VL+VBMI
+</code></pre>
+<pre><code></code></pre>
+
+<table>
+<thead><tr><th>Method                             </th><th>Job </th><th>Toolchain       </th><th>IterationCount</th><th>WarmupCount</th><th>Mean</th><th>Min</th><th>Max</th><th>P50</th><th>P95</th><th>Op/s   </th><th>Ratio</th><th>Gen0</th><th>Allocated</th><th>Alloc Ratio</th>
+</tr>
+</thead><tbody><tr><td>EricksonLopezOutbox_CreateOutboxMessage</td><td>Job-BVYALF</td><td>Default</td><td>200</td><td>20</td><td>68.097 ns</td><td>66.851 ns</td><td>69.199 ns</td><td>68.057 ns</td><td>68.983 ns</td><td>14,684,910.8</td><td>1.00</td><td>0.0041</td><td>208 B</td><td>1.00</td>
+</tr><tr><td>EricksonLopezOutbox_CreateMessageMetadata</td><td>Job-BVYALF</td><td>Default</td><td>200</td><td>20</td><td>2.062 ns</td><td>1.993 ns</td><td>2.200 ns</td><td>2.052 ns</td><td>2.150 ns</td><td>484,942,929.6</td><td>0.03</td><td>0.0011</td><td>56 B</td><td>0.27</td>
+</tr><tr><td>EricksonLopezOutbox_CreateOutboxMessage</td><td>Job-FWMHQE</td><td>InProcessEmitToolchain</td><td>Default</td><td>Default</td><td>78.069 ns</td><td>76.537 ns</td><td>79.067 ns</td><td>78.307 ns</td><td>79.006 ns</td><td>12,809,150.2</td><td>1.00</td><td>0.0041</td><td>208 B</td><td>1.00</td>
+</tr><tr><td>EricksonLopezOutbox_CreateMessageMetadata</td><td>Job-FWMHQE</td><td>InProcessEmitToolchain</td><td>Default</td><td>Default</td><td>2.390 ns</td><td>2.343 ns</td><td>2.498 ns</td><td>2.375 ns</td><td>2.477 ns</td><td>418,370,261.0</td><td>0.03</td><td>0.0011</td><td>56 B</td><td>0.27</td>
+</tr></tbody></table>
+</body>
+</html>
