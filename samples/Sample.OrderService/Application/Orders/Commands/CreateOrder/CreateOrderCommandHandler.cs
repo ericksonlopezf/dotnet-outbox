@@ -1,7 +1,11 @@
+// Copyright © Erickson Lopez. MIT License.
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+using EricksonLopez.Result;
 using MediatR;
 using Sample.OrderService.Domain.Aggregates.OrderAggregate;
 using Sample.OrderService.Infrastructure;
-using Sample.OrderService.Shared;
 
 namespace Sample.OrderService.Application.Orders.Commands.CreateOrder;
 
@@ -30,3 +34,8 @@ public sealed class CreateOrderCommandHandler : IRequestHandler<CreateOrderComma
         return Result<Guid>.Success(order.Id);
     }
 }
+
+
+
+
+

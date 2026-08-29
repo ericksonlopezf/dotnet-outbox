@@ -1,23 +1,29 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
+using System.Data;
+using System.Threading;
 using System.Threading.Tasks;
 using AutoFixture;
 using AutoFixture.AutoNSubstitute;
 using AwesomeAssertions;
 using Dapper;
+using EricksonLopez.Outbox;
+using EricksonLopez.Outbox.Persistence;
 using EricksonLopez.Outbox.Storage.MySql;
 using Microsoft.Extensions.Options;
 using MySqlConnector;
 using NSubstitute;
 using Xunit;
-using EricksonLopez.Outbox;
 
-namespace EricksonLopez.Outbox.Tests;
+namespace EricksonLopez.Outbox.Storage.MySql.Tests;
 
-public class MySqlIdempotencyRepositoryTests : IClassFixture<MySqlContainerFixture>, IAsyncLifetime
+[Collection("MySql")]
+[Trait("Category", "Integration")]
+public class MySqlIdempotencyRepositoryTests : IAsyncLifetime
 {
     private readonly MySqlContainerFixture _fixture;
     private readonly IFixture _autoFixture;
-    private readonly EricksonLopez.Outbox.OutboxRuntimeOptions _options = new() { SchemaName = "testdb", TableName = "outbox_messages" };
+    private readonly OutboxRuntimeOptions _options = new() { SchemaName = "", TableName = "outbox_messages" };
 
     public MySqlIdempotencyRepositoryTests(MySqlContainerFixture fixture)
     {
@@ -27,29 +33,63 @@ public class MySqlIdempotencyRepositoryTests : IClassFixture<MySqlContainerFixtu
 
     public async Task InitializeAsync()
     {
-        using var connection = new MySqlConnection(_fixture.Container.GetConnectionString() + ";AllowLoadLocalInfile=true");
-        await connection.OpenAsync();
-
-        const string schema = @"
-            CREATE TABLE IF NOT EXISTS outbox_messages_idempotency (
-                message_id VARCHAR(36) NOT NULL,
-                consumer_id VARCHAR(255) NOT NULL,
-                processed_at DATETIME(6) NOT NULL,
-                PRIMARY KEY (message_id, consumer_id)
-            );
-            TRUNCATE TABLE outbox_messages_idempotency;";
-        
-        await connection.ExecuteAsync(schema);
+        await MySqlTestDatabase.EnsureSchemaAsync(_fixture.Container.GetConnectionString() + ";AllowLoadLocalInfile=true");
     }
 
     public Task DisposeAsync() => Task.CompletedTask;
 
-    private MySqlIdempotencyRepository CreateSut()
+    private MySqlIdempotencyRepository CreateSut(OutboxRuntimeOptions? customOptions = null)
+    {
+        var mockedOptions = Substitute.For<IOptionsMonitor<OutboxRuntimeOptions>>();
+        mockedOptions.CurrentValue.Returns(customOptions ?? _options);
+
+        return new MySqlIdempotencyRepository(() => new MySqlConnection(_fixture.Container.GetConnectionString() + ";AllowLoadLocalInfile=true"), mockedOptions);
+    }
+
+    [Fact]
+    public void Constructor_NullConnectionFactory_ThrowsArgumentNullException()
     {
         var mockedOptions = Substitute.For<IOptionsMonitor<OutboxRuntimeOptions>>();
         mockedOptions.CurrentValue.Returns(_options);
 
-        return new MySqlIdempotencyRepository(() => new MySqlConnection(_fixture.Container.GetConnectionString() + ";AllowLoadLocalInfile=true"), mockedOptions);
+        Action act = () => { _ = new MySqlIdempotencyRepository(null!, mockedOptions); };
+        act.Should().Throw<ArgumentNullException>().WithParameterName("connectionFactory");
+    }
+
+    [Fact]
+    public void Constructor_NullOptions_ThrowsArgumentNullException()
+    {
+        Action act = () => { _ = new MySqlIdempotencyRepository(() => new MySqlConnection(), null!); };
+        act.Should().Throw<ArgumentNullException>().WithParameterName("options");
+    }
+
+    [Fact]
+    public async Task Operations_WithNonExistentSchema_ThrowsMySqlExceptionContainingSchemaName()
+    {
+        var custom = new OutboxRuntimeOptions { SchemaName = "non_existent_schema_xyz", TableName = "outbox_messages" };
+        var sut = CreateSut(custom);
+        var record = new IdempotencyRecord(Guid.NewGuid().ToString(), "c-test", DateTimeOffset.UtcNow);
+        Func<Task> act = async () => await sut.TryInsertAsync(record);
+        var ex = await act.Should().ThrowAsync<MySqlException>();
+        ex.Which.Message.Should().Contain("non_existent_schema_xyz");
+    }
+
+    [Fact]
+    public async Task TryInsertAsync_WithoutTransaction_DisposesConnection()
+    {
+        MySqlConnection? createdConn = null;
+        var mockedOptions = Substitute.For<IOptionsMonitor<OutboxRuntimeOptions>>();
+        mockedOptions.CurrentValue.Returns(_options);
+        var sut = new MySqlIdempotencyRepository(() => {
+            createdConn = new MySqlConnection(_fixture.Container.GetConnectionString() + ";AllowLoadLocalInfile=true");
+            return createdConn;
+        }, mockedOptions);
+
+        var record = new IdempotencyRecord(Guid.NewGuid().ToString(), "c-disp", DateTimeOffset.UtcNow);
+        var inserted = await sut.TryInsertAsync(record);
+        inserted.Should().BeTrue();
+        createdConn.Should().NotBeNull();
+        createdConn!.State.Should().Be(ConnectionState.Closed);
     }
 
     [Fact]
@@ -93,7 +133,7 @@ public class MySqlIdempotencyRepositoryTests : IClassFixture<MySqlContainerFixtu
         await connection.OpenAsync();
         await using var tx = await connection.BeginTransactionAsync();
 
-        var result = await sut.TryInsertAsync(record, new EricksonLopez.Outbox.Persistence.DbTransactionContext(tx));
+        var result = await sut.TryInsertAsync(record, new DbTransactionContext(tx));
         result.Should().BeTrue();
 
         await tx.RollbackAsync();

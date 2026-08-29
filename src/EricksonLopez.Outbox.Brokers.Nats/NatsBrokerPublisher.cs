@@ -1,14 +1,16 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using NATS.Client.Core;
 using EricksonLopez.Outbox;
+using NATS.Client.Core;
 
 namespace EricksonLopez.Outbox.Brokers.Nats;
 
 /// <summary>
-/// Publishes outbox messages to NATS using the official NATS.Net v2 client.
+/// Provides a broker publisher implementation that dispatches outbox messages to NATS using the official NATS.Net v2 client.
 /// </summary>
 /// <remarks>
 /// Design decisions:
@@ -70,7 +72,7 @@ public sealed class NatsBrokerPublisher : IBrokerPublisher
     /// <inheritdoc/>
     public async ValueTask<DispatchResult> PublishRawAsync(
         OutboxMessage message,
-        MessageMetadata metadata,
+        OutboxMessageMetadata metadata,
         DispatchContext context)
     {
         try
@@ -91,7 +93,7 @@ public sealed class NatsBrokerPublisher : IBrokerPublisher
         }
     }
 
-    private static NatsHeaders BuildHeaders(MessageMetadata metadata)
+    private static NatsHeaders BuildHeaders(OutboxMessageMetadata metadata)
     {
         var headers = new NatsHeaders();
 
@@ -109,3 +111,8 @@ public sealed class NatsBrokerPublisher : IBrokerPublisher
         return headers;
     }
 }
+
+
+
+
+

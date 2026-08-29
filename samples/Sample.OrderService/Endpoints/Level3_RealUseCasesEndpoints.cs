@@ -1,14 +1,14 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Collections.Generic;
+using System.Threading;
+using MediatR;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Routing;
-
-using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Routing;
 using Sample.OrderService.Application.Orders.Commands.CreateOrder;
+using System.Threading.Tasks;
 
 namespace Sample.OrderService.Endpoints;
 
@@ -32,4 +32,6 @@ public static class Level3_RealUseCasesEndpoints
         .WithSummary("Level 3 - Clean Architecture via MediatR");
     }
 }
+
+
 

@@ -1,39 +1,33 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<!-- Copyright © Erickson Lopez. MIT License. -->
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <ImplicitUsings>disable</ImplicitUsings>
+    <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <NuGetAudit>false</NuGetAudit>
-    <NoWarn>$(NoWarn);CA1305;CS0618;CS1591</NoWarn>
-  <IsTestProject>true</IsTestProject>
+    <NoWarn>$(NoWarn);CA1305;CS1591</NoWarn>
+    <IsTestProject>true</IsTestProject>
   </PropertyGroup>
 
-  <ItemGroup>    <PackageReference Include="Dapper" />    <PackageReference Include="xunit" />
+  <ItemGroup>
+    <PackageReference Include="Dapper" />
+    <PackageReference Include="xunit" />
     <PackageReference Include="xunit.runner.visualstudio" />
     <PackageReference Include="coverlet.collector" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="AwesomeAssertions" />
-    <PackageReference Include="Moq" />
     <PackageReference Include="NSubstitute" />
     <PackageReference Include="AutoFixture" />
     <PackageReference Include="AutoFixture.AutoNSubstitute" />
     <PackageReference Include="FsCheck.Xunit" />
     <PackageReference Include="Testcontainers.MySql" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Using Include="Xunit" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Microsoft.Extensions.Logging" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\EricksonLopez.Outbox.Storage.MySql\EricksonLopez.Outbox.Storage.MySql.csproj" />
-    <!-- Reference the main test project for any test utilities (e.g. Testcontainers configurations, common fakes) if needed -->
-    <!-- Some files might use common utilities from EricksonLopez.Outbox.Tests, so referencing it is usually required -->
-    <ProjectReference Include="..\EricksonLopez.Outbox.Tests\EricksonLopez.Outbox.Tests.csproj" />
   </ItemGroup>
 
 </Project>
-
-

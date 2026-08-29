@@ -1,23 +1,24 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
-using System.Threading;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
-using Xunit;
-using Testcontainers.PostgreSql;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using EricksonLopez.Outbox.Storage.PostgreSql;
+using DotNet.Testcontainers.Builders;
+using DotNet.Testcontainers.Containers;
+using DotNet.Testcontainers.Networks;
 using EricksonLopez.Outbox;
 using EricksonLopez.Outbox.Hosting;
-using System.Collections.Concurrent;
+using EricksonLopez.Outbox.Storage.PostgreSql;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Npgsql;
-
-using DotNet.Testcontainers.Networks;
-using DotNet.Testcontainers.Containers;
-using DotNet.Testcontainers.Builders;
+using Testcontainers.PostgreSql;
 using Toxiproxy.Net;
 using Toxiproxy.Net.Toxics;
+using Xunit;
 
 namespace EricksonLopez.Outbox.IntegrationTests;
 
@@ -35,6 +36,7 @@ namespace EricksonLopez.Outbox.IntegrationTests;
 /// </list>
 /// </remarks>
 #pragma warning disable CA1001
+[Trait("Category", "Integration")]
 public class DispatcherChaosTests : IAsyncLifetime
 {
     private INetwork _network = null!;
@@ -250,7 +252,6 @@ public class DispatcherChaosTests : IAsyncLifetime
 
         await hostedService.StartAsync(CancellationToken.None);
 
-        await Task.Delay(500); // Give poller a moment to start
         await WriteAndCommitMessageAsync("FlakyBrokerMessage");
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
@@ -276,6 +277,46 @@ public class DispatcherChaosTests : IAsyncLifetime
         Assert.NotEmpty(broker.PublishedMessages);
         Assert.True(broker.FailureCount >= 2,
             $"Expected ≥2 broker failures before success, got {broker.FailureCount}");
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Scenario 5: Persistent Intermittent Database Drops
+    // Verifies: The poller does not leak memory or crash when the database
+    // drops and reconnects constantly in a tight loop.
+    // ─────────────────────────────────────────────────────────────────────
+    [Fact]
+    public async Task Poller_Survives_Persistent_Intermittent_Drops()
+    {
+        var fakeBroker = new FakeBroker();
+        using var sp = BuildServiceProvider(fakeBroker);
+        var hostedService = GetDispatcher(sp);
+
+        await hostedService.StartAsync(CancellationToken.None);
+
+        await WriteAndCommitMessageAsync("IntermittentDropMessage1");
+
+        for (int i = 0; i < 3; i++)
+        {
+            _postgresProxy.Enabled = false;
+            await _postgresProxy.UpdateAsync();
+            await Task.Delay(500);
+
+            _postgresProxy.Enabled = true;
+            await _postgresProxy.UpdateAsync();
+            NpgsqlConnection.ClearAllPools();
+            await Task.Delay(500);
+        }
+
+        await WriteAndCommitMessageAsync("IntermittentDropMessage2");
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+        while (fakeBroker.PublishedMessages.Count < 2 && !cts.IsCancellationRequested)
+        {
+            await Task.Delay(100);
+        }
+
+        await hostedService.StopAsync(CancellationToken.None);
+        Assert.True(fakeBroker.PublishedMessages.Count >= 2);
     }
 
     // ─────────────────────────────────────────────────────────────────────
@@ -340,43 +381,62 @@ public class DispatcherChaosTests : IAsyncLifetime
         await using var conn = new NpgsqlConnection(_dbContainer.GetConnectionString());
         await conn.OpenAsync();
 
-        var scriptDir = Path.GetFullPath(Path.Combine(
-            AppContext.BaseDirectory,
-            "..", "..", "..", "..", "..",
-            "src", "EricksonLopez.Outbox.Storage.PostgreSql", "Scripts"));
-        var scriptPath = Path.Combine(scriptDir, "01_Init_Outbox.sql");
+        const string sql = """
+            CREATE SCHEMA IF NOT EXISTS outbox;
 
-        string sql;
-        if (File.Exists(scriptPath))
-        {
-            sql = await File.ReadAllTextAsync(scriptPath);
-        }
-        else
-        {
-            // Minimal fallback schema matching the real schema structure
-            sql = """
-                CREATE SCHEMA IF NOT EXISTS outbox;
-                CREATE TABLE IF NOT EXISTS outbox.messages (
-                    id              UUID            NOT NULL,
-                    type            VARCHAR(255)    NOT NULL,
-                    payload         JSONB           NOT NULL,
-                    correlation_id  VARCHAR(255),
-                    causation_id    VARCHAR(255),
-                    headers_json    JSONB,
-                    state           SMALLINT        NOT NULL DEFAULT 0,
-                    created_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
-                    updated_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
-                    processed_at    TIMESTAMPTZ,
-                    deliver_at      TIMESTAMPTZ,
-                    retry_count     INT             NOT NULL DEFAULT 0,
-                    owner_id        UUID,
-                    error           TEXT,
-                    PRIMARY KEY (id, created_at)
-                ) PARTITION BY RANGE (created_at);
-                CREATE TABLE IF NOT EXISTS outbox.messages_default
-                    PARTITION OF outbox.messages DEFAULT;
-                """;
-        }
+            CREATE TABLE IF NOT EXISTS outbox.messages (
+                id              UUID            NOT NULL,
+                type            VARCHAR(255)    NOT NULL,
+                payload         JSONB           NOT NULL,
+                correlation_id  VARCHAR(255),
+                causation_id    VARCHAR(255),
+                headers_json    JSONB,
+                state           SMALLINT        NOT NULL DEFAULT 0,
+                created_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
+                updated_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
+                processed_at    TIMESTAMPTZ,
+                deliver_at      TIMESTAMPTZ,
+                retry_count     INT             NOT NULL DEFAULT 0,
+                owner_id        UUID,
+                error           TEXT,
+                PRIMARY KEY (id, created_at)
+            ) PARTITION BY RANGE (created_at);
+
+            CREATE TABLE IF NOT EXISTS outbox.messages_default
+                PARTITION OF outbox.messages DEFAULT;
+
+            CREATE TABLE IF NOT EXISTS outbox.idempotency (
+                message_id      UUID            NOT NULL,
+                consumer_id     VARCHAR(255)    NOT NULL,
+                processed_at    TIMESTAMPTZ     NOT NULL,
+                PRIMARY KEY (message_id, consumer_id)
+            );
+
+            CREATE TABLE IF NOT EXISTS outbox.dead_letters (
+                id                  UUID            NOT NULL,
+                original_message_id UUID            NOT NULL,
+                type                VARCHAR(255)    NOT NULL,
+                payload             JSONB           NOT NULL,
+                correlation_id      VARCHAR(255),
+                causation_id        VARCHAR(255),
+                headers_json        JSONB           NOT NULL DEFAULT '{}'::jsonb,
+                created_at          TIMESTAMPTZ     NOT NULL,
+                dead_lettered_at    TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
+                retry_count         INT             NOT NULL DEFAULT 0,
+                error_reason        TEXT            NOT NULL,
+                last_error          TEXT,
+                PRIMARY KEY (id)
+            );
+
+            CREATE INDEX IF NOT EXISTS outbox_messages_pending_immediate_idx
+                ON outbox.messages (state, created_at ASC)
+                INCLUDE (id)
+                WHERE state IN (0, 3) AND deliver_at IS NULL;
+
+            CREATE INDEX IF NOT EXISTS outbox_messages_pending_scheduled_idx
+                ON outbox.messages (state, deliver_at ASC, created_at ASC)
+                WHERE state IN (0, 3) AND deliver_at IS NOT NULL;
+            """;
 
         await using var cmd = new NpgsqlCommand(sql, conn);
         await cmd.ExecuteNonQueryAsync();
@@ -392,7 +452,7 @@ public class DispatcherChaosTests : IAsyncLifetime
 
         public ValueTask<DispatchResult> PublishRawAsync(
             OutboxMessage message,
-            MessageMetadata metadata,
+            OutboxMessageMetadata metadata,
             DispatchContext context)
         {
             PublishedMessages.Add(message);
@@ -401,7 +461,7 @@ public class DispatcherChaosTests : IAsyncLifetime
     }
 
     /// <summary>
-    /// Broker that returns <see cref="DispatchResult.FailAndRetry(System.Exception)"/> for the first
+    /// Broker that returns <see cref="DispatchResult.FailAndRetry(Exception)"/> for the first
     /// N calls, then succeeds — exercises the retry interceptor.
     /// </summary>
     private sealed class FlakyBroker : IBrokerPublisher
@@ -416,7 +476,7 @@ public class DispatcherChaosTests : IAsyncLifetime
 
         public ValueTask<DispatchResult> PublishRawAsync(
             OutboxMessage message,
-            MessageMetadata metadata,
+            OutboxMessageMetadata metadata,
             DispatchContext context)
         {
             int call = Interlocked.Increment(ref _callCount);
@@ -460,7 +520,13 @@ public class DispatcherChaosTests : IAsyncLifetime
 
         public string GetAlias(Type type) => "chaos.test.v1";
 
-        public System.Collections.Generic.IReadOnlyDictionary<string, Type> GetAllMappings()
-            => new System.Collections.Generic.Dictionary<string, Type>();
+        public IReadOnlyDictionary<string, Type> GetAllMappings()
+            => new Dictionary<string, Type>();
     }
 }
+
+
+
+
+
+

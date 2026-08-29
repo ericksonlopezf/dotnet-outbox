@@ -1,8 +1,9 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
+using EricksonLopez.Outbox.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using EricksonLopez.Outbox.Persistence;
 
 namespace EricksonLopez.Outbox.EntityFrameworkCore;
 
@@ -34,3 +35,4 @@ public static class OutboxEntityFrameworkCoreSetup
         return services;
     }
 }
+

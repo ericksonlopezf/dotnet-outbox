@@ -1,13 +1,14 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Collections.Generic;
 using System.Threading;
-using System.Threading.Tasks;
+using EricksonLopez.Outbox;
+using EricksonLopez.Outbox.Dispatcher;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
-using EricksonLopez.Outbox;
-using EricksonLopez.Outbox.Dispatcher;
 using Microsoft.Extensions.DependencyInjection;
+using System.Threading.Tasks;
 
 namespace Sample.OrderService.Endpoints;
 
@@ -33,7 +34,7 @@ public static class Level7_ScalabilityEndpoints
                     new { property = "MaxDegreeOfParallelism", type = "int", defaultValue = "min(ProcessorCount, 8)", description = "Concurrent consumers of the internal channel. A value of 1 guarantees strict FIFO order. Increase for higher parallel throughput." },
                     new { property = "PollingInterval", type = "TimeSpan", defaultValue = "500ms", description = "Wait interval when the DB is empty. Only applies if UseAdaptivePolling=false." },
                     new { property = "UseAdaptivePolling", type = "bool", defaultValue = "true", description = "The poller dynamically adjusts the interval based on load: 0ms when there are messages, PollingInterval when empty." },
-                    new { property = "ChannelCapacity", type = "int", defaultValue = "1000", description = "Maximum capacity of the System.Threading.Channels.Channel<T> between the poller and consumers. Provides natural backpressure." },
+                    new { property = "ChannelCapacity", type = "int", defaultValue = "1000", description = "Maximum capacity of the Channels.Channel<T> between the poller and consumers. Provides natural backpressure." },
                     new { property = "MaxBatchesPerSecond", type = "int", defaultValue = "0 (no limit)", description = "Rate limiting on the dispatcher. Limits how many batches are processed per second during backlog drain. 0 = unlimited." },
                     new { property = "MaxRetryCount", type = "int", defaultValue = "10", description = "Number of retries before dead-lettering the message." },
                     new { property = "ReclaimTimeout", type = "TimeSpan", defaultValue = "5 min", description = "Maximum time a message can be InFlight before being reclaimed (crash recovery)." },
@@ -73,7 +74,7 @@ services.AddOutboxDispatcher(options =>
                     new { property = "TableName", defaultValue = "\"messages\"", description = "Name of the messages table." },
                     new { property = "MaxPayloadSizeInBytes", defaultValue = "1 MB", description = "Maximum size of the JSON payload. Larger messages are rejected." },
                     new { property = "MaxHeaderSizeInBytes", defaultValue = "64 KB", description = "Maximum size of serialized headers." },
-                    new { property = "ThrowOnUnregisteredType", defaultValue = "false", description = "If true, throws an exception when attempting to store a type not registered in the type resolver." },
+                    new { property = "ThrowOnUnregisteredType", defaultValue = "true", description = "If true, throws an exception when attempting to store a type not registered in the type resolver (safe default)." },
                     new { property = "MaxMessageAge", defaultValue = "30 days", description = "Maximum age of a message in the DB. Also acts as an upper limit for deliver_at scheduling. If deliver_at > MaxMessageAge, the message is NEVER dispatched." },
                     new { property = "MaxBackoffSeconds", defaultValue = "3600s (1h)", description = "Maximum cap of exponential backoff for failed messages. Formula: POWER(2, retry_count) * 10, capped at MaxBackoffSeconds." },
                     new { property = "LargeTableThreshold", defaultValue = "50,000 rows", description = "Threshold where GetPendingCountAsync uses catalog estimates instead of exact COUNT(*) (PostgreSQL)." },
@@ -126,3 +127,5 @@ services.AddOutbox(options =>
         .WithTags("Level 7 — Scalability");
     }
 }
+
+

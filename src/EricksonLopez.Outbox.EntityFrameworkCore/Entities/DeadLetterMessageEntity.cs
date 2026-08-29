@@ -1,9 +1,11 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
+using System.Linq;
 
 namespace EricksonLopez.Outbox.EntityFrameworkCore.Entities;
 
 /// <summary>
-/// Entity Framework Core reference entity representing a dead letter message.
+/// Represents an Entity Framework Core database entity for a dead letter message.
 /// </summary>
 public class DeadLetterMessageEntity
 {
@@ -71,3 +73,5 @@ public class DeadLetterMessageEntity
         LastError = model.LastError
     };
 }
+
+

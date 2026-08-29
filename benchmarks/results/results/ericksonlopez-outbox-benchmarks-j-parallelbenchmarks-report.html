@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+<meta charset='utf-8' />
+<title>EricksonLopez.Outbox.Benchmarks.J_ParallelBenchmarks-20260806-183501</title>
+
+<style type="text/css">
+	table { border-collapse: collapse; display: block; width: 100%; overflow: auto; }
+	td, th { padding: 6px 13px; border: 1px solid #ddd; text-align: right; }
+	tr { background-color: #fff; border-top: 1px solid #ccc; }
+	tr:nth-child(even) { background: #f8f8f8; }
+</style>
+</head>
+<body>
+<pre><code>
+BenchmarkDotNet v0.13.12, Windows 11 (10.0.26200.8875)
+Unknown processor
+.NET SDK 10.0.302
+  [Host] : .NET 10.0.10 (10.0.1026.32716), X64 RyuJIT AVX-512F+CD+BW+DQ+VL+VBMI
+</code></pre>
+<pre><code>Toolchain=InProcessEmitToolchain  
+</code></pre>
+
+<table>
+<thead><tr><th>Method                           </th><th>ThreadCount</th><th>Mean</th><th>Error</th><th>StdDev</th><th>Median</th><th>Min </th><th>Max </th><th>P50 </th><th>P95 </th><th>Op/s </th><th>Gen0</th><th>Allocated</th>
+</tr>
+</thead><tbody><tr><td>EricksonLopezOutbox_StoreAsync_Parallel</td><td>1</td><td>846.7 ns</td><td>11.42 ns</td><td>10.68 ns</td><td>844.8 ns</td><td>829.6 ns</td><td>868.5 ns</td><td>844.8 ns</td><td>864.4 ns</td><td>1,181,111.4</td><td>0.0143</td><td>728 B</td>
+</tr><tr><td>EricksonLopezOutbox_StoreAsync_Parallel</td><td>4</td><td>1,545.6 ns</td><td>24.50 ns</td><td>20.46 ns</td><td>1,539.0 ns</td><td>1,514.7 ns</td><td>1,587.3 ns</td><td>1,539.0 ns</td><td>1,579.6 ns</td><td>646,998.9</td><td>0.0515</td><td>2600 B</td>
+</tr><tr><td>EricksonLopezOutbox_StoreAsync_Parallel</td><td>16</td><td>4,474.8 ns</td><td>172.85 ns</td><td>509.67 ns</td><td>4,316.9 ns</td><td>3,805.5 ns</td><td>5,765.8 ns</td><td>4,316.9 ns</td><td>5,529.0 ns</td><td>223,472.4</td><td>0.1907</td><td>9800 B</td>
+</tr><tr><td>EricksonLopezOutbox_StoreAsync_Parallel</td><td>64</td><td>9,699.6 ns</td><td>148.53 ns</td><td>131.66 ns</td><td>9,702.9 ns</td><td>9,435.9 ns</td><td>9,883.5 ns</td><td>9,702.9 ns</td><td>9,879.6 ns</td><td>103,097.0</td><td>0.7782</td><td>38601 B</td>
+</tr></tbody></table>
+</body>
+</html>

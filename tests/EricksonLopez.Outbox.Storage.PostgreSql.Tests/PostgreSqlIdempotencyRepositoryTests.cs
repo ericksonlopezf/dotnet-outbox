@@ -1,20 +1,25 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Threading;
 using System.Threading.Tasks;
 using AutoFixture;
+using AutoFixture.AutoNSubstitute;
+using AwesomeAssertions;
 using Dapper;
 using EricksonLopez.Outbox;
+using EricksonLopez.Outbox.Persistence;
 using EricksonLopez.Outbox.Storage.PostgreSql;
-using AwesomeAssertions;
-using AutoFixture.AutoNSubstitute;
+using EricksonLopez.Result;
 using Microsoft.Extensions.Options;
-using NSubstitute;
 using Npgsql;
+using NSubstitute;
 using Xunit;
 
-namespace EricksonLopez.Outbox.Tests;
+namespace EricksonLopez.Outbox.Storage.PostgreSql.Tests;
 
-public class PostgreSqlIdempotencyRepositoryTests : IClassFixture<PostgreSqlContainerFixture>, IAsyncLifetime
+[Collection("PostgreSql")]
+[Trait("Category", "Integration")]
+public class PostgreSqlIdempotencyRepositoryTests : IAsyncLifetime
 {
     private readonly PostgreSqlContainerFixture _fixture;
     private readonly IFixture _autoFixture;
@@ -29,24 +34,16 @@ public class PostgreSqlIdempotencyRepositoryTests : IClassFixture<PostgreSqlCont
     public async Task InitializeAsync()
     {
         _dataSource = NpgsqlDataSource.Create(_fixture.Container.GetConnectionString());
-        await using var connection = await _dataSource.OpenConnectionAsync();
-        
-        await connection.ExecuteAsync(@"
-            CREATE SCHEMA IF NOT EXISTS outbox;
-            
-            CREATE TABLE IF NOT EXISTS outbox.messages_idempotency (
-                message_id VARCHAR(255) NOT NULL,
-                consumer_id VARCHAR(255) NOT NULL,
-                processed_at TIMESTAMPTZ NOT NULL,
-                PRIMARY KEY (message_id, consumer_id)
-            );
-            
-            TRUNCATE TABLE outbox.messages_idempotency;
-        ");
+        await PostgreSqlTestDatabase.EnsureSchemaAsync(_dataSource);
     }
 
     public async Task DisposeAsync()
     {
+        await using var connection = new NpgsqlConnection(_fixture.Container.GetConnectionString());
+        await connection.OpenAsync();
+        await using var cmd = new NpgsqlCommand("TRUNCATE TABLE outbox.messages CASCADE", connection);
+        await cmd.ExecuteNonQueryAsync();
+
         if (_dataSource != null)
         {
             await _dataSource.DisposeAsync();
@@ -138,4 +135,74 @@ public class PostgreSqlIdempotencyRepositoryTests : IClassFixture<PostgreSqlCont
         var count = await connection.ExecuteScalarAsync<int>("SELECT COUNT(1) FROM outbox.messages_idempotency");
         count.Should().Be(2);
     }
+
+    [Fact]
+    public void Constructor_NullParameters_ThrowsArgumentNullException()
+    {
+        var optionsMonitor = Substitute.For<IOptionsMonitor<OutboxRuntimeOptions>>();
+        optionsMonitor.CurrentValue.Returns(new OutboxRuntimeOptions { SchemaName = "outbox", TableName = "messages" });
+
+        Action act1 = () => _ = new PostgreSqlIdempotencyRepository(null!, optionsMonitor);
+        act1.Should().Throw<ArgumentNullException>().WithParameterName("dataSource");
+
+        Action act2 = () => _ = new PostgreSqlIdempotencyRepository(_dataSource, null!);
+        act2.Should().Throw<ArgumentNullException>().WithParameterName("options");
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task TryInsertAsync_NullOrWhitespaceSchema_UsesPublicSchema(string? schema)
+    {
+        await using var connection = await _dataSource.OpenConnectionAsync();
+        await connection.ExecuteAsync("CREATE TABLE IF NOT EXISTS public.messages_idempotency (message_id text NOT NULL, consumer_id text NOT NULL, processed_at timestamp with time zone NOT NULL, CONSTRAINT pk_public_idempotency PRIMARY KEY (message_id, consumer_id));");
+
+        var optionsMonitor = Substitute.For<IOptionsMonitor<OutboxRuntimeOptions>>();
+        optionsMonitor.CurrentValue.Returns(new OutboxRuntimeOptions { SchemaName = schema!, TableName = "messages" });
+
+        var repo = new PostgreSqlIdempotencyRepository(_dataSource, optionsMonitor);
+        var record = new IdempotencyRecord(Guid.NewGuid().ToString(), "consumer_public_" + Guid.NewGuid().ToString("N"), DateTimeOffset.UtcNow);
+        
+        var result = await repo.TryInsertAsync(record);
+        result.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task TryInsertAsync_NonNpgsqlConnectionTransaction_ThrowsInvalidOperationException()
+    {
+        var sut = CreateSut();
+        var record = new IdempotencyRecord(Guid.NewGuid().ToString(), "c1", DateTimeOffset.UtcNow);
+        
+        var mockTx = Substitute.For<IOutboxTransactionContext>();
+        mockTx.Connection.Returns(Substitute.For<System.Data.Common.DbConnection>());
+
+        Func<Task> act = async () => await sut.TryInsertAsync(record, mockTx);
+        var ex = await act.Should().ThrowAsync<InvalidOperationException>();
+        ex.WithMessage("*NpgsqlConnection*");
+    }
+
+    [Fact]
+    public async Task TryInsertAsync_WithoutTransaction_DisposesConnectionProperly()
+    {
+        var connString = _fixture.Container.GetConnectionString() + ";Maximum Pool Size=2;Timeout=2";
+        await using var limitedDs = NpgsqlDataSource.Create(connString);
+
+        var optionsMonitor = Substitute.For<IOptionsMonitor<OutboxRuntimeOptions>>();
+        optionsMonitor.CurrentValue.Returns(new OutboxRuntimeOptions { SchemaName = "outbox", TableName = "messages" });
+
+        var repo = new PostgreSqlIdempotencyRepository(limitedDs, optionsMonitor);
+
+        // Run 5 sequential inserts. If connections are not disposed in finally, pool will exhaust and throw.
+        for (int i = 0; i < 5; i++)
+        {
+            var record = new IdempotencyRecord(Guid.NewGuid().ToString(), $"consumer_pool_{i}", DateTimeOffset.UtcNow);
+            var result = await repo.TryInsertAsync(record);
+            result.Should().BeTrue();
+        }
+    }
 }
+
+
+
+

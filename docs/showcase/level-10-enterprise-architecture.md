@@ -1,3 +1,5 @@
+<!-- Copyright © Erickson Lopez. MIT License. -->
+
 # Level 10: Enterprise Architecture
 
 This level covers production-grade deployment patterns, testing strategies, and security considerations for `EricksonLopez.Outbox` in enterprise environments.

@@ -1,3 +1,5 @@
+<!-- Copyright © Erickson Lopez. MIT License. -->
+
 # Level 2: Configuration
 
 This level covers the full configuration surface of `EricksonLopez.Outbox` — serialization, broker routing, dispatcher tuning, runtime options, and raw ADO.NET setup without Entity Framework Core.
@@ -58,7 +60,9 @@ builder.Services.AddOutbox(options =>
 | `UseBroker(Func<IServiceProvider, IBrokerPublisher>, RetryPolicy?, CircuitBreakerState?)` | Sets the **default** broker via factory. Optionally wraps with retry policy and/or circuit breaker. |
 | `UseBroker(IBrokerPublisher, RetryPolicy?, CircuitBreakerState?)` | Sets the **default** broker via pre-built instance, with optional retry and circuit breaker. |
 | `UseBroker<TBroker>(RetryPolicy?, CircuitBreakerState?)` | Sets the **default** broker by **type** (resolved from DI), with optional retry and circuit breaker. |
-| `Route(string alias)` | Begins a **route-specific** broker configuration for the given message type alias. Returns a `BrokerRouteBuilder`. |
+| `Route(string alias)` | Begins a **route-specific** broker configuration for a single message type alias. Returns a `BrokerRouteBuilder`. |
+| `RouteGroup(params string[] aliases)` | Routes **multiple** aliases to the same publisher in one call. Returns a `BrokerRouteGroupBuilder`. |
+| `RouteGroup(IEnumerable<string> aliases)` | Routes multiple aliases from any enumerable source. Returns a `BrokerRouteGroupBuilder`. |
 | `ConfigureRuntimeOptions(Action<OutboxRuntimeOptions>)` | Configures runtime behavior (table names, payload limits, etc.). |
 | `Configure(Action<IServiceCollection>)` | **[Advanced]** Escape-hatch. Registers extra DI services directly. Avoid in end-user code; use for first-party integration libraries only. |
 
@@ -171,7 +175,7 @@ builder.Services.AddOutbox(options =>
         runtime.MaxMessageAge = TimeSpan.FromDays(30); // Max message age / scheduling horizon (default: 30 days)
         runtime.MaxBackoffSeconds = 3600;        // Max backoff for failed messages (default: 3600 = 1h)
         runtime.DeleteOnDispatch = true;         // Delete row on success; false = UPDATE to state=2 (default: true)
-        runtime.ThrowOnUnregisteredType = false; // Throw if message type alias is unregistered (default: false)
+        runtime.ThrowOnUnregisteredType = true;  // Throw if message type alias is unregistered (default: true)
         runtime.LargeTableThreshold = 50_000;   // Row count above which PostgreSQL uses catalog estimates (default: 50k)
         runtime.MaxStoreRatePerSecond = 0;       // Max StoreAsync calls/s; 0 = unlimited (default: 0)
         runtime.IncludeMessageTypeTag = true;    // Include type tag on OTel metrics (false = reduce cardinality) (default: true)
@@ -192,7 +196,7 @@ builder.Services.AddOutbox(options =>
 | `MaxMessageAge` | `30 days` | Max message age. Also caps how far ahead `deliver_at` can be scheduled. |
 | `MaxBackoffSeconds` | `3600` (1 h) | Cap on the SQL-computed exponential backoff for failed messages. |
 | `DeleteOnDispatch` | `true` | `true` = DELETE dispatched rows (recommended). `false` = UPDATE to state=Reserved (audit mode). |
-| `ThrowOnUnregisteredType` | `false` | Throw `OutboxTypeNotRegisteredException` if type alias is unknown. |
+| `ThrowOnUnregisteredType` | `true` | Throw `OutboxTypeNotRegisteredException` if type alias is unknown (safe default). |
 | `LargeTableThreshold` | `50 000` | Row estimate above which PostgreSQL uses `pg_class` estimates instead of COUNT(*). |
 | `MaxStoreRatePerSecond` | `0` (unlimited) | Rate-limit on `StoreAsync`. Exceeding it throws `InvalidOperationException`. |
 | `IncludeMessageTypeTag` | `true` | Include `messaging.message.type` dimension on OTel metrics. Set `false` to reduce cardinality. |
