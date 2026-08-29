@@ -1,0 +1,13 @@
+<!-- Copyright © Erickson Lopez. MIT License. -->
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>Pure abstractions and contracts for the EricksonLopez.Outbox transactional outbox pattern library. Provides IOutbox, transaction contexts, and metadata interfaces without infrastructure dependencies.</Description>
+    <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
+    <PackageTags>$(CommonPackageTags);abstractions;contracts;interfaces;native-aot</PackageTags>
+    <Nullable>enable</Nullable>
+    <IsAotCompatible>true</IsAotCompatible>
+    <IsTrimmable>true</IsTrimmable>
+  </PropertyGroup>
+
+</Project>

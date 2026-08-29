@@ -14,13 +14,17 @@ Brief description of the changes in this PR.
 
 ## Affected Package(s)
 
-- [ ] `EricksonLopez.Outbox` (Core)
+- [ ] `EricksonLopez.Outbox` / `EricksonLopez.Outbox.Abstractions`
+- [ ] `EricksonLopez.Inbox` / `EricksonLopez.Inbox.Abstractions` / `EricksonLopez.Outbox.Inbox`
+- [ ] `EricksonLopez.Outbox.Events` / `EricksonLopez.Outbox.Inbox.Events`
+- [ ] `EricksonLopez.Outbox.Inbox.AspNetCore`
 - [ ] `EricksonLopez.Outbox.EntityFrameworkCore`
-- [ ] Storage Providers (`SqlServer`, `Sqlite`, `PostgreSql`, `Oracle`, `MySql`)
-- [ ] Broker Publishers (`RabbitMQ`, `Kafka`, `AwsSqs`, `AzureServiceBus`, `GooglePubSub`, `Nats`, `RedisStreams`)
-- [ ] Integrations (`MassTransit`)
-- [ ] `EricksonLopez.Outbox.SourceGenerators` / `Analyzers`
-- [ ] Benchmarks / Tests
+- [ ] Storage Providers (`PostgreSql`, `SqlServer`, `MySql`, `MariaDb`, `Oracle`, `Sqlite`, `MongoDb`)
+- [ ] Broker Publishers (`RabbitMQ`, `Kafka`, `AzureServiceBus`, `AzureEventHubs`, `AwsSqs`, `GooglePubSub`, `Nats`, `RedisStreams`)
+- [ ] Framework Integrations (`MassTransit`, `Mediator`, `MediatR`, `NServiceBus`, `Rebus`, `Brighter`, `Dapr`, `Aspire`)
+- [ ] Serializers (`Serialization.MessagePack`, `Serialization.Protobuf`)
+- [ ] Tooling (`SourceGenerators`, `Analyzers`)
+- [ ] Benchmarks / Sample (`Sample.OrderService`) / Tests
 
 ## Checklist
 

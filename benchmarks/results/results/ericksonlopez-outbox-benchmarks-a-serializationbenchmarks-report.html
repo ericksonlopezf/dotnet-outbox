@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+<meta charset='utf-8' />
+<title>EricksonLopez.Outbox.Benchmarks.A_SerializationBenchmarks-20260806-181434</title>
+
+<style type="text/css">
+	table { border-collapse: collapse; display: block; width: 100%; overflow: auto; }
+	td, th { padding: 6px 13px; border: 1px solid #ddd; text-align: right; }
+	tr { background-color: #fff; border-top: 1px solid #ccc; }
+	tr:nth-child(even) { background: #f8f8f8; }
+</style>
+</head>
+<body>
+<pre><code>
+BenchmarkDotNet v0.13.12, Windows 11 (10.0.26200.8875)
+Unknown processor
+.NET SDK 10.0.302
+  [Host]     : .NET 10.0.10 (10.0.1026.32716), X64 RyuJIT AVX-512F+CD+BW+DQ+VL+VBMI
+  Job-OUHNJV : .NET 10.0.10 (10.0.1026.32716), X64 RyuJIT AVX-512F+CD+BW+DQ+VL+VBMI
+</code></pre>
+<pre><code></code></pre>
+
+<table>
+<thead><tr><th>Method                              </th><th>Job </th><th>Toolchain       </th><th>IterationCount</th><th>WarmupCount</th><th>PayloadSize</th><th>Mean </th><th>Min  </th><th>Max  </th><th>P50  </th><th>P95  </th><th>Op/s  </th><th>Ratio</th><th>Gen0</th><th>Gen1</th><th>Gen2</th><th>Allocated</th><th>Alloc Ratio</th>
+</tr>
+</thead><tbody><tr><td>EricksonLopezOutbox_Serialize_Allocating</td><td>Job-OUHNJV</td><td>Default</td><td>100</td><td>20</td><td>512</td><td>78.92 ns</td><td>73.38 ns</td><td>83.15 ns</td><td>78.62 ns</td><td>82.68 ns</td><td>12,670,438.9</td><td>1.00</td><td>0.0117</td><td>-</td><td>-</td><td>592 B</td><td>1.00</td>
+</tr><tr><td>EricksonLopezOutbox_Serialize_BufferWriter</td><td>Job-OUHNJV</td><td>Default</td><td>100</td><td>20</td><td>512</td><td>53.83 ns</td><td>52.76 ns</td><td>54.51 ns</td><td>53.91 ns</td><td>54.40 ns</td><td>18,576,315.0</td><td>0.68</td><td>0.0006</td><td>-</td><td>-</td><td>32 B</td><td>0.05</td>
+</tr><tr><td>EricksonLopezOutbox_Serialize_Allocating</td><td>Job-FWMHQE</td><td>InProcessEmitToolchain</td><td>Default</td><td>Default</td><td>512</td><td>89.43 ns</td><td>87.81 ns</td><td>91.82 ns</td><td>88.97 ns</td><td>91.61 ns</td><td>11,182,124.8</td><td>1.00</td><td>0.0117</td><td>-</td><td>-</td><td>592 B</td><td>1.00</td>
+</tr><tr><td>EricksonLopezOutbox_Serialize_BufferWriter</td><td>Job-FWMHQE</td><td>InProcessEmitToolchain</td><td>Default</td><td>Default</td><td>512</td><td>65.84 ns</td><td>65.60 ns</td><td>66.59 ns</td><td>65.72 ns</td><td>66.33 ns</td><td>15,188,834.5</td><td>0.74</td><td>0.0006</td><td>-</td><td>-</td><td>32 B</td><td>0.05</td>
+</tr><tr><td>EricksonLopezOutbox_Serialize_Allocating</td><td>Job-OUHNJV</td><td>Default</td><td>100</td><td>20</td><td>10240</td><td>576.70 ns</td><td>520.19 ns</td><td>662.82 ns</td><td>572.39 ns</td><td>626.21 ns</td><td>1,734,003.0</td><td>1.00</td><td>0.2050</td><td>0.0076</td><td>-</td><td>10320 B</td><td>1.000</td>
+</tr><tr><td>EricksonLopezOutbox_Serialize_BufferWriter</td><td>Job-OUHNJV</td><td>Default</td><td>100</td><td>20</td><td>10240</td><td>323.54 ns</td><td>319.98 ns</td><td>326.75 ns</td><td>323.56 ns</td><td>325.91 ns</td><td>3,090,834.2</td><td>0.56</td><td>0.0005</td><td>-</td><td>-</td><td>32 B</td><td>0.003</td>
+</tr><tr><td>EricksonLopezOutbox_Serialize_Allocating</td><td>Job-FWMHQE</td><td>InProcessEmitToolchain</td><td>Default</td><td>Default</td><td>10240</td><td>593.30 ns</td><td>548.10 ns</td><td>650.00 ns</td><td>589.95 ns</td><td>636.67 ns</td><td>1,685,499.2</td><td>1.00</td><td>0.2050</td><td>0.0076</td><td>-</td><td>10320 B</td><td>1.000</td>
+</tr><tr><td>EricksonLopezOutbox_Serialize_BufferWriter</td><td>Job-FWMHQE</td><td>InProcessEmitToolchain</td><td>Default</td><td>Default</td><td>10240</td><td>336.76 ns</td><td>332.59 ns</td><td>338.56 ns</td><td>337.06 ns</td><td>338.50 ns</td><td>2,969,516.1</td><td>0.58</td><td>0.0005</td><td>-</td><td>-</td><td>32 B</td><td>0.003</td>
+</tr><tr><td>EricksonLopezOutbox_Serialize_Allocating</td><td>Job-OUHNJV</td><td>Default</td><td>100</td><td>20</td><td>102400</td><td>6,013.08 ns</td><td>5,839.78 ns</td><td>6,306.65 ns</td><td>6,009.60 ns</td><td>6,188.06 ns</td><td>166,304.2</td><td>1.00</td><td>32.2571</td><td>32.2571</td><td>32.2571</td><td>102513 B</td><td>1.000</td>
+</tr><tr><td>EricksonLopezOutbox_Serialize_BufferWriter</td><td>Job-OUHNJV</td><td>Default</td><td>100</td><td>20</td><td>102400</td><td>3,419.04 ns</td><td>3,387.15 ns</td><td>3,467.35 ns</td><td>3,418.24 ns</td><td>3,447.49 ns</td><td>292,479.8</td><td>0.57</td><td>-</td><td>-</td><td>-</td><td>32 B</td><td>0.000</td>
+</tr><tr><td>EricksonLopezOutbox_Serialize_Allocating</td><td>Job-FWMHQE</td><td>InProcessEmitToolchain</td><td>Default</td><td>Default</td><td>102400</td><td>7,766.59 ns</td><td>7,710.67 ns</td><td>7,803.06 ns</td><td>7,771.87 ns</td><td>7,800.02 ns</td><td>128,756.6</td><td>1.00</td><td>17.7460</td><td>17.7460</td><td>17.7460</td><td>102573 B</td><td>1.000</td>
+</tr><tr><td>EricksonLopezOutbox_Serialize_BufferWriter</td><td>Job-FWMHQE</td><td>InProcessEmitToolchain</td><td>Default</td><td>Default</td><td>102400</td><td>3,379.60 ns</td><td>3,367.87 ns</td><td>3,393.94 ns</td><td>3,378.79 ns</td><td>3,392.31 ns</td><td>295,892.9</td><td>0.44</td><td>-</td><td>-</td><td>-</td><td>32 B</td><td>0.000</td>
+</tr></tbody></table>
+</body>
+</html>

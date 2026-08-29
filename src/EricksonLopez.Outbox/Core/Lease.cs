@@ -1,3 +1,4 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 
 namespace EricksonLopez.Outbox;
@@ -20,3 +21,4 @@ public readonly record struct Lease(
     /// <returns><see langword="true"/> if the lease is expired; otherwise, <see langword="false"/>.</returns>
     public bool IsExpired(DateTimeOffset now) => now >= ExpiresAt;
 }
+

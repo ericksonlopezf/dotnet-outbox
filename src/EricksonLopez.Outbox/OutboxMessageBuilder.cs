@@ -1,11 +1,11 @@
-using EricksonLopez.Outbox.Persistence;
-// Stryker disable all : Covered by ADR-013. Edge cases, micro-optimizations, logging, and validation strings are not rigorously mutated.
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Buffers;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Threading;
 using System.Threading.Tasks;
+using EricksonLopez.Outbox.Persistence;
 
 namespace EricksonLopez.Outbox;
 
@@ -140,16 +140,17 @@ public sealed class OutboxMessageBuilder<TMessage> : IDisposable where TMessage 
     {
         ArgumentNullException.ThrowIfNull(key);
         ArgumentNullException.ThrowIfNull(value);
-        
+
         _headersArray ??= ArrayPool<MetadataEntry>.Shared.Rent(8);
+
         if (_headerCount >= _headersArray.Length)
         {
             var newArray = ArrayPool<MetadataEntry>.Shared.Rent(_headersArray.Length * 2);
             Array.Copy(_headersArray, newArray, _headerCount);
-            ReturnArrayToPool(_headersArray);
+            ArrayPool<MetadataEntry>.Shared.Return(_headersArray, clearArray: true);
             _headersArray = newArray;
         }
-        
+
         _headersArray[_headerCount++] = new MetadataEntry(key, value);
         return this;
     }
@@ -174,6 +175,17 @@ public sealed class OutboxMessageBuilder<TMessage> : IDisposable where TMessage 
     {
         _causationId = causationId;
         return this;
+    }
+
+    /// <summary>
+    /// Sets the tenant identifier for the message for multi-tenant sharding and routing.
+    /// </summary>
+    /// <param name="tenantId">The tenant identifier to assign.</param>
+    /// <returns>The current <see cref="OutboxMessageBuilder{TMessage}"/> instance for method chaining.</returns>
+    public OutboxMessageBuilder<TMessage> WithTenantId(string tenantId)
+    {
+        ArgumentNullException.ThrowIfNull(tenantId);
+        return WithHeader("x-tenant-id", tenantId);
     }
 
     /// <summary>
@@ -205,18 +217,16 @@ public sealed class OutboxMessageBuilder<TMessage> : IDisposable where TMessage 
     /// </list>
     /// </para>
     /// </remarks>
-    // Stryker disable all : Dispose pattern is untestable and purely defensive against leaks
     public void Dispose()
     {
-        if (_disposed) return;
         _disposed = true;
-        if (_headersArray != null)
+
+        if (_headersArray is not null)
         {
-            ReturnArrayToPool(_headersArray);
+            ArrayPool<MetadataEntry>.Shared.Return(_headersArray, clearArray: true);
             _headersArray = null;
         }
     }
-    // Stryker restore all
 
     /// <summary>
     /// Persists the enriched message atomically within the configured transaction context.
@@ -237,7 +247,6 @@ public sealed class OutboxMessageBuilder<TMessage> : IDisposable where TMessage 
             // P2-FIX: Dispose before throwing to return any pooled _headersArray back to ArrayPool.
             // Without this, a caller who added headers via WithHeader() but forgot to call
             // WithTransaction() would leak the rented array from ArrayPool.Shared.
-            // Stryker disable once Statement
             Dispose();
             throw new InvalidOperationException(
                 "A transaction must be provided via WithTransaction() before calling StoreAsync().");
@@ -264,12 +273,13 @@ public sealed class OutboxMessageBuilder<TMessage> : IDisposable where TMessage 
         {
             // P1-3 FIX: Pass ReadOnlyMemory directly instead of allocating a new array.
             // The pooled _headersArray is sliced to exact count — zero intermediate allocation.
-            // Stryker disable once all : Instantiating ReadOnlyMemory with null for 0 length is identical to default
-            var entriesMemory = _headerCount > 0 
-                ? new ReadOnlyMemory<MetadataEntry>(_headersArray!, 0, _headerCount)
-                : default;
+            ReadOnlyMemory<MetadataEntry> entriesMemory = default;
+            if (_headersArray is not null)
+            {
+                entriesMemory = new ReadOnlyMemory<MetadataEntry>(_headersArray, 0, _headerCount);
+            }
 
-            var metadata = new MessageMetadata(
+            var metadata = new OutboxMessageMetadata(
                 correlationId: _correlationId,
                 causationId: _causationId,
                 messageType: null,
@@ -284,19 +294,11 @@ public sealed class OutboxMessageBuilder<TMessage> : IDisposable where TMessage 
         }
         finally
         {
-            _disposed = true;
-            // Stryker disable once Block
-            if (_headersArray != null)
-            {
-                ReturnArrayToPool(_headersArray);
-                _headersArray = null;
-            }
+            Dispose();
         }
     }
-
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
-    private static void ReturnArrayToPool(MetadataEntry[] array)
-    {
-        ArrayPool<MetadataEntry>.Shared.Return(array, clearArray: true);
-    }
 }
+
+
+
+

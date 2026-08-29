@@ -1,4 +1,6 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
@@ -8,8 +10,8 @@ using Microsoft.CodeAnalysis.Text;
 namespace EricksonLopez.Outbox.SourceGenerators;
 
 /// <summary>
-/// Source generator that scans for types annotated with OutboxMessageAttribute 
-/// and generates a highly optimized type resolver.
+/// Provides a source generator that scans for types annotated with <c>OutboxMessageAttribute</c>
+/// and generates an optimized type resolver and registration extensions.
 /// </summary>
 [Generator]
 public sealed class OutboxTypeMappingGenerator : IIncrementalGenerator
@@ -82,24 +84,11 @@ public sealed class OutboxTypeMappingGenerator : IIncrementalGenerator
         defaultSeverity: DiagnosticSeverity.Warning,
         isEnabledByDefault: true);
 
-    /// <summary>
-    /// Initializes the generator.
-    /// </summary>
-    /// <param name="context">The initialization context.</param>
-    /// <remarks>
-    /// <para>
-    /// <b>Hot Reload / Edit-and-Continue (EnC) compatibility:</b>
-    /// This generator is deterministic: given the same input types, it always produces
-    /// identical output. Each source output file is keyed by a stable name
-    /// (<c>OutboxRegistrationExtensions.g.cs</c>, <c>OutboxJsonContext.g.cs</c>),
-    /// so the Roslyn incremental driver can diff and skip unchanged outputs efficiently.
-    /// This avoids the "spurious re-generation" problem that causes IDE lag during EnC sessions.
-    /// </para>
-    /// </remarks>
+    /// <inheritdoc/>
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         // ISSUE-SG1 (P3 TODO): Future v2.0 feature — generate PostgreSQL/SQL Server CREATE TABLE scripts
-        // from [OutboxMessage] attribute metadata so users don't need to run 01_Init_Outbox.sql manually.
+        // from [OutboxMessage] attribute metadata so users don't need to run Outbox_DDL.sql manually.
         // Planned output: OutboxTableCreation.g.sql per [OutboxMessage] type, containing:
         //   - CREATE TABLE IF NOT EXISTS for per-type partitioned tables
         //   - Indexes on (state, deliver_at, created_at)
@@ -110,7 +99,7 @@ public sealed class OutboxTypeMappingGenerator : IIncrementalGenerator
         // Deferred because:
         //   1. SQL output is engine-specific (PostgreSQL vs SQL Server vs SQLite differ substantially)
         //   2. The Roslyn additional files mechanism needs careful design to avoid conflicts with EF Core migrations
-        //   3. The existing Scripts/01_Init_Outbox.sql is well-maintained and sufficient for v1.0
+        //   3. The existing Scripts/Outbox_DDL.sql is well-maintained and sufficient for v1.0
 
         var messageTypes = context.SyntaxProvider
             .ForAttributeWithMetadataName(
@@ -119,7 +108,7 @@ public sealed class OutboxTypeMappingGenerator : IIncrementalGenerator
                 transform: (ctx, _) =>
                 {
                     var symbol = (INamedTypeSymbol)ctx.TargetSymbol;
-                    var attr = ctx.Attributes.First();
+                    var attr = ctx.Attributes[0];
                     var alias = attr.ConstructorArguments.Length > 0
                         ? attr.ConstructorArguments[0].Value?.ToString() ?? symbol.Name
                         : symbol.Name;
@@ -130,7 +119,7 @@ public sealed class OutboxTypeMappingGenerator : IIncrementalGenerator
                         ShortName: symbol.Name,
                         IsGenericType: symbol.IsGenericType,
                         IsUnboundGenericType: symbol.IsUnboundGenericType,
-                        Location: symbol.Locations.FirstOrDefault());
+                        Location: symbol.Locations[0]);
                 })
             .Where(static x => x is not null)
             .Collect()!;
@@ -178,7 +167,7 @@ public sealed class OutboxTypeMappingGenerator : IIncrementalGenerator
                         tree.FilePath.EndsWith(".Generated.cs", StringComparison.OrdinalIgnoreCase))
                         continue;
 
-                    var root = tree.GetRoot();
+                    var root = tree.GetRoot(spc.CancellationToken);
                     diagnosticLocation = root.GetLocation();
                     break;
                 }
@@ -188,8 +177,8 @@ public sealed class OutboxTypeMappingGenerator : IIncrementalGenerator
             return;
         }
 
-        var validTypes = new System.Collections.Generic.List<MessageTypeInfo>();
-        var aliasMap = new System.Collections.Generic.Dictionary<string, MessageTypeInfo>(StringComparer.Ordinal);
+        var validTypes = new List<MessageTypeInfo>();
+        var aliasMap = new Dictionary<string, MessageTypeInfo>(StringComparer.Ordinal);
 
         foreach (var t in types.Distinct())
         {
@@ -214,21 +203,12 @@ public sealed class OutboxTypeMappingGenerator : IIncrementalGenerator
 
         // Emit two separate generated files:
         //   1. OutboxRegistrationExtensions.g.cs — type resolver + UseGeneratedTypes() DI extension
-        //   2. OutboxJsonContext.g.cs            — partial JsonSerializerContext with [JsonSerializable] per type
-        var safeName = compilation.AssemblyName?.Replace(".", "") ?? "Outbox";
-        // P1-FIX: string.GetHashCode() uses a randomized seed in .NET (non-deterministic across builds).
-        // Using a deterministic polynomial hash (DJB2-style) ensures the generated class name is
-        // stable across compilation sessions. Without this, the Roslyn incremental generator
-        // invalidates its cache on every build because the output file name changes.
-        var hash = GetDeterministicHash(compilation.AssemblyName ?? string.Empty);
-        var assemblyName = $"{safeName}{hash}";
-        var contextName = $"{assemblyName}GeneratedJsonContext";
-
-        GenerateRegistrationExtensions(spc, validTypes, contextName);
-        GenerateJsonSerializerContext(spc, validTypes, contextName);
+        //   2. OutboxJsonContext.g.cs            — partial JsonSerializerContext template with [JsonSerializable] per type
+        GenerateRegistrationExtensions(spc, validTypes);
+        GenerateJsonSerializerContext(spc, validTypes);
     }
 
-    private static string GetRuntimeFullName(INamedTypeSymbol symbol)
+    internal static string GetRuntimeFullName(INamedTypeSymbol symbol)
     {
         if (symbol.ContainingType == null)
             return symbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat).Replace("global::", "");
@@ -242,21 +222,20 @@ public sealed class OutboxTypeMappingGenerator : IIncrementalGenerator
     /// a randomized seed in .NET, causing different values across different build processes.
     /// The output is always non-negative.
     /// </summary>
-    private static int GetDeterministicHash(string value)
+    internal static int GetDeterministicHash(string value)
     {
         unchecked
         {
             int hash = 17;
             foreach (char c in value)
                 hash = hash * 31 + c;
-            return Math.Abs(hash);
+            return hash & 0x7FFFFFFF;
         }
     }
 
     private static void GenerateRegistrationExtensions(
         SourceProductionContext spc,
-        System.Collections.Generic.List<MessageTypeInfo> types,
-        string contextName)
+        List<MessageTypeInfo> types)
     {
         var sb = new StringBuilder();
         sb.AppendLine("// <auto-generated />");
@@ -400,7 +379,7 @@ public sealed class OutboxTypeMappingGenerator : IIncrementalGenerator
         // 'new string[] { "a", "b", }' with a trailing comma. While valid C#, it generates
         // cosmetically inconsistent code and may trigger linters in downstream projects.
         sb.Append("        return new string[] { ");
-        sb.Append(string.Join(", ", System.Linq.Enumerable.Select(types, t => $"\"{t.Alias}\"")));
+        sb.Append(string.Join(", ", types.Select(t => $"\"{t.Alias}\"")));
         sb.AppendLine(" };");
         sb.AppendLine("    }");
         sb.AppendLine();
@@ -416,7 +395,7 @@ public sealed class OutboxTypeMappingGenerator : IIncrementalGenerator
         sb.AppendLine("    {");
         // A-03 AUDIT FIX: Same trailing comma fix as GetRegisteredAliases.
         sb.Append("        return new global::System.Type[] { ");
-        sb.Append(string.Join(", ", System.Linq.Enumerable.Select(types, t => $"typeof({t.FullName})")));
+        sb.Append(string.Join(", ", types.Select(t => $"typeof({t.FullName})")));
         sb.AppendLine(" };");
         sb.AppendLine("    }");
         sb.AppendLine();
@@ -483,8 +462,7 @@ public sealed class OutboxTypeMappingGenerator : IIncrementalGenerator
 
     private static void GenerateJsonSerializerContext(
         SourceProductionContext spc,
-        System.Collections.Generic.List<MessageTypeInfo> types,
-        string contextName)
+        List<MessageTypeInfo> types)
     {
         // STJ GENERATOR LIMITATION — Why we cannot emit a working JsonSerializerContext:
         //
@@ -541,3 +519,5 @@ public sealed class OutboxTypeMappingGenerator : IIncrementalGenerator
 
     private sealed record MessageTypeInfo(string FullName, string Alias, string ShortName, bool IsGenericType, bool IsUnboundGenericType, Location? Location);
 }
+
+

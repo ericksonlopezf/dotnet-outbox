@@ -1,3 +1,5 @@
+<!-- Copyright © Erickson Lopez. MIT License. -->
+
 # ADR 013: Stryker.NET Mutation Coverage Exclusions
 
 ## Context
@@ -12,13 +14,14 @@ Specifically, we face issues with:
 6. **Telemetry & Observability (Logs and Metrics)**: Asserting whether a log states exactly `"Dispatch failed"` instead of `"dispatch failed"` adds no real value and pollutes the test suite. *Note*: However, the existence of critical telemetry counters (e.g., `_metrics.DispatchFailures.Add(1)`) is an operational contract. Omitting them alters the observable behavior for production alerting. Therefore, while exact tags and casing are excluded from unit tests, the presence of the metric should be validated through integration tests.
 7. **Dependency Injection Setup**: Validating DI containers or `IOptions` initializations through mutation testing yields minimal value. These setups are best validated holistically by resolving the service from the Host in an integration test.
 8. **Test Helpers (Test Doubles / Mocks)**: Running mutation testing on testing infrastructure (e.g., `Testing/**/*.cs`) is counterproductive, as it breaks the tests themselves by mutating the very assertions and fake dependencies designed to validate the production code.
+9. **Roslyn Analyzers (`ignore-mutations: ["string"]`)**: Roslyn Diagnostic IDs (`OUTBOX001`..`OUTBOX004`), titles, descriptions, and help link URLs are static diagnostic metadata descriptors. Mutating string literals in these descriptors changes UI display text but does not affect semantic AST analysis, node matching, diagnostic location reporting, or code-fix tree transformations. Asserting exact string matching across all code fixes creates brittle coupling to UI text without improving analyzer correctness. AST analysis rules and code-fix AST transformations remain 100% covered.
 
 ## Decision
 We have decided to **systematically ignore** these scenarios through Stryker's native configuration (`stryker-config.json`) and specific source code exclusions (`// Stryker disable`), rather than attempting to force their coverage with low-value artificial tests.
 
 The approved exclusions include:
 - `ConfigureAwait(false)`.
-- **String mutations** on logs, telemetry tags, and exception validation messages.
+- **String mutations** on logs, telemetry tags, exception validation messages, and Roslyn Analyzer diagnostic descriptors.
 - **Math and equality mutations** on Jitter and randomized backoff limits.
 - **Array Pooling cleanup logic** and hardware limits (e.g., OOM edge cases).
 - **DI and Setup modules** (should rely on integration tests).

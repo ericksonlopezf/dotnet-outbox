@@ -1,5 +1,6 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
-
+using System.Threading;
 using System.Threading.Tasks;
 using AwesomeAssertions;
 using EricksonLopez.Outbox.Testing;
@@ -99,6 +100,16 @@ public class OutboxTesterImplTests
         var tester = new OutboxTesterImpl(store);
         tester.ShouldHavePublished<string>().WithCondition(x => x == "test1").Once();
     }
+
+    [Fact]
+    public void Constructor_WhenStoreIsNull_ThrowsArgumentNullException()
+    {
+        var act = () => new OutboxTesterImpl(null!);
+        act.Should().Throw<ArgumentNullException>().WithParameterName("store");
+    }
 }
+
+
+
 
 

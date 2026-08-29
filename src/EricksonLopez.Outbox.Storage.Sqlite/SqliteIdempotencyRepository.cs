@@ -1,16 +1,16 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Data;
 using System.Threading;
 using System.Threading.Tasks;
+using EricksonLopez.Outbox.Persistence;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Options;
-
-using EricksonLopez.Outbox.Persistence;
 
 namespace EricksonLopez.Outbox.Storage.Sqlite;
 
 /// <summary>
-/// SQLite implementation of <see cref="IIdempotencyRepository"/>.
+/// Provides an SQLite implementation of <see cref="IIdempotencyRepository"/>.
 /// </summary>
 public sealed class SqliteIdempotencyRepository : IIdempotencyRepository
 {
@@ -24,6 +24,7 @@ public sealed class SqliteIdempotencyRepository : IIdempotencyRepository
     /// <param name="connectionFactory">The factory that creates SQLite connections.</param>
     /// <param name="options">The outbox runtime options.</param>
     /// <exception cref="ArgumentNullException"><paramref name="connectionFactory"/> or <paramref name="options"/> is <see langword="null"/>.</exception>
+
     public SqliteIdempotencyRepository(Func<IDbConnection> connectionFactory, IOptionsMonitor<OutboxRuntimeOptions> options)
     {
         _connectionFactory = connectionFactory ?? throw new ArgumentNullException(nameof(connectionFactory));
@@ -89,3 +90,6 @@ public sealed class SqliteIdempotencyRepository : IIdempotencyRepository
         await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 }
+
+
+

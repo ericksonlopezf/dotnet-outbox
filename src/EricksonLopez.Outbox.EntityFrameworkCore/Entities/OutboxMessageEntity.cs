@@ -1,9 +1,11 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
+using System.Linq;
 
 namespace EricksonLopez.Outbox.EntityFrameworkCore.Entities;
 
 /// <summary>
-/// Entity Framework Core reference entity representing an outbox message.
+/// Represents an Entity Framework Core database entity for an outbox message.
 /// </summary>
 public class OutboxMessageEntity
 {
@@ -71,3 +73,5 @@ public class OutboxMessageEntity
         Error = model.Error
     };
 }
+
+
