@@ -1,3 +1,4 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Collections.Generic;
 
@@ -32,3 +33,4 @@ internal sealed class DefaultBrokerSelector : IBrokerSelector
         throw new InvalidOperationException($"No broker publisher configured for message type '{message.MessageType}' and no default publisher is registered.");
     }
 }
+

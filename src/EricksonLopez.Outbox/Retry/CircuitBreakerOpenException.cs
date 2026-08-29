@@ -1,4 +1,6 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
+using EricksonLopez.Result;
 
 namespace EricksonLopez.Outbox.Retry;
 
@@ -23,3 +25,5 @@ public sealed class CircuitBreakerOpenException : Exception
     /// <param name="message">The message that describes the error.</param>
     public CircuitBreakerOpenException(string message) : base(message) { }
 }
+
+

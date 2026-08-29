@@ -1,3 +1,4 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -7,7 +8,7 @@ using EricksonLopez.Outbox.Persistence;
 namespace EricksonLopez.Outbox.Testing;
 
 /// <summary>
-/// A well-known test double for <see cref="IOutboxRepository"/> that stores outbox messages in memory.
+/// Provides a test double for <see cref="IOutboxRepository"/> that stores outbox messages in memory.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -75,7 +76,14 @@ public sealed class FakeOutboxRepository : IOutboxRepository
     /// <inheritdoc />
     public ValueTask<OutboxMessage?> GetMessageAsync(Guid id, CancellationToken cancellationToken = default)
         => _inner.GetMessageAsync(id, cancellationToken);
+
+    /// <inheritdoc />
+    public ValueTask<int> PurgeDispatchedMessagesAsync(DateTimeOffset cutoff, int batchSize = 1000, CancellationToken cancellationToken = default)
+        => _inner.PurgeDispatchedMessagesAsync(cutoff, batchSize, cancellationToken);
 }
+
+
+
 
 
 

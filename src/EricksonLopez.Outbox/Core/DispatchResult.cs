@@ -1,6 +1,8 @@
-// Stryker disable String : Exception messages are not tested for exact matching
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Diagnostics;
+using System.Threading;
+using EricksonLopez.Result;
 
 namespace EricksonLopez.Outbox;
 
@@ -113,10 +115,13 @@ public readonly record struct DispatchResult(
                 "DispatchResult is in an invalid state: Success=true and ShouldRetry=true are mutually exclusive. " +
                 "A successful dispatch should never request a retry. Use DispatchResult.Ok() or DispatchResult.FailAndRetry().");
         }
-        
+
         if (!Success && Error is null)
         {
             throw new InvalidOperationException("Failed DispatchResult must have an Error attached to it.");
         }
     }
 }
+
+
+

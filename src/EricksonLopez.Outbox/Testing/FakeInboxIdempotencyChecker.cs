@@ -1,3 +1,4 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -7,7 +8,7 @@ using EricksonLopez.Outbox.Persistence;
 namespace EricksonLopez.Outbox.Testing;
 
 /// <summary>
-/// A fake <see cref="IInboxIdempotencyChecker"/> implementation designed for use in unit and integration tests.
+/// Provides a fake <see cref="IInboxIdempotencyChecker"/> implementation designed for use in unit and integration tests.
 /// </summary>
 /// <remarks>
 /// This fake implementation delegates to a provided <see cref="FakeIdempotencyRepository"/>
@@ -28,9 +29,9 @@ public sealed class FakeInboxIdempotencyChecker : IInboxIdempotencyChecker
 
     /// <inheritdoc />
     public async Task<bool> ShouldProcessAsync(
-        string messageId, 
-        string consumerId, 
-        IOutboxTransactionContext transaction, 
+        string messageId,
+        string consumerId,
+        IOutboxTransactionContext transaction,
         CancellationToken cancellationToken = default)
     {
         var record = new EricksonLopez.Outbox.IdempotencyRecord(messageId, consumerId, DateTimeOffset.UtcNow);
@@ -49,3 +50,6 @@ public sealed class FakeInboxIdempotencyChecker : IInboxIdempotencyChecker
         return !inserted;
     }
 }
+
+
+

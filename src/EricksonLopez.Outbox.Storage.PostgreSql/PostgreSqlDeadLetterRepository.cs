@@ -1,19 +1,19 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using EricksonLopez.Outbox;
+using EricksonLopez.Outbox.Persistence;
 using Microsoft.Extensions.Options;
 using Npgsql;
-using EricksonLopez.Outbox;
-
-using EricksonLopez.Outbox.Persistence;
 
 namespace EricksonLopez.Outbox.Storage.PostgreSql;
 
 /// <summary>
-/// PostgreSQL implementation of the Dead Letter Queue storage.
+/// Provides a PostgreSQL implementation of <see cref="IDeadLetterRepository"/>.
 /// </summary>
 public sealed class PostgreSqlDeadLetterRepository : IDeadLetterRepository
 {
@@ -34,6 +34,7 @@ public sealed class PostgreSqlDeadLetterRepository : IDeadLetterRepository
     /// <param name="options">The outbox runtime options.</param>
     /// <exception cref="ArgumentNullException"><paramref name="dataSource"/> or <paramref name="options"/> is <see langword="null"/>.</exception>
     [CLSCompliant(false)]
+
     public PostgreSqlDeadLetterRepository(NpgsqlDataSource dataSource, IOptionsMonitor<OutboxRuntimeOptions> options)
     {
         _dataSource = dataSource ?? throw new ArgumentNullException(nameof(dataSource));
@@ -60,6 +61,7 @@ public sealed class PostgreSqlDeadLetterRepository : IDeadLetterRepository
     }
 
     /// <inheritdoc/>
+
     public async ValueTask InsertAsync(
         DeadLetterMessage message,
         IOutboxTransactionContext? transaction = default,
@@ -84,9 +86,7 @@ public sealed class PostgreSqlDeadLetterRepository : IDeadLetterRepository
         {
             await using var cmd = new NpgsqlCommand(_insertSql, conn, transaction?.Transaction as NpgsqlTransaction);
             
-            var payloadArray = System.Runtime.InteropServices.MemoryMarshal.TryGetArray(message.Payload, out var payloadSeg) && payloadSeg.Offset == 0 && payloadSeg.Count == payloadSeg.Array!.Length 
-                ? payloadSeg.Array 
-                : message.Payload.ToArray();
+            var payloadArray = message.Payload.ToByteArray();
 
             cmd.Parameters.Add(new NpgsqlParameter("Id", NpgsqlTypes.NpgsqlDbType.Uuid) { Value = message.Id });
             cmd.Parameters.Add(new NpgsqlParameter("OriginalMessageId", NpgsqlTypes.NpgsqlDbType.Uuid) { Value = message.OriginalMessageId });
@@ -95,9 +95,7 @@ public sealed class PostgreSqlDeadLetterRepository : IDeadLetterRepository
             cmd.Parameters.Add(new NpgsqlParameter("CorrelationId", NpgsqlTypes.NpgsqlDbType.Varchar) { Value = (object?)message.CorrelationId ?? DBNull.Value });
             cmd.Parameters.Add(new NpgsqlParameter("CausationId", NpgsqlTypes.NpgsqlDbType.Varchar) { Value = (object?)message.CausationId ?? DBNull.Value });
             
-            var headersArray = System.Runtime.InteropServices.MemoryMarshal.TryGetArray(message.Headers, out var headersSeg) && headersSeg.Offset == 0 && headersSeg.Count == headersSeg.Array!.Length 
-                ? headersSeg.Array 
-                : message.Headers.ToArray();
+            var headersArray = message.Headers.ToByteArray();
             cmd.Parameters.Add(new NpgsqlParameter("HeadersJson", NpgsqlTypes.NpgsqlDbType.Jsonb) { Value = headersArray });
             
             cmd.Parameters.Add(new NpgsqlParameter("CreatedAt", NpgsqlTypes.NpgsqlDbType.TimestampTz) { Value = message.CreatedAt });
@@ -183,6 +181,9 @@ public sealed class PostgreSqlDeadLetterRepository : IDeadLetterRepository
         await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 }
+
+
+
 
 
 

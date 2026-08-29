@@ -1,6 +1,9 @@
+// Copyright © Erickson Lopez. MIT License.
+using System;
+using EricksonLopez.Result;
+
 namespace EricksonLopez.Outbox.Diagnostics;
 
-using System;
 
 /// <summary>
 /// Provides a mechanism to sanitize exceptions before they are logged or stored in the database.
@@ -15,3 +18,6 @@ public interface IErrorSanitizer
     /// <returns>A sanitized string representation of the error.</returns>
     string Sanitize(Exception exception);
 }
+
+
+

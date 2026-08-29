@@ -1,16 +1,16 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Data;
 using System.Threading;
 using System.Threading.Tasks;
+using EricksonLopez.Outbox.Persistence;
 using Microsoft.Extensions.Options;
 using MySqlConnector;
-
-using EricksonLopez.Outbox.Persistence;
 
 namespace EricksonLopez.Outbox.Storage.MySql;
 
 /// <summary>
-/// MySQL implementation of <see cref="IIdempotencyRepository"/>.
+/// Provides a MySQL implementation of <see cref="IIdempotencyRepository"/>.
 /// </summary>
 public sealed class MySqlIdempotencyRepository : IIdempotencyRepository
 {
@@ -24,6 +24,7 @@ public sealed class MySqlIdempotencyRepository : IIdempotencyRepository
     /// <param name="connectionFactory">The factory that creates MySQL connections.</param>
     /// <param name="options">The outbox runtime options.</param>
     /// <exception cref="ArgumentNullException"><paramref name="connectionFactory"/> or <paramref name="options"/> is <see langword="null"/>.</exception>
+
     public MySqlIdempotencyRepository(Func<IDbConnection> connectionFactory, IOptionsMonitor<OutboxRuntimeOptions> options)
     {
         _connectionFactory = connectionFactory ?? throw new ArgumentNullException(nameof(connectionFactory));
@@ -90,3 +91,6 @@ public sealed class MySqlIdempotencyRepository : IIdempotencyRepository
         await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 }
+
+
+

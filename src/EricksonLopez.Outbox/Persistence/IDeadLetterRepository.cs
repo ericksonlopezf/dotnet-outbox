@@ -1,13 +1,15 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using EricksonLopez.Outbox;
+using EricksonLopez.Result;
 
 namespace EricksonLopez.Outbox.Persistence;
 
 /// <summary>
-/// Storage abstraction for the Dead Letter Queue.
+/// Defines a contract for dead-letter queue storage operations.
 /// </summary>
 /// <remarks>
 /// A message is dead-lettered when it has exhausted all configured retry attempts
@@ -95,3 +97,7 @@ public interface IDeadLetterRepository
     /// </remarks>
     bool IsFirstPartyImplementation => false;
 }
+
+
+
+

@@ -1,0 +1,29 @@
+<!-- Copyright © Erickson Lopez. MIT License. -->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>Idempotent event consumer bridge for EricksonLopez.Events backed by EricksonLopez.Inbox for guaranteed exactly-once event handler execution.</Description>
+    <PackageTags>$(CommonPackageTags);inbox;idempotency;events;domain-events;integration-events;native-aot</PackageTags>
+    <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
+    <Nullable>enable</Nullable>
+    <IsAotCompatible>true</IsAotCompatible>
+    <IsTrimmable>true</IsTrimmable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\EricksonLopez.Inbox\EricksonLopez.Inbox.csproj" />
+    <ProjectReference Include="..\EricksonLopez.Inbox.Abstractions\EricksonLopez.Inbox.Abstractions.csproj" />
+    <ProjectReference Include="..\..\..\dotnet-events\src\EricksonLopez.Events.Contracts\EricksonLopez.Events.Contracts.csproj" 
+                      Condition="Exists('..\..\..\dotnet-events\src\EricksonLopez.Events.Contracts\EricksonLopez.Events.Contracts.csproj')" />
+    <PackageReference Include="EricksonLopez.Events.Contracts" 
+                      Condition="!Exists('..\..\..\dotnet-events\src\EricksonLopez.Events.Contracts\EricksonLopez.Events.Contracts.csproj')" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="EricksonLopez.Outbox.Inbox.Events.Tests" />
+  </ItemGroup>
+</Project>

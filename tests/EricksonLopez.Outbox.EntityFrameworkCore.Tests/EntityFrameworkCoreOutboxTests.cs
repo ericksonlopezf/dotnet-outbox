@@ -1,17 +1,33 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using AwesomeAssertions;
-using NSubstitute;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using EricksonLopez.Outbox;
 using EricksonLopez.Outbox.EntityFrameworkCore.Entities;
 using EricksonLopez.Outbox.Persistence;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using NSubstitute;
 using Xunit;
 
 namespace EricksonLopez.Outbox.EntityFrameworkCore.Tests;
+
+public class TestSaveChangesInterceptor : Microsoft.EntityFrameworkCore.Diagnostics.SaveChangesInterceptor
+{
+    public int SaveChangesCount { get; private set; }
+
+    public override ValueTask<Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<int>> SavingChangesAsync(
+        Microsoft.EntityFrameworkCore.Diagnostics.DbContextEventData eventData,
+        Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<int> result,
+        CancellationToken cancellationToken = default)
+    {
+        SaveChangesCount++;
+        return base.SavingChangesAsync(eventData, result, cancellationToken);
+    }
+}
 
 public class TestDbContext : DbContext
 {
@@ -38,10 +54,17 @@ public class EntityFrameworkCoreOutboxTests
         return new TestDbContext(options);
     }
 
-    private static ServiceProvider CreateServiceProvider(string dbName)
+    private static ServiceProvider CreateServiceProvider(string dbName, TestSaveChangesInterceptor? interceptor = null)
     {
         var services = new ServiceCollection();
-        services.AddDbContext<TestDbContext>(options => options.UseInMemoryDatabase(dbName));
+        services.AddDbContext<TestDbContext>(options =>
+        {
+            options.UseInMemoryDatabase(dbName);
+            if (interceptor != null)
+            {
+                options.AddInterceptors(interceptor);
+            }
+        });
         services.AddOutboxEntityFrameworkCore<TestDbContext>();
         return services.BuildServiceProvider();
     }
@@ -490,7 +513,463 @@ public class EntityFrameworkCoreOutboxTests
         model.ProcessedAt.Should().Be(entity.ProcessedAt);
     }
 
+    [Fact]
+    public async Task PurgeDispatchedMessagesAsync_Should_Delete_SoftDeleted_Messages_OlderThan_Cutoff()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var sp = CreateServiceProvider(dbName);
+        var repo = sp.GetRequiredService<IOutboxRepository>();
+
+        var cutoff = DateTimeOffset.UtcNow.AddDays(-7);
+
+        using (var scope = sp.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<TestDbContext>();
+            // Dispatched and older than cutoff -> Should be purged
+            dbContext.Messages.Add(new OutboxMessageEntity 
+            { 
+                Id = Guid.NewGuid(), 
+                MessageType = "A", 
+                Payload = Array.Empty<byte>(), 
+                HeadersJson = "{}", 
+                CreatedAt = cutoff.AddDays(-2),
+                ProcessedAt = cutoff.AddDays(-1),
+                State = 2 
+            });
+            // Dispatched but newer than cutoff -> Should NOT be purged
+            dbContext.Messages.Add(new OutboxMessageEntity 
+            { 
+                Id = Guid.NewGuid(), 
+                MessageType = "B", 
+                Payload = Array.Empty<byte>(), 
+                HeadersJson = "{}", 
+                CreatedAt = cutoff.AddDays(1),
+                ProcessedAt = cutoff.AddDays(2),
+                State = 2 
+            });
+            // Pending and older than cutoff -> Should NOT be purged
+            dbContext.Messages.Add(new OutboxMessageEntity 
+            { 
+                Id = Guid.NewGuid(), 
+                MessageType = "C", 
+                Payload = Array.Empty<byte>(), 
+                HeadersJson = "{}", 
+                CreatedAt = cutoff.AddDays(-2),
+                State = 0 
+            });
+            await dbContext.SaveChangesAsync();
+        }
+
+        var purged = await repo.PurgeDispatchedMessagesAsync(cutoff, batchSize: 10);
+        purged.Should().Be(1);
+
+        using (var scope = sp.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<TestDbContext>();
+            var remaining = await dbContext.Messages.ToListAsync();
+            remaining.Should().HaveCount(2);
+            remaining.Should().NotContain(m => m.MessageType == "A");
+        }
+    }
+
+    [Fact]
+    public async Task PurgeDispatchedMessagesAsync_WithZeroOrNegativeBatch_ReturnsZero()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var sp = CreateServiceProvider(dbName);
+        var repo = sp.GetRequiredService<IOutboxRepository>();
+
+        var purged0 = await repo.PurgeDispatchedMessagesAsync(DateTimeOffset.UtcNow, batchSize: 0);
+        purged0.Should().Be(0);
+
+        var purgedNeg = await repo.PurgeDispatchedMessagesAsync(DateTimeOffset.UtcNow, batchSize: -5);
+        purgedNeg.Should().Be(0);
+    }
+
+    [Fact]
+    public void Constructor_NullServiceProvider_ThrowsArgumentNullException()
+    {
+        var act = () => new EntityFrameworkCoreOutboxRepository<TestDbContext>(null!);
+        act.Should().Throw<ArgumentNullException>().WithParameterName("serviceProvider");
+
+        var actDead = () => new EntityFrameworkCoreDeadLetterRepository<TestDbContext>(null!);
+        actDead.Should().Throw<ArgumentNullException>().WithParameterName("serviceProvider");
+
+        var actIdem = () => new EntityFrameworkCoreIdempotencyRepository<TestDbContext>(null!);
+        actIdem.Should().Throw<ArgumentNullException>().WithParameterName("serviceProvider");
+    }
+
+    [Fact]
+    public async Task InsertAsync_NullRecord_ThrowsArgumentNullException()
+    {
+        var sp = CreateServiceProvider(Guid.NewGuid().ToString());
+        var repo = sp.GetRequiredService<IOutboxRepository>();
+        var act = async () => await repo.InsertAsync(null!, null!);
+        await act.Should().ThrowAsync<ArgumentNullException>().WithParameterName("record");
+    }
+
+    [Fact]
+    public async Task MarkAsDispatchedAsync_NullMessages_ThrowsArgumentNullException()
+    {
+        var sp = CreateServiceProvider(Guid.NewGuid().ToString());
+        var repo = sp.GetRequiredService<IOutboxRepository>();
+        var act = async () => await repo.MarkAsDispatchedAsync(null!);
+        await act.Should().ThrowAsync<ArgumentNullException>().WithParameterName("messages");
+    }
+
+    [Fact]
+    public async Task MarkAsFailedAsync_NullMessages_ThrowsArgumentNullException()
+    {
+        var sp = CreateServiceProvider(Guid.NewGuid().ToString());
+        var repo = sp.GetRequiredService<IOutboxRepository>();
+        var act = async () => await repo.MarkAsFailedAsync(null!, "err");
+        await act.Should().ThrowAsync<ArgumentNullException>().WithParameterName("messages");
+    }
+
+    [Fact]
+    public void AddOutboxEntityFrameworkCore_NullServices_ThrowsArgumentNullException()
+    {
+        IServiceCollection services = null!;
+        var act = () => services.AddOutboxEntityFrameworkCore<TestDbContext>();
+        act.Should().Throw<ArgumentNullException>().WithParameterName("services");
+    }
+
+    [Fact]
+    public void ApplyOutboxEntityConfigurations_NullModelBuilder_ThrowsArgumentNullException()
+    {
+        ModelBuilder builder = null!;
+        var act = () => builder.ApplyOutboxEntityConfigurations();
+        act.Should().Throw<ArgumentNullException>().WithParameterName("modelBuilder");
+    }
+
+    [Fact]
+    public async Task FetchPendingAsync_WithTimeProvider_BoundaryExactMatch_ClaimsMessage()
+    {
+        var now = new DateTimeOffset(2026, 8, 22, 12, 0, 0, TimeSpan.Zero);
+        var fakeTime = new Microsoft.Extensions.Time.Testing.FakeTimeProvider(now);
+
+        var services = new ServiceCollection();
+        var dbName = Guid.NewGuid().ToString();
+        services.AddDbContext<TestDbContext>(options => options.UseInMemoryDatabase(dbName));
+        services.AddScoped<IOutboxRepository>(sp => new EntityFrameworkCoreOutboxRepository<TestDbContext>(sp, fakeTime));
+        var sp = services.BuildServiceProvider();
+
+        using (var scope = sp.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<TestDbContext>();
+            // DeliverAt == now -> MUST be fetched (<= boundary)
+            dbContext.Messages.Add(new OutboxMessageEntity
+            {
+                Id = Guid.NewGuid(),
+                MessageType = "ExactDeliver",
+                Payload = new byte[] { 1 },
+                HeadersJson = "{}",
+                CreatedAt = now.AddMinutes(-5),
+                DeliverAt = now,
+                State = 0
+            });
+            // DeliverAt == now + 1ms -> MUST NOT be fetched
+            dbContext.Messages.Add(new OutboxMessageEntity
+            {
+                Id = Guid.NewGuid(),
+                MessageType = "FutureDeliver",
+                Payload = new byte[] { 2 },
+                HeadersJson = "{}",
+                CreatedAt = now.AddMinutes(-5),
+                DeliverAt = now.AddMilliseconds(1),
+                State = 0
+            });
+            await dbContext.SaveChangesAsync();
+        }
+
+        var repo = sp.GetRequiredService<IOutboxRepository>();
+        var fetched = await repo.FetchPendingAsync(10);
+
+        fetched.Should().HaveCount(1);
+        fetched[0].MessageType.Should().Be("ExactDeliver");
+    }
+
+    [Fact]
+    public async Task ReclaimStaleMessagesAsync_WithTimeProvider_BoundaryCheck()
+    {
+        var now = new DateTimeOffset(2026, 8, 22, 12, 0, 0, TimeSpan.Zero);
+        var fakeTime = new Microsoft.Extensions.Time.Testing.FakeTimeProvider(now);
+
+        var services = new ServiceCollection();
+        var dbName = Guid.NewGuid().ToString();
+        services.AddDbContext<TestDbContext>(options => options.UseInMemoryDatabase(dbName));
+        services.AddScoped<IOutboxRepository>(sp => new EntityFrameworkCoreOutboxRepository<TestDbContext>(sp, fakeTime));
+        var sp = services.BuildServiceProvider();
+
+        var staleTimeout = TimeSpan.FromMinutes(5);
+        var threshold = now.Subtract(staleTimeout);
+
+        using (var scope = sp.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<TestDbContext>();
+            // CreatedAt < threshold -> Reclaimed
+            dbContext.Messages.Add(new OutboxMessageEntity
+            {
+                Id = Guid.NewGuid(),
+                MessageType = "StaleOld",
+                Payload = new byte[] { 1 },
+                HeadersJson = "{}",
+                CreatedAt = threshold.AddMilliseconds(-1),
+                State = 1
+            });
+            // CreatedAt == threshold -> NOT reclaimed (< boundary)
+            dbContext.Messages.Add(new OutboxMessageEntity
+            {
+                Id = Guid.NewGuid(),
+                MessageType = "BoundaryExact",
+                Payload = new byte[] { 2 },
+                HeadersJson = "{}",
+                CreatedAt = threshold,
+                State = 1
+            });
+            await dbContext.SaveChangesAsync();
+        }
+
+        var repo = sp.GetRequiredService<IOutboxRepository>();
+        var reclaimed = await repo.ReclaimStaleMessagesAsync(staleTimeout);
+
+        reclaimed.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task PurgeDispatchedMessagesAsync_ProcessedAtBoundaryExact_DoesNotPurge()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var sp = CreateServiceProvider(dbName);
+        var repo = sp.GetRequiredService<IOutboxRepository>();
+
+        var cutoff = new DateTimeOffset(2026, 8, 22, 12, 0, 0, TimeSpan.Zero);
+
+        using (var scope = sp.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<TestDbContext>();
+            // ProcessedAt == cutoff -> MUST NOT be purged (< cutoff boundary)
+            dbContext.Messages.Add(new OutboxMessageEntity
+            {
+                Id = Guid.NewGuid(),
+                MessageType = "ExactCutoffProcessed",
+                Payload = Array.Empty<byte>(),
+                HeadersJson = "{}",
+                CreatedAt = cutoff.AddDays(-2),
+                ProcessedAt = cutoff,
+                State = 2
+            });
+            // ProcessedAt == null and CreatedAt == cutoff -> MUST NOT be purged
+            dbContext.Messages.Add(new OutboxMessageEntity
+            {
+                Id = Guid.NewGuid(),
+                MessageType = "ExactCutoffCreated",
+                Payload = Array.Empty<byte>(),
+                HeadersJson = "{}",
+                CreatedAt = cutoff,
+                ProcessedAt = null,
+                State = 2
+            });
+            await dbContext.SaveChangesAsync();
+        }
+
+        var purged = await repo.PurgeDispatchedMessagesAsync(cutoff, batchSize: 10);
+        purged.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task DeadLetterRepository_DeleteAsync_WhenNonExistent_DoesNotThrow()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var sp = CreateServiceProvider(dbName);
+        var deadRepo = sp.GetRequiredService<IDeadLetterRepository>();
+
+        await deadRepo.DeleteAsync(Guid.NewGuid());
+    }
+
+    [Fact]
+    public async Task DeadLetterRepository_PurgeAsync_WhenEmpty_DoesNotThrow()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var sp = CreateServiceProvider(dbName);
+        var deadRepo = sp.GetRequiredService<IDeadLetterRepository>();
+
+        await deadRepo.PurgeAsync(DateTimeOffset.UtcNow);
+    }
+
+    [Fact]
+    public async Task DeadLetterRepository_GetAsync_WithAfterAndLimit_FiltersProperly()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var sp = CreateServiceProvider(dbName);
+        var deadRepo = sp.GetRequiredService<IDeadLetterRepository>();
+
+        var baseTime = new DateTimeOffset(2026, 8, 22, 10, 0, 0, TimeSpan.Zero);
+        var msg1 = new DeadLetterMessage(Guid.NewGuid(), Guid.NewGuid(), "M1", ReadOnlyMemory<byte>.Empty, null, null, ReadOnlyMemory<byte>.Empty, baseTime, baseTime.AddMinutes(1), 3, "r1", "e1");
+        var msg2 = new DeadLetterMessage(Guid.NewGuid(), Guid.NewGuid(), "M2", ReadOnlyMemory<byte>.Empty, null, null, ReadOnlyMemory<byte>.Empty, baseTime, baseTime.AddMinutes(2), 3, "r2", "e2");
+
+        await deadRepo.InsertAsync(msg1, null);
+        await deadRepo.InsertAsync(msg2, null);
+
+        var list = await deadRepo.GetAsync(limit: 10, after: baseTime.AddMinutes(1));
+        list.Should().HaveCount(1);
+        list[0].MessageType.Should().Be("M2");
+    }
+
+    [Fact]
+    public async Task IdempotencyRepository_PurgeExpiredRecordsAsync_PurgesOldRecords()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var sp = CreateServiceProvider(dbName);
+
+        var olderThan = new DateTimeOffset(2026, 8, 22, 12, 0, 0, TimeSpan.Zero);
+
+        var recOld = new IdempotencyRecord("msg-1", "consumer-1", olderThan.AddHours(-1));
+        var recNew = new IdempotencyRecord("msg-2", "consumer-1", olderThan.AddHours(1));
+
+        using (var scope = sp.CreateScope())
+        {
+            var idemRepo = scope.ServiceProvider.GetRequiredService<IIdempotencyRepository>();
+            var dbContext = scope.ServiceProvider.GetRequiredService<TestDbContext>();
+            await idemRepo.TryInsertAsync(recOld);
+            await idemRepo.TryInsertAsync(recNew);
+            await dbContext.SaveChangesAsync();
+        }
+
+        using (var scope = sp.CreateScope())
+        {
+            var idemRepo = scope.ServiceProvider.GetRequiredService<IIdempotencyRepository>();
+            await idemRepo.PurgeExpiredRecordsAsync(olderThan);
+        }
+
+        using (var scope = sp.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<TestDbContext>();
+            var remaining = await dbContext.IdempotencyRecords.ToListAsync();
+            remaining.Should().HaveCount(1);
+            remaining[0].MessageId.Should().Be("msg-2");
+        }
+
+        using (var scope = sp.CreateScope())
+        {
+            var idemRepo = scope.ServiceProvider.GetRequiredService<IIdempotencyRepository>();
+            // Calling again when no records match olderThan should not fail
+            await idemRepo.PurgeExpiredRecordsAsync(olderThan);
+        }
+    }
+
+    [Fact]
+    public async Task FetchPendingAsync_WhenNoMessages_DoesNotCallSaveChangesAsync()
+    {
+        var interceptor = new TestSaveChangesInterceptor();
+        var sp = CreateServiceProvider(Guid.NewGuid().ToString(), interceptor);
+        var repo = sp.GetRequiredService<IOutboxRepository>();
+        
+        var fetched = await repo.FetchPendingAsync(10);
+        fetched.Should().BeEmpty();
+        interceptor.SaveChangesCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task DeadLetterRepository_PurgeAsync_WhenNoMatchingRecords_DoesNotCallSaveChangesAsync()
+    {
+        var interceptor = new TestSaveChangesInterceptor();
+        var sp = CreateServiceProvider(Guid.NewGuid().ToString(), interceptor);
+        var deadRepo = sp.GetRequiredService<IDeadLetterRepository>();
+
+        await deadRepo.PurgeAsync(DateTimeOffset.UtcNow);
+        interceptor.SaveChangesCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task IdempotencyRepository_PurgeExpiredRecordsAsync_WhenNoMatchingRecords_DoesNotCallSaveChangesAsync()
+    {
+        var interceptor = new TestSaveChangesInterceptor();
+        var sp = CreateServiceProvider(Guid.NewGuid().ToString(), interceptor);
+        var idemRepo = sp.GetRequiredService<IIdempotencyRepository>();
+
+        await idemRepo.PurgeExpiredRecordsAsync(DateTimeOffset.UtcNow);
+        interceptor.SaveChangesCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task MarkAsDispatchedAsync_WhenEmptyMessages_DoesNotCreateScope()
+    {
+        var mockSp = Substitute.For<IServiceProvider>();
+        mockSp.GetService(Arg.Any<Type>()).Returns(_ => throw new InvalidOperationException("Scope created"));
+        var repo = new EntityFrameworkCoreOutboxRepository<TestDbContext>(mockSp);
+
+        await repo.MarkAsDispatchedAsync(Array.Empty<OutboxMessage>());
+    }
+
+    [Fact]
+    public async Task MarkAsFailedAsync_WhenEmptyMessages_DoesNotCreateScope()
+    {
+        var mockSp = Substitute.For<IServiceProvider>();
+        mockSp.GetService(Arg.Any<Type>()).Returns(_ => throw new InvalidOperationException("Scope created"));
+        var repo = new EntityFrameworkCoreOutboxRepository<TestDbContext>(mockSp);
+
+        await repo.MarkAsFailedAsync(Array.Empty<OutboxMessage>(), "err");
+    }
+
+    [Fact]
+    public async Task PurgeDispatchedMessagesAsync_WhenBatchSizeZeroOrNegative_DoesNotCreateScope()
+    {
+        var mockSp = Substitute.For<IServiceProvider>();
+        mockSp.GetService(Arg.Any<Type>()).Returns(_ => throw new InvalidOperationException("Scope created"));
+        var repo = new EntityFrameworkCoreOutboxRepository<TestDbContext>(mockSp);
+
+        var res0 = await repo.PurgeDispatchedMessagesAsync(DateTimeOffset.UtcNow, batchSize: 0);
+        res0.Should().Be(0);
+
+        var resNeg = await repo.PurgeDispatchedMessagesAsync(DateTimeOffset.UtcNow, batchSize: -1);
+        resNeg.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task MarkAsDispatchedAsync_WithTimeProvider_SetsProcessedAtToTimeProviderNow()
+    {
+        var expectedNow = new DateTimeOffset(2026, 8, 22, 14, 30, 0, TimeSpan.Zero);
+        var fakeTime = new Microsoft.Extensions.Time.Testing.FakeTimeProvider(expectedNow);
+
+        var services = new ServiceCollection();
+        var dbName = Guid.NewGuid().ToString();
+        services.AddDbContext<TestDbContext>(options => options.UseInMemoryDatabase(dbName));
+        services.AddScoped<IOutboxRepository>(sp => new EntityFrameworkCoreOutboxRepository<TestDbContext>(sp, fakeTime));
+        var sp = services.BuildServiceProvider();
+
+        var msgId = Guid.NewGuid();
+        using (var scope = sp.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<TestDbContext>();
+            dbContext.Messages.Add(new OutboxMessageEntity
+            {
+                Id = msgId,
+                MessageType = "TestMsg",
+                Payload = new byte[] { 1 },
+                HeadersJson = "{}",
+                CreatedAt = expectedNow.AddMinutes(-5),
+                State = 1
+            });
+            await dbContext.SaveChangesAsync();
+        }
+
+        var repo = sp.GetRequiredService<IOutboxRepository>();
+        await repo.MarkAsDispatchedAsync(new[] { new OutboxMessage(msgId, "TestMsg", Array.Empty<byte>(), null, null, Array.Empty<byte>(), expectedNow.AddMinutes(-5), null, null, 0, 0, null) });
+
+        using (var scope = sp.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<TestDbContext>();
+            var updated = await dbContext.Messages.FindAsync(msgId);
+            updated.Should().NotBeNull();
+            updated!.State.Should().Be(2);
+            updated.ProcessedAt.Should().Be(expectedNow);
+        }
+    }
 }
+
+
+
 
 
 

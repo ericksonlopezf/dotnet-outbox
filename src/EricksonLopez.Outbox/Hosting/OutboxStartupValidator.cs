@@ -1,4 +1,6 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using EricksonLopez.Outbox;
@@ -31,7 +33,6 @@ namespace EricksonLopez.Outbox.Hosting;
 /// detailing the missing dependencies, which halts application startup.
 /// </para>
 /// </remarks>
-[System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
 internal sealed class OutboxStartupValidator : IHostedService
 {
     private readonly IServiceProvider _serviceProvider;
@@ -69,7 +70,7 @@ internal sealed class OutboxStartupValidator : IHostedService
 
     private void ValidateCriticalDependencies()
     {
-        var errors = new System.Collections.Generic.List<string>();
+        var errors = new List<string>();
 
         // IOutboxSerializer - required for all message storage paths.
         if (_serviceProvider.GetService<IOutboxSerializer>() is null)
@@ -137,10 +138,11 @@ internal sealed class OutboxStartupValidator : IHostedService
         var deadLetterRepo = _serviceProvider.GetService<IDeadLetterRepository>();
         if (deadLetterRepo is not null && !deadLetterRepo.IsFirstPartyImplementation)
         {
-            // GetType().FullName is acceptable here: this path executes only ONCE at startup,
-            // only for unknown third-party implementations, and its purpose is diagnostic logging
-            // which explicitly requires the type name. Not a hot path; not a violation of Zero-Reflection philosophy.
-            _logger.ThirdPartyDeadLetterRepositoryRegistered(deadLetterRepo.GetType().FullName ?? deadLetterRepo.GetType().Name);
+            _logger.ThirdPartyDeadLetterRepositoryRegistered(deadLetterRepo.GetType().ToString());
         }
     }
 }
+
+
+
+

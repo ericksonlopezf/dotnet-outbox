@@ -1,3 +1,5 @@
+<!-- Copyright © Erickson Lopez. MIT License. -->
+
 # Level 7: Scalability and Multi-Instance Deployment
 
 This level covers horizontal scaling patterns, database locking strategies, and production deployment considerations.
