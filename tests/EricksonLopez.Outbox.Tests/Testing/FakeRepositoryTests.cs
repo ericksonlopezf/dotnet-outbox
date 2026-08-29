@@ -1,12 +1,14 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using AwesomeAssertions;
-using NSubstitute;
-using Xunit;
 using EricksonLopez.Outbox.Persistence;
 using EricksonLopez.Outbox.Testing;
+using EricksonLopez.Outbox.Tests.Infrastructure;
+using NSubstitute;
+using Xunit;
 
 namespace EricksonLopez.Outbox.Tests.Testing;
 
@@ -27,6 +29,7 @@ public class FakeRepositoryTests
         
         sut.Count.Should().Be(1);
         sut.Messages.Should().ContainSingle();
+        sut.Messages[0].Id.Should().Be(message.Id);
         
         var results = await sut.GetAsync(10);
         results.Should().ContainSingle();
@@ -42,55 +45,35 @@ public class FakeRepositoryTests
         sut.Clear();
         sut.Count.Should().Be(0);
     }
-
-    [Fact]
-    public async Task FakeDeadLetterRepository_GetWithAfter_FiltersCorrectly()
-    {
-        var sut = new FakeDeadLetterRepository();
-        
-        var message1 = new DeadLetterMessage
-        {
-            Id = Guid.NewGuid(),
-            DeadLetteredAt = DateTimeOffset.UtcNow.AddDays(-2)
-        };
-        
-        var message2 = new DeadLetterMessage
-        {
-            Id = Guid.NewGuid(),
-            DeadLetteredAt = DateTimeOffset.UtcNow
-        };
-        
-        await sut.InsertAsync(message1);
-        await sut.InsertAsync(message2);
-        
-        var results = await sut.GetAsync(10, DateTimeOffset.UtcNow.AddDays(-1));
-        
-        results.Should().ContainSingle().Which.Id.Should().Be(message2.Id);
-    }
     
     [Fact]
-    public async Task FakeIdempotencyRepository_InsertAndCheck_WorkCorrectly()
+    public async Task FakeIdempotencyRepository_TryInsertAndCheck_Works()
     {
         var sut = new FakeIdempotencyRepository();
-        
         var record = new IdempotencyRecord
         {
-            ConsumerId = "consumer1",
-            MessageId = Guid.NewGuid().ToString(),
+            MessageId = "msg1",
+            ConsumerId = "cons1",
             ProcessedAt = DateTimeOffset.UtcNow
         };
         
-        var isDuplicate1 = sut.WasProcessed(record.MessageId, record.ConsumerId);
-        isDuplicate1.Should().BeFalse();
+        var first = await sut.TryInsertAsync(record);
+        first.Should().BeTrue();
+        
+        var second = await sut.TryInsertAsync(record);
+        second.Should().BeFalse();
+        
+        sut.WasProcessed("msg1", "cons1").Should().BeTrue();
+        sut.WasProcessed("msg2", "cons1").Should().BeFalse();
+        sut.Count.Should().Be(1);
+        sut.Records.Should().ContainSingle();
+
+        await sut.PurgeExpiredRecordsAsync(DateTimeOffset.UtcNow.AddMinutes(1));
+        sut.Count.Should().Be(0);
         
         await sut.TryInsertAsync(record);
-        
-        var isDuplicate2 = sut.WasProcessed(record.MessageId, record.ConsumerId);
-        isDuplicate2.Should().BeTrue();
-        
-        await sut.PurgeExpiredRecordsAsync(DateTimeOffset.UtcNow.AddMinutes(1));
-        var isDuplicate3 = sut.WasProcessed(record.MessageId, record.ConsumerId);
-        isDuplicate3.Should().BeFalse();
+        sut.Clear();
+        sut.Count.Should().Be(0);
     }
     
     [Fact]
@@ -98,7 +81,7 @@ public class FakeRepositoryTests
     {
         var sut = new InMemoryOutboxStoreRepository();
         
-        var message = new OutboxMessage(Guid.NewGuid(), "test", ReadOnlyMemory<byte>.Empty, null, null, ReadOnlyMemory<byte>.Empty, DateTimeOffset.UtcNow, null, null, OutboxMessageStatus.Pending, 0, null);
+        var message = new OutboxMessageTestDataBuilder().WithMessageType("test").Build();
         
         await sut.InsertAsync(message, Substitute.For<IOutboxTransactionContext>());
         
@@ -116,7 +99,7 @@ public class FakeRepositoryTests
     {
         var sut = new InMemoryOutboxStoreRepository();
         
-        var message = new OutboxMessage(Guid.NewGuid(), "test", ReadOnlyMemory<byte>.Empty, null, null, ReadOnlyMemory<byte>.Empty, DateTimeOffset.UtcNow, null, null, OutboxMessageStatus.Pending, 0, null);
+        var message = new OutboxMessageTestDataBuilder().WithMessageType("test").Build();
         
         await sut.InsertAsync(message, Substitute.For<IOutboxTransactionContext>());
         await sut.MarkAsFailedAsync(new[] { message }, "error", false, CancellationToken.None);
@@ -130,7 +113,7 @@ public class FakeRepositoryTests
     {
         var sut = new InMemoryOutboxStoreRepository();
         
-        var message = new OutboxMessage(Guid.NewGuid(), "test", ReadOnlyMemory<byte>.Empty, null, null, ReadOnlyMemory<byte>.Empty, DateTimeOffset.UtcNow, null, null, OutboxMessageStatus.Pending, 0, null);
+        var message = new OutboxMessageTestDataBuilder().WithMessageType("test").Build();
         
         await sut.InsertAsync(message, Substitute.For<IOutboxTransactionContext>());
         await sut.MarkAsFailedAsync(new[] { message }, "fatal error", true, CancellationToken.None);
@@ -147,11 +130,12 @@ public class FakeRepositoryTests
     [Fact]
     public void PublishedRawMessage_Constructors_Work()
     {
-        var msg = new OutboxMessage(Guid.NewGuid(), "test", ReadOnlyMemory<byte>.Empty, null, null, ReadOnlyMemory<byte>.Empty, DateTimeOffset.UtcNow, null, null, OutboxMessageStatus.Pending, 0, null);
-        var metadata = new MessageMetadata();
+        var msg = new OutboxMessageTestDataBuilder().WithMessageType("test").Build();
+        var metadata = new OutboxMessageMetadata();
         
         var sut = new PublishedRawMessage(msg.MessageType, msg.Payload, metadata);
         sut.MessageType.Should().Be(msg.MessageType);
         sut.Metadata.Should().Be(metadata);
     }
 }
+

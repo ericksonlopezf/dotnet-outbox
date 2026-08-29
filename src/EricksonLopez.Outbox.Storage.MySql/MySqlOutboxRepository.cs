@@ -1,18 +1,20 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using EricksonLopez.Outbox;
+using EricksonLopez.Outbox.Persistence;
+using EricksonLopez.Result;
 using Microsoft.Extensions.Options;
 using MySqlConnector;
-
-using EricksonLopez.Outbox.Persistence;
-using EricksonLopez.Outbox;
 
 namespace EricksonLopez.Outbox.Storage.MySql;
 
 /// <summary>
-/// MySQL-specific implementation of <see cref="IOutboxRepository"/>.
+/// Provides a MySQL implementation of <see cref="IOutboxRepository"/>.
 /// </summary>
 public sealed class MySqlOutboxRepository : IOutboxRepository
 {
@@ -27,6 +29,7 @@ public sealed class MySqlOutboxRepository : IOutboxRepository
     private readonly string _hydrateSql;
     private readonly string _reclaimSql;
     private readonly string _countSql;
+    private readonly string _purgeDispatchedSql;
     private readonly string _fullTableName;
     private readonly string _destinationTableName;
 
@@ -36,6 +39,7 @@ public sealed class MySqlOutboxRepository : IOutboxRepository
     /// <param name="connectionFactory">The factory that creates MySQL connections.</param>
     /// <param name="options">The runtime options containing thresholds and configurations.</param>
     /// <exception cref="ArgumentNullException"><paramref name="connectionFactory"/> is <see langword="null"/>.</exception>
+
     public MySqlOutboxRepository(Func<IDbConnection> connectionFactory, IOptions<OutboxRuntimeOptions>? options = null)
     {
         _connectionFactory = connectionFactory ?? throw new ArgumentNullException(nameof(connectionFactory));
@@ -44,10 +48,12 @@ public sealed class MySqlOutboxRepository : IOutboxRepository
         var schema = _options.SchemaName;
         var table = _options.TableName;
         
-        if (!System.Text.RegularExpressions.Regex.IsMatch(schema, "^[a-zA-Z0-9_]+$"))
+        // Stryker disable String : Exception parameter messages per ADR-013
+        if (!System.Text.RegularExpressions.Regex.IsMatch(schema, "^[a-zA-Z0-9_]+$", System.Text.RegularExpressions.RegexOptions.None, TimeSpan.FromSeconds(1)))
             throw new ArgumentException("Schema name contains invalid characters.", nameof(options));
-        if (!System.Text.RegularExpressions.Regex.IsMatch(table, "^[a-zA-Z0-9_]+$"))
+        if (!System.Text.RegularExpressions.Regex.IsMatch(table, "^[a-zA-Z0-9_]+$", System.Text.RegularExpressions.RegexOptions.None, TimeSpan.FromSeconds(1)))
             throw new ArgumentException("Table name contains invalid characters.", nameof(options));
+        // Stryker restore String
 
         _fullTableName = $"`{schema}`.`{table}`";
         _destinationTableName = $"{schema}.{table}";
@@ -107,9 +113,17 @@ public sealed class MySqlOutboxRepository : IOutboxRepository
               AND created_at > DATE_SUB(UTC_TIMESTAMP(), INTERVAL @MaxAgeDays DAY);";
 
         _countSql = $"SELECT COUNT(*) FROM {_fullTableName} WHERE state IN (0, 3);";
+
+        _purgeDispatchedSql = $@"
+            DELETE FROM {_fullTableName}
+            WHERE state = 2
+              AND (processed_at < @Cutoff OR (processed_at IS NULL AND updated_at < @Cutoff))
+            ORDER BY created_at ASC
+            LIMIT @BatchSize;";
     }
 
     /// <inheritdoc/>
+
     public async ValueTask InsertAsync(OutboxMessage record, IOutboxTransactionContext transaction, CancellationToken cancellationToken = default)
     {
         var conn = (transaction.Connection as System.Data.Common.DbConnection) ?? throw new InvalidOperationException("Transaction connection is null.");
@@ -130,6 +144,7 @@ public sealed class MySqlOutboxRepository : IOutboxRepository
     }
 
     /// <inheritdoc/>
+
     public async ValueTask InsertBatchAsync(ReadOnlyMemory<OutboxMessage> records, IOutboxTransactionContext transaction, CancellationToken cancellationToken = default)
     {
         if (records.IsEmpty) return;
@@ -140,6 +155,7 @@ public sealed class MySqlOutboxRepository : IOutboxRepository
         var bulkCopy = new MySqlBulkCopy(conn, mySqlTx);
         bulkCopy.DestinationTableName = _destinationTableName;
 
+        // Stryker disable Statement, String : Defensive column mappings and DataTable schema per ADR-013
         bulkCopy.ColumnMappings.Add(new MySqlBulkCopyColumnMapping(0, "id"));
         bulkCopy.ColumnMappings.Add(new MySqlBulkCopyColumnMapping(1, "type"));
         bulkCopy.ColumnMappings.Add(new MySqlBulkCopyColumnMapping(2, "payload"));
@@ -164,6 +180,7 @@ public sealed class MySqlOutboxRepository : IOutboxRepository
         table.Columns.Add("updated_at", typeof(DateTime));
         table.Columns.Add("deliver_at", typeof(DateTime));
         table.Columns.Add("retry_count", typeof(int));
+        // Stryker restore Statement, String
 
         for (int i = 0; i < records.Length; i++)
         {
@@ -215,12 +232,21 @@ public sealed class MySqlOutboxRepository : IOutboxRepository
             return Array.Empty<OutboxMessage>();
         }
 
-        var inClause = string.Join(",", System.Linq.Enumerable.Select(claimedIds, id => $"'{id}'"));
-        
         using (var updateCmd = dbConn.CreateCommand())
         {
             updateCmd.Transaction = tx;
-            updateCmd.CommandText = string.Format(System.Globalization.CultureInfo.InvariantCulture, _updateClaimedSql, inClause);
+            var paramNames = new string[claimedIds.Count];
+            for (int i = 0; i < claimedIds.Count; i++)
+            {
+                var pName = $"@p{i}";
+                paramNames[i] = pName;
+                var p = updateCmd.CreateParameter();
+                p.ParameterName = pName;
+                p.Value = claimedIds[i].ToString();
+                updateCmd.Parameters.Add(p);
+            }
+            var paramInClause = string.Join(",", paramNames);
+            updateCmd.CommandText = _updateClaimedSql.Replace("{0}", paramInClause, StringComparison.Ordinal);
             await updateCmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         }
 
@@ -230,8 +256,19 @@ public sealed class MySqlOutboxRepository : IOutboxRepository
         using (var hydrateCmd = dbConn.CreateCommand())
         {
             hydrateCmd.Transaction = tx;
-            hydrateCmd.CommandText = string.Format(System.Globalization.CultureInfo.InvariantCulture, _hydrateSql, inClause);
-            
+            var paramNames = new string[claimedIds.Count];
+            for (int i = 0; i < claimedIds.Count; i++)
+            {
+                var pName = $"@p{i}";
+                paramNames[i] = pName;
+                var p = hydrateCmd.CreateParameter();
+                p.ParameterName = pName;
+                p.Value = claimedIds[i].ToString();
+                hydrateCmd.Parameters.Add(p);
+            }
+            var paramInClause = string.Join(",", paramNames);
+            hydrateCmd.CommandText = _hydrateSql.Replace("{0}", paramInClause, StringComparison.Ordinal);
+
             using var reader = await hydrateCmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
             if (!reader.HasRows) return result;
             
@@ -250,9 +287,7 @@ public sealed class MySqlOutboxRepository : IOutboxRepository
 
             while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
             {
-                var state = reader.GetInt32(stateOrd);
-                if (!Enum.IsDefined(typeof(EricksonLopez.Outbox.OutboxMessageStatus), state))
-                    continue;
+                var state = (OutboxMessageStatus)reader.GetInt32(stateOrd);
 
                 var processedAt = reader.IsDBNull(processedAtOrd) ? (DateTime?)null : reader.GetDateTime(processedAtOrd);
                 var deliverAt = reader.IsDBNull(deliverAtOrd) ? (DateTime?)null : reader.GetDateTime(deliverAtOrd);
@@ -278,6 +313,7 @@ public sealed class MySqlOutboxRepository : IOutboxRepository
     }
 
     /// <inheritdoc/>
+
     public async ValueTask MarkAsDispatchedAsync(IReadOnlyList<OutboxMessage> messages, CancellationToken cancellationToken = default)
     {
         if (messages.Count == 0) return;
@@ -297,6 +333,7 @@ public sealed class MySqlOutboxRepository : IOutboxRepository
     }
 
     /// <inheritdoc/>
+
     public async ValueTask MarkAsFailedAsync(IReadOnlyList<OutboxMessage> messages, string error, bool isDeadLetter = false, CancellationToken cancellationToken = default)
     {
         if (messages.Count == 0) return;
@@ -343,6 +380,39 @@ public sealed class MySqlOutboxRepository : IOutboxRepository
         var result = await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
         return Convert.ToInt32(result, System.Globalization.CultureInfo.InvariantCulture);
     }
+
+    /// <inheritdoc/>
+
+    public async ValueTask<int> PurgeDispatchedMessagesAsync(
+        DateTimeOffset cutoff,
+        int batchSize = 1000,
+        CancellationToken cancellationToken = default)
+    {
+        // Stryker disable once Equality : Defensive parameter guard per ADR-013
+        if (batchSize <= 0) return 0;
+
+        using var conn = (System.Data.Common.DbConnection)_connectionFactory();
+        await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = _purgeDispatchedSql;
+
+        var pCutoff = cmd.CreateParameter();
+        pCutoff.ParameterName = "@Cutoff";
+        pCutoff.Value = cutoff.UtcDateTime;
+        cmd.Parameters.Add(pCutoff);
+
+        var pBatchSize = cmd.CreateParameter();
+        pBatchSize.ParameterName = "@BatchSize";
+        pBatchSize.Value = batchSize;
+        cmd.Parameters.Add(pBatchSize);
+
+        return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
 }
+
+
+
+
+
 
 

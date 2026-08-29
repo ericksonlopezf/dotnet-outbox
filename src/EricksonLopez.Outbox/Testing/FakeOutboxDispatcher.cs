@@ -1,3 +1,4 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -5,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using EricksonLopez.Outbox;
 using EricksonLopez.Outbox.Persistence;
+using EricksonLopez.Result;
 
 namespace EricksonLopez.Outbox.Testing;
 
@@ -67,7 +69,7 @@ public sealed class FakeOutboxDispatcher
         {
             if (cancellationToken.IsCancellationRequested) break;
 
-            var metadata = new MessageMetadata(
+            var metadata = new OutboxMessageMetadata(
                 correlationId: message.CorrelationId,
                 causationId: message.CausationId,
                 messageType: message.MessageType);
@@ -124,3 +126,8 @@ public sealed class FakeOutboxDispatcher
                 $"Expected no messages to be dispatched, but {_dispatchedMessages.Count} were dispatched.");
     }
 }
+
+
+
+
+

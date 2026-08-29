@@ -1,6 +1,8 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Amazon.SQS;
 using Amazon.SQS.Model;
@@ -10,7 +12,7 @@ using EricksonLopez.Outbox.Serialization;
 namespace EricksonLopez.Outbox.Brokers.AwsSqs;
 
 /// <summary>
-/// Publishes outbox messages to Amazon Simple Queue Service (SQS).
+/// Provides a broker publisher implementation that dispatches outbox messages to Amazon Simple Queue Service (SQS).
 /// </summary>
 public sealed class AwsSqsBrokerPublisher : IBrokerPublisher
 {
@@ -157,7 +159,7 @@ public sealed class AwsSqsBrokerPublisher : IBrokerPublisher
     /// <inheritdoc/>
     public async ValueTask<DispatchResult> PublishRawAsync(
         OutboxMessage message,
-        MessageMetadata metadata,
+        OutboxMessageMetadata metadata,
         DispatchContext context)
     {
         try
@@ -167,7 +169,7 @@ public sealed class AwsSqsBrokerPublisher : IBrokerPublisher
             {
                 QueueUrl = _queueUrl,
                 MessageBody = body,
-                MessageAttributes = new System.Collections.Generic.Dictionary<string, MessageAttributeValue>
+                MessageAttributes = new Dictionary<string, MessageAttributeValue>
                 {
                     ["MessageType"] = new() { DataType = "String", StringValue = message.MessageType }
                 }
@@ -188,3 +190,8 @@ public sealed class AwsSqsBrokerPublisher : IBrokerPublisher
         }
     }
 }
+
+
+
+
+

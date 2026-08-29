@@ -1,10 +1,10 @@
+<!-- Copyright © Erickson Lopez. MIT License. -->
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <Description>PostgreSQL storage provider for EricksonLopez.Outbox. Enables reliable, high-performance, Zero-Reflection, NativeAOT-ready outbox pattern implementation using PostgreSQL.</Description>
-    <PackageTags>$(PackageTags);postgresql;postgres;npgsql;database</PackageTags>
+    <PackageTags>$(CommonPackageTags);postgresql;postgres;npgsql;database;native-aot</PackageTags>
     <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
-    <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
@@ -17,7 +17,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    
+    <InternalsVisibleTo Include="EricksonLopez.Outbox.Storage.PostgreSql.Tests" />
   </ItemGroup>
 </Project>
-

@@ -1,96 +1,57 @@
+<!-- Copyright © Erickson Lopez. MIT License. -->
+
 # Migration Guide
 
-This guide describes any breaking changes introduced across versions of the library
+This guide describes breaking changes introduced across versions of `EricksonLopez.Outbox`
 and how to adapt your code.
 
-> [!NOTE]
-> This is the **first public release** of `EricksonLopez.Outbox` (**v1.0.0**).
-> There are no prior public versions to migrate from.
-> This document will be updated when future versions introduce breaking changes.
+---
+
+## Migrating from v1.0.0 to v2.0.0
+
+`EricksonLopez.Outbox` v2.0.0 introduces architecture segregation, performance optimizations, and breaking contract changes to establish a cleaner domain/abstractions boundary.
+
+### 1. `IIntegrationEvent` Interface Deletion
+- **Change**: `IIntegrationEvent : IMessage` has been deleted from `EricksonLopez.Outbox.Contracts`.
+- **Action**: Remove `: IIntegrationEvent` from your message classes/records. Decorate POCO message models with `[OutboxMessage(Topic = "...")]` or use the first-class domain event publishers in `EricksonLopez.Outbox.Events` / `EricksonLopez.Outbox.Inbox.Events`.
+
+```diff
+- public sealed record OrderCreatedEvent(Guid Id, decimal Amount) : IIntegrationEvent;
++ [OutboxMessage(Topic = "orders.created")]
++ public sealed record OrderCreatedEvent(Guid Id, decimal Amount);
+```
+
+### 2. `IOutbox.Publish` Moved to Extension Method
+- **Change**: `Publish<TMessage>` has been removed from the `IOutbox` interface to keep the persistence SPI minimal. It is now provided as an extension method in `EricksonLopez.Outbox.OutboxPublishExtensions`.
+- **Action**: Add `using EricksonLopez.Outbox;`. In test doubles/mocks, configure and assert `IOutbox.StoreAsync(...)` instead of `Publish`.
+
+### 3. `MessageMetadata` Renamed to `OutboxMessageMetadata`
+- **Change**: `MessageMetadata` has been renamed to `readonly struct OutboxMessageMetadata` and moved to `EricksonLopez.Outbox.Abstractions`.
+- **Action**: Replace `MessageMetadata` with `OutboxMessageMetadata` and add `using EricksonLopez.Outbox.Abstractions;`.
+
+```diff
+- using EricksonLopez.Outbox;
+- public ValueTask<DispatchResult> PublishRawAsync(OutboxMessage message, MessageMetadata metadata, DispatchContext context);
++ using EricksonLopez.Outbox.Abstractions;
++ public ValueTask<DispatchResult> PublishRawAsync(OutboxMessage message, OutboxMessageMetadata metadata, DispatchContext context);
+```
+
+### 4. Core Abstractions Assembly Segregation
+- **Change**: All foundational contracts (`IOutbox`, `[OutboxMessage]`, `[IdempotentConsumer]`, `OutboxMessageStatus`, `IOutboxSerializer`, etc.) now reside in `EricksonLopez.Outbox.Abstractions.dll`.
+- **Action**: Reference `EricksonLopez.Outbox.Abstractions` in domain and application projects instead of referencing the full `EricksonLopez.Outbox` implementation package.
+
+### 5. MassTransit Native AOT Flag Update
+- **Change**: `EricksonLopez.Outbox.MassTransit` has set `IsAotCompatible=false` due to MassTransit's upstream reflection architecture.
+- **Action**: For Native AOT deployments, use raw broker transport packages (`EricksonLopez.Outbox.Brokers.RabbitMQ`, `Kafka`, `AzureServiceBus`, `AwsSqs`, `GooglePubSub`, `Nats`, `RedisStreams`) or `EricksonLopez.Outbox.Events`.
+
+### 6. Consolidated PostgreSQL DDL
+- **Change**: Separate numbered SQL scripts are now unified into `scripts/postgres/Outbox_DDL.sql`.
+- **Action**: Update automated database migration runners (Flyway, DbUp, etc.) to target `scripts/postgres/Outbox_DDL.sql`.
 
 ---
 
 ## v1.0.0 — Initial Release
 
-`EricksonLopez.Outbox` v1.0.0 is the initial public release of the library. The
-full public API surface is documented in the [API Reference](api-reference.md).
-
-If you were using an **internal pre-release build** (e.g., a local `nuget pack`
-from the repository before the official publish), the following changes were made
-during the pre-release stabilization period:
-
-### 1. Storage Repository Rename (Dapper Removal)
-
-During internal development, an early proof-of-concept used Dapper for storage.
-The final release uses raw ADO.NET exclusively (see [ADR-010](adr/010-remove_dapper_raw_adonet.md)).
-
-**How to migrate** (from an internal pre-release build only):
-
-If you were using `SqlServerDapperOutboxRepository`, it is now simply
-`SqlServerOutboxRepository` and depends on the official Microsoft driver
-(`Microsoft.Data.SqlClient`) without requiring Dapper — gaining ~15% insertion speed.
-
-```diff
-- using EricksonLopez.Outbox.Dapper;
-+ using EricksonLopez.Outbox.Storage.SqlServer;
-
-- services.AddScoped<IOutboxRepository, SqlServerDapperOutboxRepository>();
-+ services.AddScoped<IOutboxRepository, SqlServerOutboxRepository>();
-```
-
-### 2. `IBrokerPublisher` Signature Stabilization
-
-During internal development, the `PublishAsync` method received a raw `OutboxMessage`
-and a byte array. The final v1.0.0 API uses strongly-typed `DispatchContext`:
-
-```diff
-- public Task PublishAsync(OutboxMessage message, CancellationToken ct)
-+ public ValueTask<DispatchResult> PublishRawAsync(
-+     OutboxMessage message,
-+     MessageMetadata metadata,
-+     DispatchContext context)
-```
-
-If you develop a generic publisher that ignores types and only sends raw JSON,
-implement only `PublishRawAsync` on `IBrokerPublisher`.
-
-For strongly-typed publishing, implement `ITypedBrokerPublisher`:
-```csharp
-public ValueTask<DispatchResult> PublishAsync<T>(
-    MessageEnvelope<T> envelope, DispatchContext context) where T : notnull;
-```
-
----
-
-## Known Behavior Notes (v1.0.0)
-
-### DLQ Insert Failure Behavior
-
-If the INSERT into the Dead Letter Queue table fails (e.g., the DLQ database is down),
-the message is **always** promoted to `state=4` (DeadLettered) in the outbox table,
-regardless of whether the DLQ INSERT succeeds. If the INSERT fails, the operator is
-alerted with an Error-level log (`DlqInsertFailed`, EventId 10003) containing the
-`messageId` for manual recovery.
-
-**If you need a message to remain retryable when the DLQ is unavailable**, implement
-a custom `IDeadLetterRepository` with its own retry/fallback logic:
-
-```csharp
-public class ResilientDlqRepository : IDeadLetterRepository
-{
-    public async ValueTask InsertAsync(DeadLetterMessage message,
-        IOutboxTransactionContext? transaction, CancellationToken ct)
-    {
-        // Implement your own retry/fallback logic here.
-        // If this method throws, the outbox message will still be
-        // marked as DeadLettered (state=4) to prevent infinite loops.
-        await _primaryDlq.InsertAsync(message, transaction, ct);
-    }
-}
-```
-
-### EventId 10011 (`InvalidDispatchResultDetected`)
-
-Be aware of EventId 10011 if your system filters logs by EventId. This log message
-appears when `IBrokerPublisher.PublishRawAsync` returns `default(DispatchResult)`,
-which indicates a bug in the publisher implementation.
+`EricksonLopez.Outbox` v1.0.0 is the initial public release of the library.
+- Initial public release of core dispatcher, storage providers, broker publishers, and Roslyn analyzers.
+- Zero-Reflection and Native AOT runtime guarantees across core modules.

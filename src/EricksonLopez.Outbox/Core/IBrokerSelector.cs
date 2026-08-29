@@ -1,3 +1,4 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 
 namespace EricksonLopez.Outbox;
@@ -15,3 +16,4 @@ public interface IBrokerSelector
     /// <exception cref="InvalidOperationException">Thrown when no suitable publisher is found.</exception>
     IBrokerPublisher GetPublisher(OutboxMessage message);
 }
+

@@ -1,3 +1,5 @@
+<!-- Copyright © Erickson Lopez. MIT License. -->
+
 # Algorithmic & Complexity
 
 This document provides a review of Cyclomatic Complexity (CC), Lack of Cohesion of Methods (LCOM), and Algorithmic Time Complexity (Big-O) for the critical hot paths of `EricksonLopez.Outbox`.

@@ -1,17 +1,16 @@
-using EricksonLopez.Outbox.Hosting;
+// Copyright © Erickson Lopez. MIT License.
 using System;
-
 using AwesomeAssertions;
-
+using EricksonLopez.Outbox.Hosting;
 using EricksonLopez.Outbox.Persistence;
 using EricksonLopez.Outbox.Storage.PostgreSql;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Npgsql;
 using NSubstitute;
 using Xunit;
-using Npgsql;
 
-namespace EricksonLopez.Outbox.Tests;
+namespace EricksonLopez.Outbox.Storage.PostgreSql.Tests;
 
 public class PostgreSqlOutboxSetupTests
 {
@@ -60,7 +59,33 @@ public class PostgreSqlOutboxSetupTests
         var provider = services.BuildServiceProvider();
         provider.GetRequiredService<NpgsqlDataSource>().Should().NotBeNull();
     }
+
+    [Fact]
+    public void UsePostgreSql_NullParameters_ThrowsExceptions()
+    {
+        var options = new OutboxOptions(new ServiceCollection());
+        var dataSource = NpgsqlDataSource.Create("Host=localhost;Username=test;Password=test");
+
+        Action actNullOptionsFactory = () => ((OutboxOptions)null!).UsePostgreSql(sp => dataSource);
+        actNullOptionsFactory.Should().Throw<ArgumentNullException>().WithParameterName("options");
+
+        Action actNullFactory = () => options.UsePostgreSql((Func<IServiceProvider, NpgsqlDataSource>)null!);
+        actNullFactory.Should().Throw<ArgumentNullException>().WithParameterName("dataSourceFactory");
+
+        Action actNullOptionsConn = () => ((OutboxOptions)null!).UsePostgreSql("Host=localhost;Username=test;Password=test");
+        actNullOptionsConn.Should().Throw<ArgumentNullException>().WithParameterName("options");
+
+        Action actNullConn = () => options.UsePostgreSql((string)null!);
+        actNullConn.Should().Throw<ArgumentNullException>().WithParameterName("connectionString");
+
+        Action actEmptyConn = () => options.UsePostgreSql("   ");
+        actEmptyConn.Should().Throw<ArgumentException>().WithParameterName("connectionString");
+
+        Action actNullOptionsNotif = () => ((OutboxOptions)null!).UsePostgreSqlNotifications();
+        actNullOptionsNotif.Should().Throw<ArgumentNullException>().WithParameterName("options");
+    }
 }
+
 
 
 

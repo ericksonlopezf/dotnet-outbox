@@ -1,0 +1,42 @@
+{
+  "stryker-config": {
+    "project": "EricksonLopez.Outbox.Storage.Sqlite.csproj",
+    "test-projects": [
+      "EricksonLopez.Outbox.Storage.Sqlite.Tests.csproj"
+    ],
+    "mutate": [
+      "**/*.cs",
+      "!bin/**",
+      "!obj/**",
+      "!**/*.g.cs",
+      "!**/*.AssemblyInfo.cs"
+    ],
+    "thresholds": {
+      "high": 100,
+      "low": 98,
+      "break": 95
+    },
+    "reporters": [
+      "html",
+      "json",
+      "cleartext",
+      "progress"
+    ],
+    "ignore-methods": [
+      "*Log*",
+      "*Trace*",
+      "*Debug*",
+      "*Exception*",
+      "ThrowIf*",
+      "ConfigureAwait",
+      "Dispose",
+      "ToString",
+      "GetHashCode",
+      "Equals"
+    ],
+    "ignore-mutations": [
+      "Initializer",
+      "String"
+    ]
+  }
+}

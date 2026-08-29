@@ -1,15 +1,16 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 
 namespace EricksonLopez.Outbox.Persistence;
 
 /// <summary>
-/// A generic implementation of <see cref="IOutboxTransactionContext"/> used for generic transactions.
+/// Provides a non-generic implementation of <see cref="IOutboxTransactionContext"/> used for untyped transactions.
 /// </summary>
 public sealed class OutboxTransactionContext : IOutboxTransactionContext
 {
     /// <inheritdoc/>
     public object Connection { get; }
-    
+
     /// <inheritdoc/>
     public object Transaction { get; }
 
@@ -25,3 +26,4 @@ public sealed class OutboxTransactionContext : IOutboxTransactionContext
         Transaction = transaction ?? throw new ArgumentNullException(nameof(transaction));
     }
 }
+

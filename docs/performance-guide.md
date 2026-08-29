@@ -1,3 +1,5 @@
+<!-- Copyright © Erickson Lopez. MIT License. -->
+
 # Performance Guide
 
 This guide covers performance tuning for `EricksonLopez.Outbox` in production environments, including PostgreSQL-specific optimizations and reproducible benchmark results.
@@ -80,10 +82,10 @@ Unlogged tables bypass the Write-Ahead Log (WAL), making writes nearly as fast a
 
 ## 3. Benchmark Results
 
-All benchmarks are available in `tests/EricksonLopez.Outbox.Benchmarks` and are fully reproducible:
+All benchmarks are available in `benchmarks/EricksonLopez.Outbox.Benchmarks` and are fully reproducible:
 
 ```bash
-cd tests/EricksonLopez.Outbox.Benchmarks
+cd benchmarks/EricksonLopez.Outbox.Benchmarks
 dotnet run -c Release
 ```
 
@@ -183,7 +185,7 @@ At ~255 ns per operation, a single thread can theoretically process **~3.9 milli
 The benchmark suite includes strict allocation assertions:
 
 ```bash
-dotnet run -c Release --project tests/EricksonLopez.Outbox.Benchmarks -- --filter *
+dotnet run -c Release --project benchmarks/EricksonLopez.Outbox.Benchmarks -- --filter *
 ```
 
 The dispatcher hot-path is expected to have **zero allocations** in Gen 0, Gen 1, and Gen 2. Any unexpected allocation causes the benchmark to fail.

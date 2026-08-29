@@ -1,9 +1,10 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 
 namespace EricksonLopez.Outbox.EntityFrameworkCore.Entities;
 
 /// <summary>
-/// Entity Framework Core reference entity representing an inbox idempotency record.
+/// Represents an Entity Framework Core database entity for an inbox idempotency record.
 /// </summary>
 public class IdempotencyRecordEntity
 {
@@ -34,3 +35,4 @@ public class IdempotencyRecordEntity
         ProcessedAt = model.ProcessedAt
     };
 }
+

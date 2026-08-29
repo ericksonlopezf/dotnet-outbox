@@ -1,12 +1,12 @@
+<!-- Copyright © Erickson Lopez. MIT License. -->
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <PublishAot>true</PublishAot>
     <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>Sample.OrderService</RootNamespace>
     <AssemblyName>Sample.OrderService</AssemblyName>
-    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <NoWarn>$(NoWarn);CS1591;IL2026;IL3050</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
@@ -38,3 +38,4 @@
     <ProjectReference Include="..\..\src\EricksonLopez.Outbox.EntityFrameworkCore\EricksonLopez.Outbox.EntityFrameworkCore.csproj" />
   </ItemGroup>
 </Project>
+

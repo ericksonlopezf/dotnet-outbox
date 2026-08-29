@@ -1,15 +1,17 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using StackExchange.Redis;
 using EricksonLopez.Outbox;
+using StackExchange.Redis;
 
 namespace EricksonLopez.Outbox.Brokers.RedisStreams;
 
 /// <summary>
-/// Publishes outbox messages to Redis Streams using StackExchange.Redis.
+/// Provides a broker publisher implementation that dispatches outbox messages to Redis Streams using StackExchange.Redis.
 /// </summary>
 /// <remarks>
 /// Design decisions:
@@ -81,7 +83,7 @@ public sealed class RedisStreamsBrokerPublisher : IBrokerPublisher
     /// <inheritdoc/>
     public async ValueTask<DispatchResult> PublishRawAsync(
         OutboxMessage message,
-        MessageMetadata metadata,
+        OutboxMessageMetadata metadata,
         DispatchContext context)
     {
         try
@@ -107,7 +109,7 @@ public sealed class RedisStreamsBrokerPublisher : IBrokerPublisher
     private static string BuildStreamKey(string messageType) =>
         $"outbox:{messageType.Replace('.', ':').ToLowerInvariant()}";
 
-    private static NameValueEntry[] BuildFields(MessageMetadata metadata, byte[] payload)
+    private static NameValueEntry[] BuildFields(OutboxMessageMetadata metadata, byte[] payload)
     {
         var fields = new List<NameValueEntry>
         {
@@ -127,3 +129,8 @@ public sealed class RedisStreamsBrokerPublisher : IBrokerPublisher
         return fields.ToArray();
     }
 }
+
+
+
+
+

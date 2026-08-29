@@ -1,5 +1,5 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
-
 using EricksonLopez.Outbox.Persistence;
 using Microsoft.Extensions.DependencyInjection;
 using Oracle.ManagedDataAccess.Client;
@@ -7,7 +7,7 @@ using Oracle.ManagedDataAccess.Client;
 namespace EricksonLopez.Outbox.Storage.Oracle;
 
 /// <summary>
-/// Dependency Injection setup extensions for Oracle Outbox Storage.
+/// Provides extension methods for configuring Oracle outbox storage.
 /// </summary>
 public static class OracleOutboxSetup
 {
@@ -34,3 +34,4 @@ public static class OracleOutboxSetup
         return options;
     }
 }
+

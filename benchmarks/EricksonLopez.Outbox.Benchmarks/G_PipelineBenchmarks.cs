@@ -1,3 +1,4 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -65,9 +66,13 @@ public class G_PipelineBenchmarks
 
     private sealed class DummyMiddleware : IOutboxMiddleware
     {
-        public ValueTask<DispatchResult> InvokeAsync(OutboxMessage message, MessageMetadata metadata, OutboxPipelineDelegate next, CancellationToken cancellationToken)
+        public ValueTask<DispatchResult> InvokeAsync(OutboxMessage message, OutboxMessageMetadata metadata, OutboxPipelineDelegate next, CancellationToken cancellationToken)
         {
             return next(message, metadata, cancellationToken);
         }
     }
 }
+
+
+
+

@@ -1,95 +1,9 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
+using System.Threading;
 using Microsoft.Extensions.Logging;
 
 namespace EricksonLopez.Outbox.Diagnostics;
-
-/// <summary>
-/// Centralized event IDs for all EricksonLopez.Outbox log messages.
-///
-/// <para>
-/// Range 10000-10099: Dispatcher / channel events
-/// Range 10100-10199: Startup / configuration events
-/// Range 10200-10299: Poller events
-/// Range 10300-10399: Idempotency / inbox events
-/// </para>
-/// </summary>
-[System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
-public static class OutboxEventIds
-{
-    // Dispatcher events (10000-10099)
-    /// <summary>Event ID for MessageDispatched.</summary>
-    public static readonly EventId MessageDispatched       = new(10000, "MessageDispatched");
-    /// <summary>Event ID for MessageDispatchFailed.</summary>
-    public static readonly EventId MessageDispatchFailed   = new(10001, "MessageDispatchFailed");
-    /// <summary>Event ID for MessageDeadLettered.</summary>
-    public static readonly EventId MessageDeadLettered     = new(10002, "MessageDeadLettered");
-    /// <summary>Event ID for DlqInsertFailed.</summary>
-    public static readonly EventId DlqInsertFailed         = new(10003, "DlqInsertFailed");
-    /// <summary>Event ID for MessageRetried.</summary>
-    public static readonly EventId MessageRetried          = new(10004, "MessageRetried");
-    /// <summary>Event ID for ChannelCancelled.</summary>
-    public static readonly EventId ChannelCancelled        = new(10005, "ChannelCancelled");
-    /// <summary>Event ID for PayloadTooLarge.</summary>
-    public static readonly EventId PayloadTooLarge         = new(10006, "PayloadTooLarge");
-    /// <summary>Event ID for HeadersTooLarge.</summary>
-    public static readonly EventId HeadersTooLarge         = new(10007, "HeadersTooLarge");
-    /// <summary>Event ID for HeadersDeserializeFailed.</summary>
-    public static readonly EventId HeadersDeserializeFailed = new(10008, "HeadersDeserializeFailed");
-    /// <summary>Event ID for MessageDelayedNoRetry.</summary>
-    public static readonly EventId MessageDelayedNoRetry   = new(10009, "MessageDelayedNoRetry");
-    /// <summary>Event ID for DbRetryAttempt.</summary>
-    public static readonly EventId DbRetryAttempt          = new(10010, "DbRetryAttempt");
-    /// <summary>Event ID for InvalidDispatchResultDetected.</summary>
-    public static readonly EventId InvalidDispatchResultDetected = new(10011, "InvalidDispatchResultDetected");
-    /// <summary>
-    /// Event ID for DlqPayloadFallback.
-    /// Emitted when a DLQ INSERT fails and the message payload is written to the structured log
-    /// as a fallback recovery record. Allows log aggregators (Seq, Loki, etc.) to act as a DLQ fallback.
-    /// </summary>
-    public static readonly EventId DlqPayloadFallback = new(10012, "DlqPayloadFallback");
-
-    // Startup / configuration events (10100-10199)
-    /// <summary>Event ID for StartupValidationFailed.</summary>
-    public static readonly EventId StartupValidationFailed = new(10100, "StartupValidationFailed");
-    /// <summary>Event ID for StartupValidationPassed.</summary>
-    public static readonly EventId StartupValidationPassed = new(10101, "StartupValidationPassed");
-    /// <summary>Event ID for ProducerOnlyMode.</summary>
-    public static readonly EventId ProducerOnlyMode        = new(10102, "ProducerOnlyMode");
-    /// <summary>Event ID for DispatcherStarting.</summary>
-    public static readonly EventId DispatcherStarting      = new(10103, "DispatcherStarting");
-    /// <summary>Event ID for DispatcherStopped.</summary>
-    public static readonly EventId DispatcherStopped       = new(10104, "DispatcherStopped");
-    /// <summary>Event ID for DispatcherConsumerCrashed.</summary>
-    public static readonly EventId DispatcherConsumerCrashed = new(10105, "DispatcherConsumerCrashed");
-    /// <summary>Event ID for DispatcherConsumerStarted.</summary>
-    public static readonly EventId DispatcherConsumerStarted = new(10106, "DispatcherConsumerStarted");
-    /// <summary>Event ID for CircuitBreakerTripped.</summary>
-    public static readonly EventId CircuitBreakerTripped   = new(10107, "CircuitBreakerTripped");
-    /// <summary>Event ID for CircuitBreakerReset.</summary>
-    public static readonly EventId CircuitBreakerReset     = new(10108, "CircuitBreakerReset");
-    /// <summary>Event ID for CircuitBreakerHalfOpen.</summary>
-    public static readonly EventId CircuitBreakerHalfOpen  = new(10109, "CircuitBreakerHalfOpen");
-
-    // Poller events (10200-10299)
-    /// <summary>Event ID for PollerStarted.</summary>
-    public static readonly EventId PollerStarted           = new(10200, "PollerStarted");
-    /// <summary>Event ID for PollerStopped.</summary>
-    public static readonly EventId PollerStopped           = new(10201, "PollerStopped");
-    /// <summary>Event ID for PollerError.</summary>
-    public static readonly EventId PollerError             = new(10202, "PollerError");
-    /// <summary>Event ID for BatchFetched.</summary>
-    public static readonly EventId BatchFetched            = new(10203, "BatchFetched");
-
-    // Idempotency / inbox events (10300-10399)
-    /// <summary>Event ID for InboxCleanupStarted.</summary>
-    public static readonly EventId InboxCleanupStarted     = new(10300, "InboxCleanupStarted");
-    /// <summary>Event ID for InboxCleanupPurged.</summary>
-    public static readonly EventId InboxCleanupPurged      = new(10301, "InboxCleanupPurged");
-    /// <summary>Event ID for InboxCleanupError.</summary>
-    public static readonly EventId InboxCleanupError       = new(10302, "InboxCleanupError");
-    /// <summary>Event ID for InboxDuplicateDetected.</summary>
-    public static readonly EventId InboxDuplicateDetected  = new(10303, "InboxDuplicateDetected");
-}
 
 /// <summary>
 /// Source-generated log messages (via <c>[LoggerMessage]</c> attribute) for all hot-path log calls.
@@ -113,13 +27,11 @@ public static class OutboxEventIds
 /// for all log message definitions. Do not create another <c>partial class OutboxLogMessages</c> file.
 /// </para>
 /// </summary>
-[System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
 public static partial class OutboxLogMessages
 {
     // --- Dispatcher hot-path messages ---
 
     /// <summary>Logs the MessageDispatched event.</summary>
-    /// <summary>Logs the event.</summary>
     [LoggerMessage(
         EventId = 10000,
         EventName = "MessageDispatched",
@@ -132,7 +44,6 @@ public static partial class OutboxLogMessages
         long elapsedMs);
 
     /// <summary>Logs the MessageDispatchFailed event.</summary>
-    /// <summary>Logs the event.</summary>
     [LoggerMessage(
         EventId = 10001,
         EventName = "MessageDispatchFailed",
@@ -145,7 +56,6 @@ public static partial class OutboxLogMessages
         string messageType);
 
     /// <summary>Logs the MessageDeadLettered event.</summary>
-    /// <summary>Logs the event.</summary>
     [LoggerMessage(
         EventId = 10002,
         EventName = "MessageDeadLettered",
@@ -158,7 +68,6 @@ public static partial class OutboxLogMessages
         int retryCount);
 
     /// <summary>Logs the DlqInsertFailed event.</summary>
-    /// <summary>Logs the event.</summary>
     [LoggerMessage(
         EventId = 10003,
         EventName = "DlqInsertFailed",
@@ -171,7 +80,6 @@ public static partial class OutboxLogMessages
         string messageType);
 
     /// <summary>Logs the MessageRetried event.</summary>
-    /// <summary>Logs the event.</summary>
     [LoggerMessage(
         EventId = 10004,
         EventName = "MessageRetried",
@@ -185,7 +93,6 @@ public static partial class OutboxLogMessages
         int maxRetries);
 
     /// <summary>Logs the ChannelCancelled event.</summary>
-    /// <summary>Logs the event.</summary>
     [LoggerMessage(
         EventId = 10005,
         EventName = "ChannelCancelled",
@@ -194,7 +101,6 @@ public static partial class OutboxLogMessages
     public static partial void ChannelCancelled(this ILogger logger);
 
     /// <summary>Logs the PayloadTooLarge event.</summary>
-    /// <summary>Logs the event.</summary>
     [LoggerMessage(
         EventId = 10006,
         EventName = "PayloadTooLarge",
@@ -206,7 +112,6 @@ public static partial class OutboxLogMessages
         int length);
 
     /// <summary>Logs the HeadersTooLarge event.</summary>
-    /// <summary>Logs the event.</summary>
     [LoggerMessage(
         EventId = 10007,
         EventName = "HeadersTooLarge",
@@ -218,7 +123,6 @@ public static partial class OutboxLogMessages
         int length);
 
     /// <summary>Logs the HeadersDeserializeFailed event.</summary>
-    /// <summary>Logs the event.</summary>
     [LoggerMessage(
         EventId = 10008,
         EventName = "HeadersDeserializeFailed",
@@ -232,7 +136,6 @@ public static partial class OutboxLogMessages
     // --- Startup / configuration messages ---
 
     /// <summary>Logs the StartupValidationFailed event.</summary>
-    /// <summary>Logs the event.</summary>
     [LoggerMessage(
         EventId = 10100,
         EventName = "StartupValidationFailed",
@@ -244,7 +147,6 @@ public static partial class OutboxLogMessages
         string errors);
 
     /// <summary>Logs the StartupValidationPassed event.</summary>
-    /// <summary>Logs the event.</summary>
     [LoggerMessage(
         EventId = 10101,
         EventName = "StartupValidationPassed",
@@ -253,7 +155,6 @@ public static partial class OutboxLogMessages
     public static partial void StartupValidationPassed(this ILogger logger);
 
     /// <summary>Logs the ProducerOnlyMode event.</summary>
-    /// <summary>Logs the event.</summary>
     [LoggerMessage(
         EventId = 10102,
         EventName = "ProducerOnlyMode",
@@ -319,7 +220,6 @@ public static partial class OutboxLogMessages
     // --- Poller messages ---
 
     /// <summary>Logs the PollerStarted event.</summary>
-    /// <summary>Logs the event.</summary>
     [LoggerMessage(
         EventId = 10200,
         EventName = "PollerStarted",
@@ -332,7 +232,6 @@ public static partial class OutboxLogMessages
         int maxDop);
 
     /// <summary>Logs the PollerStopped event.</summary>
-    /// <summary>Logs the event.</summary>
     [LoggerMessage(
         EventId = 10201,
         EventName = "PollerStopped",
@@ -341,7 +240,6 @@ public static partial class OutboxLogMessages
     public static partial void PollerStopped(this ILogger logger);
 
     /// <summary>Logs the PollerError event.</summary>
-    /// <summary>Logs the event.</summary>
     [LoggerMessage(
         EventId = 10202,
         EventName = "PollerError",
@@ -350,7 +248,6 @@ public static partial class OutboxLogMessages
     public static partial void PollerError(this ILogger logger, Exception exception);
 
     /// <summary>Logs the BatchFetched event.</summary>
-    /// <summary>Logs the event.</summary>
     [LoggerMessage(
         EventId = 10203,
         EventName = "BatchFetched",
@@ -359,7 +256,6 @@ public static partial class OutboxLogMessages
     public static partial void BatchFetched(this ILogger logger, int count, long elapsedMs);
 
     /// <summary>Logs the ReclaimedStaleMessages event.</summary>
-    /// <summary>Logs the event.</summary>
     [LoggerMessage(
         EventId = 10204,
         EventName = "ReclaimedStaleMessages",
@@ -370,7 +266,6 @@ public static partial class OutboxLogMessages
     // --- Idempotency / inbox messages ---
 
     /// <summary>Logs the InboxCleanupStarted event.</summary>
-    /// <summary>Logs the event.</summary>
     [LoggerMessage(
         EventId = 10300,
         EventName = "InboxCleanupStarted",
@@ -382,7 +277,6 @@ public static partial class OutboxLogMessages
         TimeSpan cleanupInterval);
 
     /// <summary>Logs the InboxCleanupPurged event.</summary>
-    /// <summary>Logs the event.</summary>
     [LoggerMessage(
         EventId = 10301,
         EventName = "InboxCleanupPurged",
@@ -391,7 +285,6 @@ public static partial class OutboxLogMessages
     public static partial void InboxCleanupPurged(this ILogger logger, DateTimeOffset cutoff);
 
     /// <summary>Logs the InboxCleanupError event.</summary>
-    /// <summary>Logs the event.</summary>
     [LoggerMessage(
         EventId = 10302,
         EventName = "InboxCleanupError",
@@ -400,7 +293,6 @@ public static partial class OutboxLogMessages
     public static partial void InboxCleanupError(this ILogger logger, Exception exception);
 
     /// <summary>Logs the InboxDuplicateDetected event.</summary>
-    /// <summary>Logs the event.</summary>
     [LoggerMessage(
         EventId = 10303,
         EventName = "InboxDuplicateDetected",
@@ -412,7 +304,6 @@ public static partial class OutboxLogMessages
         string consumerId);
 
     /// <summary>Logs the MessageDelayedNoRetry event.</summary>
-    /// <summary>Logs the event.</summary>
     [LoggerMessage(
         EventId = 10009,
         EventName = "MessageDelayedNoRetry",
@@ -424,7 +315,6 @@ public static partial class OutboxLogMessages
 
     // P1-FIX: Source-generate the DB retry warning to eliminate params object[] allocation in hot path.
     /// <summary>Logs the DbRetryAttempt event.</summary>
-    /// <summary>Logs the event.</summary>
     [LoggerMessage(
         EventId = 10010,
         EventName = "DbRetryAttempt",
@@ -438,7 +328,6 @@ public static partial class OutboxLogMessages
 
     // P1-FIX: Source-generate dispatcher lifecycle logs to eliminate params object[] allocations.
     /// <summary>Logs the DispatcherStarting event.</summary>
-    /// <summary>Logs the event.</summary>
     [LoggerMessage(
         EventId = 10103,
         EventName = "DispatcherStarting",
@@ -451,7 +340,6 @@ public static partial class OutboxLogMessages
         bool adaptive);
 
     /// <summary>Logs the DispatcherStopped event.</summary>
-    /// <summary>Logs the event.</summary>
     [LoggerMessage(
         EventId = 10104,
         EventName = "DispatcherStopped",
@@ -460,7 +348,6 @@ public static partial class OutboxLogMessages
     public static partial void DispatcherStopped(this ILogger logger);
 
     /// <summary>Logs the DispatcherConsumerCrashed event.</summary>
-    /// <summary>Logs the event.</summary>
     [LoggerMessage(
         EventId = 10105,
         EventName = "DispatcherConsumerCrashed",
@@ -472,7 +359,6 @@ public static partial class OutboxLogMessages
         int consumerId);
 
     /// <summary>Logs the DispatcherConsumerStarted event.</summary>
-    /// <summary>Logs the event.</summary>
     [LoggerMessage(
         EventId = 10106,
         EventName = "DispatcherConsumerStarted",
@@ -483,7 +369,6 @@ public static partial class OutboxLogMessages
         int consumerId);
 
     /// <summary>Logs the DispatcherConsumerStopped event.</summary>
-    /// <summary>Logs the event.</summary>
     [LoggerMessage(
         EventId = 10107,
         EventName = "DispatcherConsumerStopped",
@@ -510,4 +395,6 @@ public static partial class OutboxLogMessages
         string messageType);
 
 }
+
+
 
