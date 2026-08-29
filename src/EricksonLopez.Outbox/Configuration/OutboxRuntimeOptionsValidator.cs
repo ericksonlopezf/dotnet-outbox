@@ -1,12 +1,13 @@
+// Copyright © Erickson Lopez. MIT License.
+using System;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Options;
 
 namespace EricksonLopez.Outbox;
 
-// Stryker disable String : Validation messages are not tested for exact matching
 internal sealed class OutboxRuntimeOptionsValidator : IValidateOptions<OutboxRuntimeOptions>
 {
-    private static readonly Regex ValidIdentifierRegex = new("^[a-zA-Z0-9_-]+$", RegexOptions.Compiled);
+    private static readonly Regex ValidIdentifierRegex = new("^[a-zA-Z0-9_-]+$", RegexOptions.Compiled, TimeSpan.FromSeconds(1));
 
     public ValidateOptionsResult Validate(string? name, OutboxRuntimeOptions options)
     {
@@ -23,3 +24,4 @@ internal sealed class OutboxRuntimeOptionsValidator : IValidateOptions<OutboxRun
         return ValidateOptionsResult.Success;
     }
 }
+

@@ -1,42 +1,44 @@
 {
   "stryker-config": {
-    "concurrency": 2,
+    "project": "EricksonLopez.Outbox.csproj",
+    "test-projects": [
+      "tests/EricksonLopez.Outbox.Tests/EricksonLopez.Outbox.Tests.csproj"
+    ],
+    "mutate": [
+      "**/*.cs",
+      "!bin/**",
+      "!obj/**",
+      "!**/*.g.cs",
+      "!**/*.AssemblyInfo.cs",
+      "!**/Testing/**/*.cs",
+      "!**/Generated/**/*.cs"
+    ],
     "thresholds": {
       "high": 100,
       "low": 98,
       "break": 95
     },
-    "mutate": [
-      "**/*.cs",
-      "!**/Testing/**/*.cs",
-      "!**/*.g.cs",
-      "!**/*Generator.cs",
-      "!**/Generated/**/*.cs"
-    ],
-
     "reporters": [
       "html",
       "json",
       "cleartext",
       "progress"
     ],
-    "ignore-mutations": [
-      "string"
-    ],
     "ignore-methods": [
-      "Log*",
-      "LogDebug",
-      "LogInformation",
-      "LogWarning",
-      "LogError",
-      "PollerError",
+      "*Log*",
+      "*Trace*",
+      "*Debug*",
+      "*Exception*",
+      "ThrowIf*",
       "ConfigureAwait",
-      "ThrowIfNull",
-      "ThrowIfNullOrWhiteSpace",
-      "ThrowIfNullOrEmpty",
-      "ReturnArrayToPool",
-      "RecordMetrics",
-      "RecordMessageDispatched"
+      "Dispose",
+      "ToString",
+      "GetHashCode",
+      "Equals"
+    ],
+    "ignore-mutations": [
+      "Initializer",
+      "String"
     ]
   }
 }

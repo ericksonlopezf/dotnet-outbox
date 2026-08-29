@@ -1,3 +1,5 @@
+// Copyright © Erickson Lopez. MIT License.
+using System;
 using System.Collections.Immutable;
 using System.Linq;
 using Microsoft.CodeAnalysis;
@@ -7,9 +9,15 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace EricksonLopez.Outbox.Analyzers;
 
+/// <summary>
+/// Provides a Roslyn diagnostic analyzer that ensures message store calls from the fluent builder are associated with a transaction.
+/// </summary>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public class TransactionRequiredAnalyzer : DiagnosticAnalyzer
 {
+    /// <summary>
+    /// The diagnostic identifier for missing transaction calls in builder chains.
+    /// </summary>
     public const string DiagnosticId = "OUTBOX010";
 
     private static readonly DiagnosticDescriptor Rule = new(
@@ -21,8 +29,10 @@ public class TransactionRequiredAnalyzer : DiagnosticAnalyzer
         isEnabledByDefault: true,
         description: "The Transactional Outbox pattern requires messages to be saved within the same database transaction as the business data. Calling StoreAsync() on the builder without first calling WithTransaction() will throw at runtime.");
 
+    /// <inheritdoc/>
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => ImmutableArray.Create(Rule);
 
+    /// <inheritdoc/>
     public override void Initialize(AnalysisContext context)
     {
         context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
@@ -41,19 +51,17 @@ public class TransactionRequiredAnalyzer : DiagnosticAnalyzer
         if (memberAccess.Name.Identifier.Text != "StoreAsync")
             return;
 
-        var symbolInfo = context.SemanticModel.GetSymbolInfo(invocation);
-        if (symbolInfo.Symbol is not IMethodSymbol methodSymbol)
+        if (context.SemanticModel.GetSymbolInfo(invocation, context.CancellationToken).Symbol is not IMethodSymbol methodSymbol)
             return;
 
         // Ensure it's the OutboxMessageBuilder.StoreAsync method
         bool isBuilderStoreAsync = methodSymbol.ContainingType.Name == "OutboxMessageBuilder" &&
-                                   methodSymbol.ContainingType.ContainingNamespace?.ToDisplayString().StartsWith("EricksonLopez.Outbox", System.StringComparison.Ordinal) == true;
+                                   methodSymbol.ContainingType.ContainingNamespace?.ToDisplayString().StartsWith("EricksonLopez.Outbox", StringComparison.Ordinal) == true;
 
         if (!isBuilderStoreAsync)
             return;
 
         // Traverse the fluent chain to see if WithTransaction is called
-        bool hasTransaction = false;
         ExpressionSyntax currentExpr = memberAccess.Expression;
 
         while (currentExpr != null)
@@ -64,8 +72,7 @@ public class TransactionRequiredAnalyzer : DiagnosticAnalyzer
                 {
                     if (chainMemberAccess.Name.Identifier.Text == "WithTransaction")
                     {
-                        hasTransaction = true;
-                        break;
+                        return;
                     }
                     currentExpr = chainMemberAccess.Expression;
                 }
@@ -84,9 +91,8 @@ public class TransactionRequiredAnalyzer : DiagnosticAnalyzer
             }
         }
 
-        if (!hasTransaction)
-        {
-            context.ReportDiagnostic(Diagnostic.Create(Rule, memberAccess.Name.GetLocation()));
-        }
+        context.ReportDiagnostic(Diagnostic.Create(Rule, memberAccess.Name.GetLocation()));
     }
 }
+
+

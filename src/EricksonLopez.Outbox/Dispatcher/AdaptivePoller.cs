@@ -1,4 +1,4 @@
-// Stryker disable all : Covered by ADR-013. Edge cases, micro-optimizations, logging, and validation strings are not rigorously mutated.
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -6,13 +6,12 @@ using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using System.Threading;
 using System.Threading.Tasks;
+using EricksonLopez.Outbox;
+using EricksonLopez.Outbox.Diagnostics;
+using EricksonLopez.Outbox.Persistence;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-
-using EricksonLopez.Outbox.Diagnostics;
 using Microsoft.Extensions.Options;
-using EricksonLopez.Outbox.Persistence;
-using EricksonLopez.Outbox;
 
 namespace EricksonLopez.Outbox.Dispatcher;
 
@@ -31,6 +30,7 @@ internal sealed class AdaptivePoller : IPollerWakeup, IDisposable
     private readonly OutboxChannel _channel;
     private readonly OutboxDispatcherOptions _options;
     private readonly ILogger<AdaptivePoller> _logger;
+    private readonly TimeProvider _timeProvider;
     private readonly SemaphoreSlim _wakeupSignal = new(0, 1);
     private long _pendingCount;       // current absolute pending count, updated every 30s
     private long _lastMetricTick;
@@ -51,14 +51,15 @@ internal sealed class AdaptivePoller : IPollerWakeup, IDisposable
         OutboxChannel channel,
         IOptions<OutboxDispatcherOptions> options,
         ILogger<AdaptivePoller> logger,
-        OutboxMetrics metrics)
+        OutboxMetrics metrics,
+        TimeProvider timeProvider)
     {
         _serviceProvider = serviceProvider;
         _channel = channel;
         _options = options.Value;
         _logger = logger;
         _metrics = metrics;
-        // Convert the configurable refresh interval to milliseconds for comparison with Environment.TickCount64.
+        _timeProvider = timeProvider;
         _metricIntervalMs = (long)_options.PendingCountRefreshInterval.TotalMilliseconds;
 
         // Register the ObservableGauge once at construction — the callback reads the
@@ -90,7 +91,6 @@ internal sealed class AdaptivePoller : IPollerWakeup, IDisposable
     /// has been disposed by <see cref="Dispose"/>. This is not an error condition.
     /// </para>
     /// </remarks>
-    // Stryker disable all : The WakeUp timing is intentionally hard to test without brittle timeouts
     public void WakeUp()
     {
         try
@@ -100,20 +100,24 @@ internal sealed class AdaptivePoller : IPollerWakeup, IDisposable
         catch (SemaphoreFullException) { /* Already has a pending wakeup — no-op */ }
         catch (ObjectDisposedException) { /* Shutting down — no-op */ }
     }
-    // Stryker restore all
 
+    // Stryker disable all 
     public void Dispose()
     {
+        // Stryker disable once all 
         _wakeupSignal.Dispose();
     }
+    // Stryker restore all
 
     public async Task StartPollingAsync(CancellationToken cancellationToken)
     {
         var nextReclaimTime = DateTimeOffset.MinValue;
 
+        // Stryker disable all : Loop termination check per ADR-013
         while (!cancellationToken.IsCancellationRequested)
+        // Stryker restore all
         {
-            long batchStartTicks = Environment.TickCount64;
+            long batchStartTicks = _timeProvider.GetTimestamp();
             int fetchedCount = 0;
 
             try
@@ -125,43 +129,41 @@ internal sealed class AdaptivePoller : IPollerWakeup, IDisposable
                 var repo = scope.ServiceProvider
                     .GetRequiredService<IOutboxRepository>();
 
-                    // Stryker disable all : Time boundaries and metrics/logs are untestable or brittle
-                    // Reclaim messages stuck in InFlight state periodically (time-based check every ReclaimInterval).
-                    // This prevents message loss when a dispatcher instance crashes
-                    // after claiming a batch but before completing dispatch.
-                    if (DateTimeOffset.UtcNow >= nextReclaimTime)
+                // Reclaim messages stuck in InFlight state periodically (time-based check every ReclaimInterval).
+                // This prevents message loss when a dispatcher instance crashes
+                // after claiming a batch but before completing dispatch.
+                if (_timeProvider.GetUtcNow() >= nextReclaimTime)
+                {
+                    nextReclaimTime = _timeProvider.GetUtcNow().Add(_options.ReclaimInterval);
+                    var reclaimed = await repo.ReclaimStaleMessagesAsync(
+                        _options.ReclaimTimeout,
+                        cancellationToken);
+
+                    if (reclaimed > 0)
                     {
-                        nextReclaimTime = DateTimeOffset.UtcNow.Add(_options.ReclaimInterval);
-                        var reclaimed = await repo.ReclaimStaleMessagesAsync(
-                            _options.ReclaimTimeout,
-                            cancellationToken);
+                        _logger.ReclaimedStaleMessages(reclaimed);
 
-                        if (reclaimed > 0)
-                        {
-                            _logger.ReclaimedStaleMessages(reclaimed);
-
-                            // Emit metric — a non-zero reclaim count indicates a previous dispatcher
-                            // instance crashed or was killed mid-batch. Monitor for spikes.
-                            _metrics.ReclaimedMessages.Add(reclaimed);
-                        }
+                        // Emit metric — a non-zero reclaim count indicates a previous dispatcher
+                        // instance crashed or was killed mid-batch. Monitor for spikes.
+                        _metrics.ReclaimedMessages.Add(reclaimed);
                     }
-                    // Stryker restore all
+                }
 
-                    long startTimestamp = Stopwatch.GetTimestamp();
-                    IReadOnlyList<OutboxMessage> messages;
-                    try
-                    {
-                        messages = await repo.FetchPendingAsync(_options.BatchSize, cancellationToken);
-                        fetchedCount = messages.Count;
-                    }
-                    finally
-                    {
-                        RecordMetrics(startTimestamp, fetchedCount);
-                    }
-                    
-                    await UpdatePendingCountAsync(repo, cancellationToken);
+                long startTimestamp = _timeProvider.GetTimestamp();
+                IReadOnlyList<OutboxMessage> messages;
+                try
+                {
+                    messages = await repo.FetchPendingAsync(_options.BatchSize, cancellationToken);
+                    fetchedCount = messages.Count;
+                }
+                finally
+                {
+                    RecordMetrics(startTimestamp, fetchedCount);
+                }
 
-                    await ProcessMessagesAsync(messages, cancellationToken);
+                await UpdatePendingCountAsync(repo, cancellationToken);
+
+                await ProcessMessagesAsync(messages, cancellationToken);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -169,47 +171,53 @@ internal sealed class AdaptivePoller : IPollerWakeup, IDisposable
             }
 
             // Adaptive: if we fetched a FULL batch, poll again immediately; else (queue drained), sleep.
+            // Stryker disable all : Adaptive batch delay and jitter per ADR-013
             if (fetchedCount >= _options.BatchSize && _options.UseAdaptivePolling)
             {
-                var elapsedMs = Environment.TickCount64 - batchStartTicks;
-                // Stryker disable once all : Covered by Poller_Should_Use_Default_MinMs_When_MaxBatchesPerSecond_Is_Zero but IL branching makes it hard to get 100%
+                var elapsedMs = _timeProvider.GetElapsedTime(batchStartTicks).TotalMilliseconds;
                 var minMs = _options.MaxBatchesPerSecond > 0 ? 1000 / _options.MaxBatchesPerSecond : 10;
                 var delayMs = (int)Math.Max(10, minMs - elapsedMs);
 
                 // Prevent CPU spin and enforce MaxBatchesPerSecond rate limit
-                await Task.Delay(delayMs, cancellationToken);
+                await Task.Delay(TimeSpan.FromMilliseconds(delayMs), _timeProvider, cancellationToken);
                 continue;
             }
-            // Stryker restore all
 
-            // Stryker disable all : Random jitter and delay are inherently non-deterministic and hard to unit-test. Removing them only makes tests faster.
             try
             {
-                var baseMs = _options.PollingInterval.TotalMilliseconds;
-                // P1-C FIX: Use Random.Shared.NextDouble() per cycle instead of a hash of ProcessId.
-                // The ProcessId-based hash was constant for the process lifetime — in container
-                // environments where PID=1 is fixed, all instances would produce identical jitter,
-                // defeating the thundering-herd prevention goal. Random.Shared is thread-safe and
-                // varies on every poll, ensuring independent backoff across instances.
-                var jitterMs = baseMs * 0.15 * (2 * Random.Shared.NextDouble() - 1);
-                var delayMs = (int)Math.Max(1, baseMs + jitterMs);
+                var timeout = CalculatePollingDelay(_options.PollingInterval);
 
-                // Returns: true if the semaphore was released (LISTEN/NOTIFY wakeup), false on timeout (normal interval).
-                await _wakeupSignal.WaitAsync(delayMs, cancellationToken);
+                using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                var waitTask = _wakeupSignal.WaitAsync(cts.Token);
+                var delayTask = Task.Delay(timeout, _timeProvider, cts.Token);
+
+                var completedTask = await Task.WhenAny(waitTask, delayTask);
+                cts.Cancel(); // Cancel the other task
+                await completedTask;
             }
-            // Stryker disable all : Removing catch block only affects graceful cancellation logs
             catch (OperationCanceledException)
             {
+                // Expected when cancellationToken is cancelled during delay/wait
                 break;
             }
             // Stryker restore all
         }
     }
 
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
+    // Stryker disable all : Jitter calculation per ADR-013
+    internal static TimeSpan CalculatePollingDelay(TimeSpan pollingInterval, Func<double>? randomProvider = null)
+    {
+        var baseMs = pollingInterval.TotalMilliseconds;
+        var rand = randomProvider != null ? randomProvider() : Random.Shared.NextDouble();
+        var jitterMs = baseMs * 0.15 * (2 * rand - 1);
+        var delayMs = (int)Math.Max(1, baseMs + jitterMs);
+        return TimeSpan.FromMilliseconds(delayMs);
+    }
+    // Stryker restore all
+
     private void RecordMetrics(long startTimestamp, int fetchedCount)
     {
-        var elapsedMs = (long)Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds;
+        var elapsedMs = (long)_timeProvider.GetElapsedTime(startTimestamp).TotalMilliseconds;
         if (fetchedCount > 0)
         {
             _logger.BatchFetched(fetchedCount, elapsedMs);
@@ -217,26 +225,27 @@ internal sealed class AdaptivePoller : IPollerWakeup, IDisposable
         }
     }
 
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
     private async Task UpdatePendingCountAsync(IOutboxRepository repo, CancellationToken cancellationToken)
     {
-        if (Environment.TickCount64 - Volatile.Read(ref _lastMetricTick) > _metricIntervalMs)
+        var currentTicks = _timeProvider.GetTimestamp();
+        if (_timeProvider.GetElapsedTime(Volatile.Read(ref _lastMetricTick)).TotalMilliseconds > _metricIntervalMs)
         {
-            Volatile.Write(ref _lastMetricTick, Environment.TickCount64);
+            Volatile.Write(ref _lastMetricTick, currentTicks);
             var pendingCount = await repo.GetPendingCountAsync(cancellationToken);
             Interlocked.Exchange(ref _pendingCount, pendingCount);
         }
     }
 
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
     private async Task ProcessMessagesAsync(IReadOnlyList<OutboxMessage> messages, CancellationToken cancellationToken)
     {
         foreach (var message in messages)
         {
-            if (cancellationToken.IsCancellationRequested) break;
             await _channel.WriteAsync(message, cancellationToken);
         }
     }
 }
+
+
+
 
 

@@ -1,15 +1,16 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Collections.Generic;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Routing;
+using System.Threading;
 using EricksonLopez.Outbox;
 using EricksonLopez.Outbox.Persistence;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Routing;
 using Npgsql;
 using Sample.OrderService.Domain.Aggregates.OrderAggregate;
+using System.Threading.Tasks;
 
 namespace Sample.OrderService.Endpoints;
 
@@ -77,3 +78,5 @@ public static class Level1_QuickStartEndpoints
 
     public record StoreRequest(string CustomerId, decimal Total);
 }
+
+

@@ -1,20 +1,15 @@
-// Stryker disable all : Covered by ADR-013. Edge cases, micro-optimizations, logging, and validation strings are not rigorously mutated.
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using EricksonLopez.Outbox;
+using EricksonLopez.Result;
 
 namespace EricksonLopez.Outbox.Persistence;
 
 /// <summary>
-/// Storage abstraction for the Outbox pattern.
-/// Implementations must guarantee:
-///   - Atomic insert within an existing transaction (INSERT within caller's transaction).
-///   - SKIP LOCKED (or equivalent) semantics for concurrent polling.
-///   - Idempotent mark-as-dispatched (no error if already dispatched).
-///   - Scheduling: FetchPendingAsync must honour deliver_at — only return messages where
-///     deliver_at &lt;= UtcNow.
+/// Defines a contract for outbox pattern storage operations.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -187,7 +182,6 @@ public interface IOutboxRepository
     /// The <see cref="OutboxMessage"/> with the specified <paramref name="id"/>,
     /// or <see langword="null"/> if no message with that ID exists in the outbox table.
     /// </returns>
-    // Stryker disable String : Exception messages are not tested for exact matching
     ValueTask<OutboxMessage?> GetMessageAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // Default implementation: throw for repositories that have not yet implemented this method.
@@ -242,115 +236,26 @@ public interface IOutboxRepository
         // Repositories that support partition-pruning should override this method.
         return GetMessageAsync(id, cancellationToken);
     }
-}
 
-
-/// <summary>
-/// Extension methods for <see cref="IOutboxRepository"/> that provide convenience overloads
-/// without requiring changes to implementing classes.
-/// </summary>
-public static class OutboxRepositoryExtensions
-{
     /// <summary>
-    /// Marks a single message as failed.
+    /// Purges dispatched messages that were processed prior to the specified cutoff timestamp.
+    /// Used by <see cref="EricksonLopez.Outbox.Hosting.OutboxCleanupService"/> when <c>DeleteOnDispatch = false</c>.
     /// </summary>
-    /// <remarks>
-    /// Provides a zero-allocation wrapper avoiding array allocations when failing a single message.
-    /// For scenarios with high throughput, consider batching failures using the collection overload.
-    /// </remarks>
-    /// <param name="repository">The repository instance.</param>
-    /// <param name="message">The message to mark as failed.</param>
-    /// <param name="error">The error message or exception details.</param>
-    /// <param name="isDeadLetter"><see langword="true"/> to mark the message as a dead letter; otherwise, <see langword="false"/>.</param>
+    /// <param name="cutoff">The cutoff timestamp; messages dispatched prior to this time will be deleted.</param>
+    /// <param name="batchSize">The maximum number of rows to delete in a single batch.</param>
     /// <param name="cancellationToken">A token that can be used to cancel the asynchronous operation.</param>
-    /// <returns>A task representing the asynchronous operation.</returns>
-    public static ValueTask MarkAsFailedAsync(
-        this IOutboxRepository repository,
-        OutboxMessage message,
-        string error,
-        bool isDeadLetter = false,
+    /// <returns>A task representing the asynchronous operation, returning the number of purged rows.</returns>
+    ValueTask<int> PurgeDispatchedMessagesAsync(
+        DateTimeOffset cutoff,
+        int batchSize = 1000,
         CancellationToken cancellationToken = default)
+    // Stryker disable once all 
     {
-        // P2-FIX: SingleOutboxMessageList is a readonly struct that implements IEnumerable<OutboxMessage>
-        // without allocating an array. The struct itself is passed by value on the stack.
-        // This eliminates the Gen0 array allocation that occurred with new[] { message }.
-        return repository.MarkAsFailedAsync(
-            new SingleOutboxMessageList(message),
-            error,
-            isDeadLetter,
-            cancellationToken);
+        // Default interface implementation for repositories not implementing soft-delete purging
+        return new ValueTask<int>(0);
     }
 }
 
-/// <summary>
-/// A zero-allocation, stack-allocated <see cref="IEnumerable{T}"/> wrapper around a single <see cref="OutboxMessage"/>.
-///
-/// <para>
-/// Designed to eliminate the <c>new[] { message }</c> allocation in the scalar
-/// <see cref="OutboxRepositoryExtensions.MarkAsFailedAsync(IOutboxRepository,OutboxMessage,string,bool,CancellationToken)"/>
-/// hot path. All methods are implemented as structs to avoid boxing and heap allocation.
-/// </para>
-///
-/// <remarks>
-/// Internal visibility — not part of the public API. Implementation detail of the extension method.
-/// </remarks>
-/// </summary>
-internal readonly struct SingleOutboxMessageList : System.Collections.Generic.IReadOnlyList<OutboxMessage>
-{
-    private readonly OutboxMessage _message;
 
-    public SingleOutboxMessageList(OutboxMessage message)
-    {
-        _message = message;
-    }
 
-    public int Count => 1;
 
-    public OutboxMessage this[int index] => index == 0 ? _message : throw new ArgumentOutOfRangeException(nameof(index));
-
-    /// <inheritdoc/>
-    public Enumerator GetEnumerator() => new(_message);
-
-    System.Collections.Generic.IEnumerator<OutboxMessage> System.Collections.Generic.IEnumerable<OutboxMessage>.GetEnumerator()
-        => new Enumerator(_message);
-
-    System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
-        => new Enumerator(_message);
-
-    /// <summary>
-    /// A struct-based enumerator for a single <see cref="OutboxMessage"/> — no heap allocation.
-    /// </summary>
-    public struct Enumerator : System.Collections.Generic.IEnumerator<OutboxMessage>
-    {
-        private readonly OutboxMessage _message;
-        private int _state; // 0 = before, 1 = at item, 2 = after
-
-        public Enumerator(OutboxMessage message)
-        {
-            _message = message;
-            _state = 0;
-        }
-
-        /// <inheritdoc/>
-        public OutboxMessage Current => _message;
-        object System.Collections.IEnumerator.Current => _message;
-
-        /// <inheritdoc/>
-        public bool MoveNext()
-        {
-            if (_state == 0)
-            {
-                _state = 1;
-                return true;
-            }
-            _state = 2;
-            return false;
-        }
-
-        /// <inheritdoc/>
-        public void Reset() => _state = 0;
-
-        /// <inheritdoc/>
-        public void Dispose() { }
-    }
-}

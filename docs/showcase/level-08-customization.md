@@ -1,3 +1,5 @@
+<!-- Copyright © Erickson Lopez. MIT License. -->
+
 # Level 8: Customization and Extensibility
 
 This level covers the extension points in `EricksonLopez.Outbox` — custom serializers, custom brokers, typed dispatch, middleware pipelines, and error sanitization.
@@ -244,6 +246,57 @@ builder.Services.AddOutbox(options =>
 });
 ```
 
+### `RouteGroup()` — Bulk Routing for Multiple Aliases
+
+When several message types share the same non-default publisher, `RouteGroup()` avoids repetitive `Route()` calls:
+
+```csharp
+builder.Services.AddOutbox(options =>
+{
+    // Default broker for unmatched aliases:
+    options.UseBroker<RabbitMqBrokerPublisher>();
+
+    // Route all order events to Kafka (params array overload):
+    options.RouteGroup("order.created.v1", "order.confirmed.v1", "order.cancelled.v1")
+           .ToPublisher(sp => sp.GetRequiredService<KafkaBrokerPublisher>());
+
+    // Route payment events (IEnumerable<string> overload — useful when aliases come from config):
+    var paymentAliases = new[] { "payment.initiated.v1", "payment.captured.v1", "payment.refunded.v1" };
+    options.RouteGroup(paymentAliases)
+           .ToPublisher<AzureServiceBusBrokerPublisher>();
+});
+```
+
+| Overload | Description |
+|---|---|
+| `RouteGroup(params string[] aliases)` | Inline declaration with `params`. Most convenient. |
+| `RouteGroup(IEnumerable<string> aliases)` | Accepts any enumerable — useful when aliases come from configuration or are dynamically constructed. |
+
+---
+
+### `Publisher` Struct — Node Identity
+
+`Publisher` is a lightweight `readonly record struct` that identifies a logical publisher node. It is used in multi-instance and multi-publisher operational tooling:
+
+```csharp
+using EricksonLopez.Outbox;
+
+// Create a named publisher node with an auto-generated unique ID:
+var publisher = Publisher.Create("order-service-node-1");
+// publisher.Id          → Guid formatted as "N" (no dashes)
+// publisher.Name        → "order-service-node-1"
+// publisher.RegisteredAt → DateTimeOffset.UtcNow at creation time
+
+// Null-object publisher — use when identity is not relevant:
+var none = Publisher.None;
+// none.Id              → "00000000000000000000000000000000"
+// none.Name            → "none"
+// none.RegisteredAt    → DateTimeOffset.MinValue
+```
+
+> [!NOTE]
+> `Publisher` is a value type — copying it is cheap. It is intended for operational metadata, distributed tracing, and multi-publisher audit logs. It is not used in the core dispatch pipeline.
+
 ---
 
 ## 3. Error Sanitization (`IErrorSanitizer`)
@@ -483,6 +536,95 @@ if (alreadyProcessed) return; // Already done — skip
 > - `ShouldSkipAsync` → `true` = **skip** the message (it was already processed)
 >
 > Choose one style and use it consistently throughout your codebase to avoid logic inversions.
+
+---
+
+## 8. Multi-Tenancy Extension Points
+
+The library provides two contracts for multi-tenant architectures where each tenant requires isolated routing or isolated storage.
+
+### `ITenantBrokerRouter` — Tenant-Aware Message Routing
+
+```csharp
+using EricksonLopez.Outbox.MultiTenancy;
+
+public interface ITenantBrokerRouter
+{
+    // Determines the destination topic or queue for a message belonging to a specific tenant.
+    // tenantId         — the tenant identifier (from x-tenant-id header)
+    // baseDestination  — the default configured destination
+    // messageType      — the message type alias from [OutboxMessage]
+    string ResolveDestination(string? tenantId, string baseDestination, string messageType);
+}
+```
+
+**Example implementation** (tenant prefix routing):
+
+```csharp
+public sealed class TenantPrefixBrokerRouter : ITenantBrokerRouter
+{
+    // Routes: e.g., "acme" + "order.created.v1" → "acme.order.created.v1"
+    public string ResolveDestination(string? tenantId, string baseDestination, string messageType)
+        => tenantId is null ? baseDestination : $"{tenantId}.{messageType}";
+}
+
+// Registration:
+services.AddSingleton<ITenantBrokerRouter, TenantPrefixBrokerRouter>();
+```
+
+### `ITenantConnectionResolver` — Tenant-Aware Database Connection
+
+```csharp
+public interface ITenantConnectionResolver
+{
+    // Resolves the DB connection string or schema for a specific tenant.
+    // Use in schema-per-tenant or DB-per-tenant deployment patterns.
+    ValueTask<string> ResolveConnectionStringAsync(string tenantId, CancellationToken cancellationToken = default);
+}
+```
+
+**Example implementation** (configuration-based):
+
+```csharp
+public sealed class TenantConnectionResolver : ITenantConnectionResolver
+{
+    private readonly IConfiguration _config;
+    public TenantConnectionResolver(IConfiguration config) => _config = config;
+
+    public ValueTask<string> ResolveConnectionStringAsync(string tenantId, CancellationToken ct)
+    {
+        var cs = _config[$"Tenants:{tenantId}:ConnectionString"]
+            ?? throw new InvalidOperationException($"No connection string for tenant '{tenantId}'.");
+        return ValueTask.FromResult(cs);
+    }
+}
+
+// Registration:
+services.AddScoped<ITenantConnectionResolver, TenantConnectionResolver>();
+```
+
+### Enriching Messages with Tenant ID (`WithTenantId`)
+
+Messages are tagged with the tenant identifier at the producer side using the `OutboxMessageBuilder`:
+
+```csharp
+// WithTenantId() is a convenience shortcut that adds the reserved header "x-tenant-id":
+await outbox.Publish(new OrderCreatedEvent(...))
+    .WithTransaction(tx.ToOutboxContext())
+    .WithTenantId(currentTenantId)   // → adds header "x-tenant-id" = currentTenantId
+    .StoreAsync(ct);
+
+// Equivalent to:
+await outbox.Publish(new OrderCreatedEvent(...))
+    .WithTransaction(tx.ToOutboxContext())
+    .WithHeader("x-tenant-id", currentTenantId)
+    .StoreAsync(ct);
+```
+
+When the message is dispatched, `ITenantBrokerRouter.ResolveDestination()` receives the `x-tenant-id` header value and produces the final routing destination.
+
+> [!IMPORTANT]
+> `ITenantBrokerRouter` and `ITenantConnectionResolver` are **contracts you implement** — the library does not provide default implementations. They are resolved from DI when registered. If neither is registered, the dispatcher uses the standard routing (default broker / `Route()` configuration).
 
 ---
 

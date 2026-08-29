@@ -1,3 +1,4 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 
 namespace EricksonLopez.Outbox.Retry;
@@ -22,3 +23,4 @@ public interface IRetryPolicy
     /// <returns><see langword="true"/> if the operation should be retried; otherwise, <see langword="false"/>.</returns>
     bool ShouldRetry(int currentAttempt, Exception exception);
 }
+

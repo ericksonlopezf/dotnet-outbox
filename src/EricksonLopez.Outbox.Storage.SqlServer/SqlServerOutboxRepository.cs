@@ -1,19 +1,21 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Data;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-
 using EricksonLopez.Outbox;
 using EricksonLopez.Outbox.Persistence;
+using EricksonLopez.Result;
 using Microsoft.Extensions.Options;
 
 namespace EricksonLopez.Outbox.Storage.SqlServer;
 
 /// <summary>
-/// SQL Server implementation of <see cref="IOutboxRepository"/>.
+/// Provides a SQL Server implementation of <see cref="IOutboxRepository"/>.
 /// Uses <c>WITH (UPDLOCK, READPAST)</c> for concurrent polling.
+/// </summary>
 /// <remarks>
 /// Concurrency semantics:
 ///   - <c>READPAST</c> + <c>UPDLOCK</c> is the SQL Server equivalent of PostgreSQL's <c>FOR UPDATE SKIP LOCKED</c>
@@ -23,7 +25,6 @@ namespace EricksonLopez.Outbox.Storage.SqlServer;
 ///   - Unlike PostgreSQL SKIP LOCKED, READPAST can skip non-locked rows on a locked PAGE in certain
 ///     page-level locking scenarios. Production use requires READ COMMITTED isolation.
 /// </remarks>
-/// </summary>
 public sealed class SqlServerOutboxRepository : IOutboxRepository
 {
     private readonly Func<IDbConnection> _connectionFactory;
@@ -35,6 +36,7 @@ public sealed class SqlServerOutboxRepository : IOutboxRepository
     private readonly string _markFailedSql;
     private readonly string _reclaimSql;
     private readonly string _countSql;
+    private readonly string _purgeDispatchedSql;
     private readonly string _destinationTableName;
     private readonly Guid _instanceId;
 
@@ -46,6 +48,7 @@ public sealed class SqlServerOutboxRepository : IOutboxRepository
     /// <param name="connectionFactory">The factory that creates SQL Server connections.</param>
     /// <param name="options">The runtime options containing thresholds and configurations.</param>
     /// <exception cref="ArgumentNullException"><paramref name="connectionFactory"/> is <see langword="null"/>.</exception>
+
     public SqlServerOutboxRepository(Func<IDbConnection> connectionFactory, IOptions<OutboxRuntimeOptions>? options = null)
     {
         _connectionFactory = connectionFactory ?? throw new ArgumentNullException(nameof(connectionFactory));
@@ -54,9 +57,9 @@ public sealed class SqlServerOutboxRepository : IOutboxRepository
         var schema = _options.SchemaName;
         var table = _options.TableName;
         
-        if (!System.Text.RegularExpressions.Regex.IsMatch(schema, "^[a-zA-Z0-9_]+$"))
+        if (!System.Text.RegularExpressions.Regex.IsMatch(schema, "^[a-zA-Z0-9_]+$", System.Text.RegularExpressions.RegexOptions.None, TimeSpan.FromSeconds(1)))
             throw new ArgumentException("Schema name contains invalid characters.", nameof(options));
-        if (!System.Text.RegularExpressions.Regex.IsMatch(table, "^[a-zA-Z0-9_]+$"))
+        if (!System.Text.RegularExpressions.Regex.IsMatch(table, "^[a-zA-Z0-9_]+$", System.Text.RegularExpressions.RegexOptions.None, TimeSpan.FromSeconds(1)))
             throw new ArgumentException("Table name contains invalid characters.", nameof(options));
 
         var fullTableName = $"[{schema}].[{table}]";
@@ -136,12 +139,18 @@ public sealed class SqlServerOutboxRepository : IOutboxRepository
             SELECT @@ROWCOUNT;";
 
         _countSql = $"SELECT COUNT(*) FROM {fullTableName} WITH (NOLOCK) WHERE state IN (0, 3);";
+
+        _purgeDispatchedSql = $@"
+            DELETE TOP (@BatchSize) FROM {fullTableName}
+            WHERE state = 2
+              AND (processed_at < @Cutoff OR (processed_at IS NULL AND updated_at < @Cutoff));";
     }
 
     /// <inheritdoc/>
+
     public async ValueTask InsertAsync(OutboxMessage record, EricksonLopez.Outbox.Persistence.IOutboxTransactionContext transaction, CancellationToken cancellationToken = default)
     {
-        // Stryker disable once String
+
         var conn = transaction.Connection as Microsoft.Data.SqlClient.SqlConnection 
                    ?? throw new InvalidOperationException("Transaction connection is not a SqlConnection.");
         var sqlTx = transaction.Transaction as Microsoft.Data.SqlClient.SqlTransaction;
@@ -172,8 +181,6 @@ public sealed class SqlServerOutboxRepository : IOutboxRepository
         var result = new List<OutboxMessage>();
         using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         
-        if (!reader.HasRows) return result;
-        
         var idOrd = reader.GetOrdinal("Id");
         var messageTypeOrd = reader.GetOrdinal("MessageType");
         var payloadOrd = reader.GetOrdinal("Payload");
@@ -189,9 +196,7 @@ public sealed class SqlServerOutboxRepository : IOutboxRepository
 
         while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
-            var state = reader.GetInt32(stateOrd);
-            if (!Enum.IsDefined(typeof(EricksonLopez.Outbox.OutboxMessageStatus), state))
-                continue;
+            var state = (OutboxMessageStatus)reader.GetInt32(stateOrd);
 
             result.Add(new OutboxMessage(
                 Id: reader.GetGuid(idOrd),
@@ -211,10 +216,11 @@ public sealed class SqlServerOutboxRepository : IOutboxRepository
     }
 
     /// <inheritdoc/>
+
     public async ValueTask InsertBatchAsync(ReadOnlyMemory<OutboxMessage> records, EricksonLopez.Outbox.Persistence.IOutboxTransactionContext transaction, CancellationToken cancellationToken = default)
     {
         if (records.IsEmpty) return;
-        // Stryker disable once String
+
         var conn = transaction.Connection as Microsoft.Data.SqlClient.SqlConnection 
                    ?? throw new InvalidOperationException("Transaction connection is not a SqlConnection.");
         var sqlTx = transaction.Transaction as Microsoft.Data.SqlClient.SqlTransaction;
@@ -222,7 +228,8 @@ public sealed class SqlServerOutboxRepository : IOutboxRepository
         using var bulkCopy = new Microsoft.Data.SqlClient.SqlBulkCopy(conn, Microsoft.Data.SqlClient.SqlBulkCopyOptions.Default, sqlTx);
         bulkCopy.DestinationTableName = _destinationTableName;
         
-        // Stryker disable all
+
+        // Stryker disable all 
         bulkCopy.ColumnMappings.Add("id", "id");
         bulkCopy.ColumnMappings.Add("type", "type");
         bulkCopy.ColumnMappings.Add("payload", "payload");
@@ -240,6 +247,7 @@ public sealed class SqlServerOutboxRepository : IOutboxRepository
     }
 
     /// <inheritdoc/>
+
     public async ValueTask MarkAsDispatchedAsync(IReadOnlyList<OutboxMessage> messages, CancellationToken cancellationToken = default)
     {
         var records = CreateKeysRecords(messages).ToList();
@@ -259,6 +267,7 @@ public sealed class SqlServerOutboxRepository : IOutboxRepository
     }
 
     /// <inheritdoc/>
+
     public async ValueTask MarkAsFailedAsync(IReadOnlyList<OutboxMessage> messages, string error, bool isDeadLetter = false, CancellationToken cancellationToken = default)
     {
         var records = CreateKeysRecords(messages).ToList();
@@ -297,7 +306,7 @@ public sealed class SqlServerOutboxRepository : IOutboxRepository
         cmd.Parameters.AddWithValue("@MaxAgeDays", (int)_options.MaxMessageAge.TotalDays);
         
         var result = await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
-        return result != null ? Convert.ToInt32(result, System.Globalization.CultureInfo.InvariantCulture) : 0;
+        return Convert.ToInt32(result, System.Globalization.CultureInfo.InvariantCulture);
     }
 
     /// <inheritdoc/>
@@ -308,7 +317,33 @@ public sealed class SqlServerOutboxRepository : IOutboxRepository
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
         using var cmd = new Microsoft.Data.SqlClient.SqlCommand(_countSql, conn);
         var result = await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
-        return result != null ? Convert.ToInt32(result, System.Globalization.CultureInfo.InvariantCulture) : 0;
+        return Convert.ToInt32(result, System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    /// <inheritdoc/>
+
+    public async ValueTask<int> PurgeDispatchedMessagesAsync(
+        DateTimeOffset cutoff,
+        int batchSize = 1000,
+        CancellationToken cancellationToken = default)
+    {
+        // Stryker disable all 
+        if (batchSize <= 0) return 0;
+        // Stryker restore all
+
+        using var conn = _connectionFactory() as Microsoft.Data.SqlClient.SqlConnection 
+                         ?? throw new InvalidOperationException("Connection is not SqlConnection.");
+        // Stryker disable once all 
+        if (conn.State != ConnectionState.Open)
+        {
+            await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        using var cmd = new Microsoft.Data.SqlClient.SqlCommand(_purgeDispatchedSql, conn);
+        cmd.Parameters.AddWithValue("@Cutoff", cutoff);
+        cmd.Parameters.AddWithValue("@BatchSize", batchSize);
+
+        return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
     private static IEnumerable<Microsoft.Data.SqlClient.Server.SqlDataRecord> CreateKeysRecords(IReadOnlyList<OutboxMessage> messages)
@@ -327,78 +362,12 @@ public sealed class SqlServerOutboxRepository : IOutboxRepository
             record.SetDateTimeOffset(1, message.CreatedAt);
             yield return record;
         }
-    }
-
-    private sealed class OutboxMessageDataReader : IDataReader, IDataRecord
-    {
-        private readonly ReadOnlyMemory<OutboxMessage> _records;
-        private int _currentIndex = -1;
-
-        public OutboxMessageDataReader(ReadOnlyMemory<OutboxMessage> records) => _records = records;
-
-        public int FieldCount => 10;
-        public bool Read() => ++_currentIndex < _records.Length;
-        
-        public object GetValue(int i)
-        {
-            var r = _records.Span[_currentIndex];
-            return i switch
-            {
-                0 => r.Id,
-                1 => r.MessageType,
-                2 => r.Payload.ToArray(),
-                3 => (object?)r.CorrelationId ?? DBNull.Value,
-                4 => (object?)r.CausationId ?? DBNull.Value,
-                5 => r.Headers.ToArray(),
-                6 => r.Status,
-                7 => r.CreatedAt,
-                8 => r.CreatedAt, // updated_at
-                9 => (object?)r.DeliverAt ?? DBNull.Value,
-                _ => throw new ArgumentOutOfRangeException(nameof(i))
-            };
-        }
-
-        public string GetName(int i) => i switch {
-            0 => "id", 1 => "type", 2 => "payload", 3 => "correlation_id", 4 => "causation_id", 5 => "headers_json", 6 => "state", 7 => "created_at", 8 => "updated_at", 9 => "deliver_at", _ => throw new ArgumentOutOfRangeException(nameof(i))
-        };
-
-        public int GetOrdinal(string name) => name switch {
-            "id" => 0, "type" => 1, "payload" => 2, "correlation_id" => 3, "causation_id" => 4, "headers_json" => 5, "state" => 6, "created_at" => 7, "updated_at" => 8, "deliver_at" => 9, _ => -1
-        };
-        
-        public void Close() { }
-        public void Dispose() { }
-        public int Depth => 0;
-        public bool IsClosed => false;
-        public int RecordsAffected => -1;
-        public System.Data.DataTable? GetSchemaTable() => null;
-        public bool NextResult() => false;
-
-        public bool GetBoolean(int i) => (bool)GetValue(i);
-        public byte GetByte(int i) => (byte)GetValue(i);
-        public long GetBytes(int i, long fieldOffset, byte[]? buffer, int bufferoffset, int length) => 0;
-        public char GetChar(int i) => (char)GetValue(i);
-        public long GetChars(int i, long fieldoffset, char[]? buffer, int bufferoffset, int length) => 0;
-        public IDataReader GetData(int i) => throw new NotSupportedException();
-        public string GetDataTypeName(int i) => "";
-        public DateTime GetDateTime(int i) => (DateTime)GetValue(i);
-        public decimal GetDecimal(int i) => (decimal)GetValue(i);
-        public double GetDouble(int i) => (double)GetValue(i);
-        [return: System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicFields | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties)]
-        public Type GetFieldType(int i) => typeof(object);
-        public float GetFloat(int i) => (float)GetValue(i);
-        public Guid GetGuid(int i) => (Guid)GetValue(i);
-        public short GetInt16(int i) => (short)GetValue(i);
-        public int GetInt32(int i) => (int)GetValue(i);
-        public long GetInt64(int i) => (long)GetValue(i);
-        public string GetString(int i) => (string)GetValue(i);
-        public int GetValues(object[] values) => 0;
-        public bool IsDBNull(int i) => GetValue(i) is DBNull;
-
-        public object this[int i] => GetValue(i);
-        public object this[string name] => GetValue(GetOrdinal(name));
-    }
 }
+}
+
+
+
+
 
 
 

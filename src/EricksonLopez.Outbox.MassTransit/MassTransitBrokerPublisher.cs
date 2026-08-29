@@ -1,14 +1,15 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using MassTransit;
 using EricksonLopez.Outbox;
+using MassTransit;
 
 namespace EricksonLopez.Outbox.MassTransit;
 
 /// <summary>
-/// Publishes outbox messages to a message broker via MassTransit.
+/// Provides a broker publisher implementation that dispatches outbox messages to a message broker via MassTransit.
 /// </summary>
 /// <remarks>
 /// This bridge allows using EricksonLopez.Outbox for extreme database performance while delegating
@@ -48,7 +49,7 @@ public sealed class MassTransitBrokerPublisher : IBrokerPublisher
     }
 
     /// <inheritdoc/>
-    /// <remarks>Propagates the correlation ID from <see cref="MessageMetadata"/> and any custom headers to the MassTransit publish context.</remarks>
+    /// <remarks>Propagates the correlation ID from <see cref="OutboxMessageMetadata"/> and any custom headers to the MassTransit publish context.</remarks>
     public async ValueTask<DispatchResult> PublishAsync<T>(MessageEnvelope<T> message, DispatchContext context) where T : notnull
     {
         try
@@ -79,13 +80,13 @@ public sealed class MassTransitBrokerPublisher : IBrokerPublisher
     /// <inheritdoc/>
     /// <remarks>
     /// MassTransit does not natively support raw byte publishing without a known CLR type. This
-    /// implementation publishes a <see cref="System.Collections.Generic.Dictionary{TKey, TValue}"/> envelope with
+    /// implementation publishes a <see cref="Dictionary{TKey, TValue}"/> envelope with
     /// the UTF-8 decoded payload and message type, relying on the <c>outbox.message_type</c> header
     /// for consumer routing.
     /// </remarks>
     public async ValueTask<DispatchResult> PublishRawAsync(
         OutboxMessage message,
-        MessageMetadata metadata,
+        OutboxMessageMetadata metadata,
         DispatchContext context)
     {
         try
@@ -118,3 +119,7 @@ public sealed class MassTransitBrokerPublisher : IBrokerPublisher
         }
     }
 }
+
+
+
+

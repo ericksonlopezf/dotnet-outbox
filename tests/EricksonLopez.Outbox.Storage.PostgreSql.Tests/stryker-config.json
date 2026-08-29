@@ -1,0 +1,37 @@
+{
+  "stryker-config": {
+    "project": "EricksonLopez.Outbox.Storage.PostgreSql.csproj",
+    "concurrency": 4,
+    "thresholds": {
+      "high": 100,
+      "low": 98,
+      "break": 95
+    },
+    "coverage-analysis": "perTest",
+    "mutate": [
+      "**/*.cs",
+      "!**/Testing/**/*.cs",
+      "!**/*.g.cs",
+      "!**/Generated/**/*.cs"
+    ],
+    "ignore-mutations": [
+      "Initializer"
+    ],
+    "ignore-methods": [
+      "*Log*",
+      "*Trace*",
+      "*Debug*",
+      "*Exception*",
+      "ThrowIf*",
+      "ConfigureAwait",
+      "ToString",
+      "GetHashCode",
+      "Equals"
+    ],
+    "reporters": [
+      "cleartext",
+      "json",
+      "html"
+    ]
+  }
+}

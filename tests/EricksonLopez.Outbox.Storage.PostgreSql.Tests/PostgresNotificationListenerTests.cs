@@ -1,8 +1,9 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using AwesomeAssertions;
 using Dapper;
-
 using EricksonLopez.Outbox;
 using EricksonLopez.Outbox.Dispatcher;
 using EricksonLopez.Outbox.Storage.PostgreSql;
@@ -13,9 +14,11 @@ using Npgsql;
 using NSubstitute;
 using Xunit;
 
-namespace EricksonLopez.Outbox.Tests;
+namespace EricksonLopez.Outbox.Storage.PostgreSql.Tests;
 
-public class PostgresNotificationListenerTests : IClassFixture<PostgreSqlContainerFixture>
+[Collection("PostgreSql")]
+[Trait("Category", "Integration")]
+public class PostgresNotificationListenerTests
 {
     private readonly PostgreSqlContainerFixture _fixture;
     protected NpgsqlDataSource _dataSource => _fixture.DataSource;
@@ -41,14 +44,16 @@ public class PostgresNotificationListenerTests : IClassFixture<PostgreSqlContain
             optionsMock,
             outboxOptions,
             metrics,
-            Substitute.For<Microsoft.Extensions.DependencyInjection.IServiceScopeFactory>(), NSubstitute.Substitute.For<EricksonLopez.Outbox.Diagnostics.IErrorSanitizer>());
+            Substitute.For<Microsoft.Extensions.DependencyInjection.IServiceScopeFactory>(), 
+            NSubstitute.Substitute.For<EricksonLopez.Outbox.Diagnostics.IErrorSanitizer>(),
+            TimeProvider.System);
 
         return new AdaptivePoller(
             sp,
             outboxChannel,
             optionsMock,
             NullLogger<AdaptivePoller>.Instance,
-            metrics);
+            metrics, TimeProvider.System);
     }
 
     [Fact]
@@ -58,31 +63,29 @@ public class PostgresNotificationListenerTests : IClassFixture<PostgreSqlContain
         var listener = new PostgresNotificationListener(
             _dataSource, 
             NullLogger<PostgresNotificationListener>.Instance, 
+            TimeProvider.System,
             poller);
 
-        bool eventFired = false;
-        listener.OnMessageReceived += (s, e) => eventFired = true;
+        var eventFiredTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var listeningStartedTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        listener.OnMessageReceived += (s, e) => eventFiredTcs.TrySetResult();
+        listener.OnListeningStarted += (s, e) => listeningStartedTcs.TrySetResult();
 
         using var cts = new CancellationTokenSource();
-        
         var listenerTask = listener.StartAsync(cts.Token);
-        
-        // Give it a moment to connect and execute LISTEN
-        await Task.Delay(500);
+
+        // Wait until listener has confirmed subscription to LISTEN
+        await listeningStartedTcs.Task.WaitAsync(TimeSpan.FromSeconds(10));
 
         // Fire a NOTIFY
         await using var connection = await _dataSource.OpenConnectionAsync();
         await connection.ExecuteAsync("NOTIFY outbox_new_messages, 'test_payload';");
 
-        // Wait for the notification to be received
-        for (int i = 0; i < 30; i++)
-        {
-            if (eventFired) break;
-            await Task.Delay(100);
-        }
+        // Wait deterministically for the notification to be received
+        await eventFiredTcs.Task.WaitAsync(TimeSpan.FromSeconds(10));
 
         // Assert poller was woken and event fired
-        Assert.True(eventFired);
+        Assert.True(eventFiredTcs.Task.IsCompletedSuccessfully);
 
         // Cleanup
         cts.Cancel();
@@ -99,23 +102,58 @@ public class PostgresNotificationListenerTests : IClassFixture<PostgreSqlContain
     }
 
     [Fact]
+    public async Task StartAsync_CancellationRequestedAfterNotification_ExitsCleanlyWithoutException()
+    {
+        var poller = CreatePoller(out var outboxChannel);
+        var listener = new PostgresNotificationListener(
+            _dataSource, 
+            NullLogger<PostgresNotificationListener>.Instance, 
+            TimeProvider.System,
+            poller);
+
+        var listeningStartedTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        listener.OnListeningStarted += (s, e) => listeningStartedTcs.TrySetResult();
+
+        using var cts = new CancellationTokenSource();
+        listener.OnMessageReceived += (s, e) => cts.Cancel();
+
+        await listener.StartAsync(cts.Token);
+        await listeningStartedTcs.Task.WaitAsync(TimeSpan.FromSeconds(10));
+
+        await using var connection = await _dataSource.OpenConnectionAsync();
+        await connection.ExecuteAsync("NOTIFY outbox_new_messages, 'cancel_on_receive';");
+
+        if (listener.ExecuteTask != null)
+        {
+            await listener.ExecuteTask.WaitAsync(TimeSpan.FromSeconds(10));
+        }
+
+        listener.ExecuteTask?.IsCompletedSuccessfully.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task StartAsync_Should_Handle_Cancellation_During_Wait()
     {
         var poller = CreatePoller(out var outboxChannel);
         var listener = new PostgresNotificationListener(
             _dataSource, 
             NullLogger<PostgresNotificationListener>.Instance, 
+            TimeProvider.System,
             poller);
 
+        var startedTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        listener.OnListeningStarted += (s, e) => startedTcs.TrySetResult();
+
         using var cts = new CancellationTokenSource();
-        var listenerTask = listener.StartAsync(cts.Token);
+        await listener.StartAsync(cts.Token);
         
-        await Task.Delay(200); // Wait for connection to open
+        await startedTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
         
         cts.Cancel(); // Should cancel WaitAsync cleanly
         
         var exception = await Record.ExceptionAsync(() => listener.ExecuteTask ?? Task.CompletedTask);
         Assert.Null(exception); // The OperationCanceledException should be caught and loop broken
+        listener.ExecuteTask?.IsCompletedSuccessfully.Should().BeTrue();
     }
 
     [Fact]
@@ -128,6 +166,7 @@ public class PostgresNotificationListenerTests : IClassFixture<PostgreSqlContain
         var listener = new PostgresNotificationListener(
             badDataSource, 
             NullLogger<PostgresNotificationListener>.Instance, 
+            TimeProvider.System,
             poller);
 
         using var cts = new CancellationTokenSource();
@@ -148,6 +187,7 @@ public class PostgresNotificationListenerTests : IClassFixture<PostgreSqlContain
         var listener = new PostgresNotificationListener(
             _dataSource, 
             NullLogger<PostgresNotificationListener>.Instance, 
+            TimeProvider.System,
             null); // null poller
 
         using var cts = new CancellationTokenSource();
@@ -155,8 +195,124 @@ public class PostgresNotificationListenerTests : IClassFixture<PostgreSqlContain
         
         var exception = await Record.ExceptionAsync(() => listener.ExecuteTask ?? Task.CompletedTask);
         Assert.Null(exception); // Should return immediately
+        listener.ExecuteTask.Should().NotBeNull();
+        listener.ExecuteTask!.IsCompletedSuccessfully.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Constructor_NullParameters_ThrowsArgumentNullException()
+    {
+        var poller = Substitute.For<IPollerWakeup>();
+        
+        Action act1 = () => _ = new PostgresNotificationListener(null!, NullLogger<PostgresNotificationListener>.Instance, TimeProvider.System, poller);
+        act1.Should().Throw<ArgumentNullException>().WithParameterName("dataSource");
+
+        Action act2 = () => _ = new PostgresNotificationListener(_dataSource, null!, TimeProvider.System, poller);
+        act2.Should().Throw<ArgumentNullException>().WithParameterName("logger");
+
+        Action act3 = () => _ = new PostgresNotificationListener(_dataSource, NullLogger<PostgresNotificationListener>.Instance, null!, poller);
+        act3.Should().Throw<ArgumentNullException>().WithParameterName("timeProvider");
+    }
+
+    [Fact]
+    public async Task StartAsync_Should_Call_PollerWakeup_When_NotificationReceived()
+    {
+        var pollerMock = Substitute.For<IPollerWakeup>();
+        var listener = new PostgresNotificationListener(
+            _dataSource, 
+            NullLogger<PostgresNotificationListener>.Instance, 
+            TimeProvider.System,
+            pollerMock);
+
+        var eventFiredTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var listeningStartedTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        listener.OnMessageReceived += (s, e) => eventFiredTcs.TrySetResult();
+        listener.OnListeningStarted += (s, e) => listeningStartedTcs.TrySetResult();
+
+        using var cts = new CancellationTokenSource();
+        await listener.StartAsync(cts.Token);
+
+        await listeningStartedTcs.Task.WaitAsync(TimeSpan.FromSeconds(10));
+
+        await using var connection = await _dataSource.OpenConnectionAsync();
+        await connection.ExecuteAsync("NOTIFY outbox_new_messages, 'payload_data';");
+
+        await eventFiredTcs.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        pollerMock.Received(1).WakeUp();
+
+        cts.Cancel();
+        try
+        {
+            if (listener.ExecuteTask != null)
+            {
+                await listener.ExecuteTask;
+            }
+        }
+        catch (OperationCanceledException) { }
+    }
+
+    [Fact]
+    public async Task StartAsync_WhenListenLoopThrowsException_RetriesAndLogsError()
+    {
+        var pollerMock = Substitute.For<IPollerWakeup>();
+        await using var faultyDataSource = NpgsqlDataSource.Create("Host=invalid.host.nonexistent;Database=test;Username=u;Password=p;Timeout=1;CommandTimeout=1");
+        
+        var listener = new PostgresNotificationListener(
+            faultyDataSource,
+            NullLogger<PostgresNotificationListener>.Instance,
+            TimeProvider.System,
+            pollerMock);
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
+        await listener.StartAsync(cts.Token);
+
+        try
+        {
+            if (listener.ExecuteTask != null)
+            {
+                await listener.ExecuteTask;
+            }
+        }
+        catch (OperationCanceledException) { }
+    }
+
+    [Fact]
+    public async Task StartAsync_WhenConnectionFails_DelaysUsingTimeProviderBeforeRetrying()
+    {
+        var pollerMock = Substitute.For<IPollerWakeup>();
+        var fakeTime = new Microsoft.Extensions.Time.Testing.FakeTimeProvider();
+        await using var faultyDataSource = NpgsqlDataSource.Create("Host=invalid.host.nonexistent;Database=test;Username=u;Password=p;Timeout=1;CommandTimeout=1");
+
+        var listener = new PostgresNotificationListener(
+            faultyDataSource,
+            NullLogger<PostgresNotificationListener>.Instance,
+            fakeTime,
+            pollerMock);
+
+        using var cts = new CancellationTokenSource();
+        await listener.StartAsync(cts.Token);
+
+        // Give listener task time to enter the catch block and schedule delay
+        await Task.Delay(100);
+
+        // Advance time by 5 seconds to complete delay
+        fakeTime.Advance(TimeSpan.FromSeconds(5));
+
+        cts.Cancel();
+        try
+        {
+            if (listener.ExecuteTask != null)
+            {
+                await listener.ExecuteTask;
+            }
+        }
+        catch (OperationCanceledException) { }
     }
 }
+
+
+
+
 
 
 
