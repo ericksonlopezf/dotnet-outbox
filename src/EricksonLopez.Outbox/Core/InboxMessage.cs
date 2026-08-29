@@ -1,3 +1,4 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 
 namespace EricksonLopez.Outbox;
@@ -26,3 +27,4 @@ public readonly record struct InboxMessage(
     DateTimeOffset? ProcessedAt,
     int Status,
     string? Error);
+

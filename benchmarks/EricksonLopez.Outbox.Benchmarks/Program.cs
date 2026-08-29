@@ -1,17 +1,4 @@
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
-using BenchmarkDotNet.Attributes;
-using BenchmarkDotNet.Columns;
-using BenchmarkDotNet.Configs;
-using BenchmarkDotNet.Diagnosers;
-using BenchmarkDotNet.Jobs;
-using BenchmarkDotNet.Running;
-using BenchmarkDotNet.Toolchains.InProcess.Emit;
-using EricksonLopez.Outbox;
-using EricksonLopez.Outbox.Testing;
-
+// Copyright © Erickson Lopez. MIT License.
 /// <summary>
 /// Entry point — runs all benchmark classes and writes results to BenchmarkDotNet.Artifacts/.
 /// Run with: dotnet run -c Release
@@ -43,6 +30,20 @@ using EricksonLopez.Outbox.Testing;
 /// performance claims.
 /// </para>
 /// </remarks>
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using BenchmarkDotNet.Attributes;
+using BenchmarkDotNet.Columns;
+using BenchmarkDotNet.Configs;
+using BenchmarkDotNet.Diagnosers;
+using BenchmarkDotNet.Jobs;
+using BenchmarkDotNet.Running;
+using BenchmarkDotNet.Toolchains.InProcess.Emit;
+using EricksonLopez.Outbox;
+using EricksonLopez.Outbox.Testing;
+using System.Threading.Tasks;
+
 BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(args, DefaultConfig.Instance
     .AddJob(Job.Default.WithToolchain(InProcessEmitToolchain.Instance))
     .AddDiagnoser(MemoryDiagnoser.Default) // Default includes Gen0, Gen1, Gen2, Allocated
@@ -63,3 +64,5 @@ BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(args, DefaultConfig
     .AddColumn(StatisticColumn.P95)
     .AddColumn(StatisticColumn.Min)
     .AddColumn(StatisticColumn.Max));
+
+

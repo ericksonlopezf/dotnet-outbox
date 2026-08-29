@@ -1,14 +1,16 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
-using RabbitMQ.Client;
 using EricksonLopez.Outbox;
 using EricksonLopez.Outbox.Serialization;
+using RabbitMQ.Client;
 
 namespace EricksonLopez.Outbox.RabbitMQ;
 
 /// <summary>
-/// Publishes outbox messages to a RabbitMQ exchange using the asynchronous client.
+/// Provides a broker publisher implementation that dispatches outbox messages to a RabbitMQ exchange using the asynchronous client.
 /// </summary>
 public sealed class RabbitMQBrokerPublisher : IBrokerPublisher
 {
@@ -83,7 +85,7 @@ public sealed class RabbitMQBrokerPublisher : IBrokerPublisher
     /// <inheritdoc/>
     public async ValueTask<DispatchResult> PublishRawAsync(
         OutboxMessage message,
-        MessageMetadata metadata,
+        OutboxMessageMetadata metadata,
         DispatchContext context)
     {
         try
@@ -115,3 +117,8 @@ public sealed class RabbitMQBrokerPublisher : IBrokerPublisher
         }
     }
 }
+
+
+
+
+

@@ -1,3 +1,4 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -38,6 +39,12 @@ public class FakeOutboxRepositoryTests
         await _repo.ReclaimStaleMessagesAsync(TimeSpan.Zero);
         
         await _repo.MarkAsDispatchedAsync(new[] { msg });
+
+        var purged = await _repo.PurgeDispatchedMessagesAsync(DateTimeOffset.UtcNow.AddMinutes(1));
+        purged.Should().Be(1);
+
+        var fetched = await _repo.GetMessageAsync(msg.Id);
+        fetched.Should().BeNull();
     }
 
     private static OutboxMessage CreateMessage()
@@ -58,3 +65,6 @@ public class FakeOutboxRepositoryTests
         );
     }
 }
+
+
+

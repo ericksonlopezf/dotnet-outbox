@@ -1,3 +1,5 @@
+<!-- Copyright © Erickson Lopez. MIT License. -->
+
 # Level 1: Getting Started
 
 In this level you will install `EricksonLopez.Outbox`, configure it with Entity Framework Core and PostgreSQL, and publish your first guaranteed event.

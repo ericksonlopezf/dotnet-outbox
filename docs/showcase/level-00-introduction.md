@@ -1,3 +1,5 @@
+<!-- Copyright © Erickson Lopez. MIT License. -->
+
 # Level 0: Introduction to the Outbox Pattern
 
 ## What is the Transactional Outbox Pattern?

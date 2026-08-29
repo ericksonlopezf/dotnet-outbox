@@ -1,7 +1,9 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Data.Common;
 using AwesomeAssertions;
 using EricksonLopez.Outbox.Persistence;
+using EricksonLopez.Result;
 using NSubstitute;
 using Xunit;
 
@@ -31,3 +33,4 @@ public class OutboxTransactionContextExtensionsTests
         dbContext.Transaction.Should().BeSameAs(transaction);
     }
 }
+

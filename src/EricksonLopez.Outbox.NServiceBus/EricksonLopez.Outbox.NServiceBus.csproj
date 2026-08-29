@@ -1,0 +1,23 @@
+<!-- Copyright © Erickson Lopez. MIT License. -->
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>[INTEROP / COMPATIBILITY BRIDGE] NServiceBus integration for EricksonLopez.Outbox. Enables transactional outbox publishing within NServiceBus message pipelines.</Description>
+    <PackageTags>$(CommonPackageTags);nservicebus;message-bus;messaging;service-bus;publish-subscribe</PackageTags>
+    <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
+    <Nullable>enable</Nullable>
+    <!-- NServiceBus message pipeline relies on runtime reflection and dynamic type scanning; AOT is not supported -->
+    <IsAotCompatible>false</IsAotCompatible>
+    <IsTrimmable>false</IsTrimmable>
+    <EnableTrimAnalyzer>false</EnableTrimAnalyzer>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NServiceBus" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\EricksonLopez.Outbox\EricksonLopez.Outbox.csproj" />
+  </ItemGroup>
+
+</Project>
