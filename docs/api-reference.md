@@ -1,552 +1,462 @@
-# API Reference
+<!-- Copyright © Erickson Lopez. MIT License. -->
 
-This document provides a concise reference of the public API surface for `EricksonLopez.Outbox`.
-All signatures are extracted directly from the source code. For full XML doc comments, refer to
-the IntelliSense documentation in your IDE or the source files linked below.
+# Public API Reference Guide (Microsoft Learn Format)
 
-> [!TIP]
-> For auto-generated, always-up-to-date API documentation, consider integrating
-> [DocFX](https://dotnet.github.io/docfx/) into the CI pipeline. The source code
-> already contains comprehensive XML doc comments on all public types.
+This document provides the official technical reference for all public APIs in the `EricksonLopez.Outbox` and `EricksonLopez.Inbox` ecosystem.
 
 ---
 
 ## Table of Contents
 
-1. [Core — Producer API](#1-core--producer-api)
-2. [Core — Dispatcher & Resilience](#2-core--dispatcher--resilience)
-3. [Core — Serialization](#3-core--serialization)
-4. [Core — Idempotency (Inbox)](#4-core--idempotency-inbox)
-5. [Persistence — Repositories](#5-persistence--repositories)
-6. [Persistence — Transaction Context](#6-persistence--transaction-context)
-7. [Persistence — Data Models](#7-persistence--data-models)
-8. [Configuration & DI](#8-configuration--di)
-9. [Diagnostics](#9-diagnostics)
-10. [Roslyn Tooling](#10-roslyn-tooling)
+1. [Core Producer API (`EricksonLopez.Outbox.Abstractions` & `EricksonLopez.Outbox`)](#1-core-producer-api)
+2. [Fluent Message Builder API (`OutboxMessageBuilder<T>`)](#2-fluent-message-builder-api)
+3. [Configuration & Dependency Injection](#3-configuration--dependency-injection)
+4. [Dispatcher & Background Processing](#4-dispatcher--background-processing)
+5. [Persistence & Transaction Contexts](#5-persistence--transaction-contexts)
+6. [Resilience & Retry Policies](#6-resilience--retry-policies)
+7. [Serialization & Type Resolvers](#7-serialization--type-resolvers)
+8. [Inbox & Consumer Idempotency](#8-inbox--consumer-idempotency)
+9. [Storage Providers Reference](#9-storage-providers-reference)
+10. [Broker Publishers Reference](#10-broker-publishers-reference)
+11. [Testing & In-Memory Verification API](#11-testing--in-memory-verification-api)
 
 ---
 
-## 1. Core — Producer API
+## 1. Core Producer API
 
-### `IOutbox`
+### `IOutbox` Interface
 
-**Namespace:** `EricksonLopez.Outbox`
-**Source:** [`IOutbox.cs`](../src/EricksonLopez.Outbox/IOutbox.cs)
+**Namespace:** `EricksonLopez.Outbox`  
+**Assembly:** `EricksonLopez.Outbox.Abstractions.dll`
 
-The primary entry point for storing messages in the outbox.
+The primary contract for storing messages atomically within a database transaction.
 
-```csharp
-public interface IOutbox
-{
-    // Store a single message within a transaction
-    ValueTask StoreAsync<TMessage>(
-        TMessage message,
-        IOutboxTransactionContext transaction,
-        CancellationToken cancellationToken = default) where TMessage : notnull;
+#### Methods
 
-    // Store a batch of messages (zero-copy via ReadOnlyMemory<T>)
-    ValueTask StoreAsync<TMessage>(
-        ReadOnlyMemory<TMessage> messages,
-        IOutboxTransactionContext transaction,
-        CancellationToken cancellationToken = default) where TMessage : notnull;
+##### `StoreAsync<TMessage>(TMessage, IOutboxTransactionContext, CancellationToken)`
 
-    // Store with explicit metadata and delayed delivery
-    ValueTask StoreAsync<TMessage>(
-        TMessage message,
-        IOutboxTransactionContext transaction,
-        MessageMetadata metadata,
-        DateTimeOffset? deliverAt,
-        CancellationToken cancellationToken = default) where TMessage : notnull;
-
-    // Fluent builder API
-    OutboxMessageBuilder<TMessage> Publish<TMessage>(TMessage message) where TMessage : notnull;
-}
-```
-
-**Extension methods** (`OutboxExtensions`):
+Stores a single message in the outbox table within the specified transaction.
 
 ```csharp
-// Store an IEnumerable<T> batch (materializes to array internally)
 ValueTask StoreAsync<TMessage>(
-    this IOutbox outbox,
-    IEnumerable<TMessage> messages,
+    TMessage message,
     IOutboxTransactionContext transaction,
     CancellationToken cancellationToken = default) where TMessage : notnull;
 ```
 
-### `OutboxMessageBuilder<TMessage>`
-
-**Namespace:** `EricksonLopez.Outbox`
-**Type:** `ref struct` (stack-only, zero allocation)
-
-Fluent builder returned by `IOutbox.Publish()`.
-
+- **Parameters:**
+  - `message` (`TMessage`): The domain or integration event instance to store. Cannot be null.
+  - `transaction` (`IOutboxTransactionContext`): The ambient database transaction context (e.g. `DbTransactionContext`).
+  - `cancellationToken` (`CancellationToken`): Token to observe while waiting for the task to complete.
+- **Returns:** `ValueTask` representing the asynchronous store operation.
+- **Exceptions:**
+  - `ArgumentNullException`: Thrown if `message` or `transaction` is null.
+  - `OutboxException`: Thrown if the message type is not registered and `ThrowOnUnregisteredType=true`.
+  - `PayloadTooLargeException`: Thrown if the serialized payload exceeds `MaxPayloadSizeInBytes`.
+- **Remarks:** This method is atomic. If the surrounding database transaction is committed, the message is guaranteed to be persisted. If rolled back, the message is discarded.
+- **Example:**
 ```csharp
-public ref struct OutboxMessageBuilder<TMessage> where TMessage : notnull
-{
-    OutboxMessageBuilder<TMessage> WithTransaction(IOutboxTransactionContext transaction);
-    OutboxMessageBuilder<TMessage> WithDelay(TimeSpan delay);
-    OutboxMessageBuilder<TMessage> DeliverAt(DateTimeOffset deliverAt);
-    OutboxMessageBuilder<TMessage> WithHeader(string key, string value);
-    OutboxMessageBuilder<TMessage> WithCorrelationId(string correlationId);
-    OutboxMessageBuilder<TMessage> WithCausationId(string causationId);
-    ValueTask StoreAsync(CancellationToken cancellationToken = default);
-}
+await using var conn = await dataSource.OpenConnectionAsync(ct);
+await using var tx = await conn.BeginTransactionAsync(ct);
+
+var @event = new OrderCreatedEvent(order.Id, order.CustomerId, order.Total, DateTimeOffset.UtcNow);
+await outbox.StoreAsync(@event, tx.ToOutboxContext(), ct);
+
+await tx.CommitAsync(ct);
 ```
 
 ---
 
-## 2. Core — Dispatcher & Resilience
+##### `StoreAsync<TMessage>(ReadOnlyMemory<TMessage>, IOutboxTransactionContext, CancellationToken)`
 
-### `IBrokerPublisher`
-
-**Namespace:** `EricksonLopez.Outbox`
-**Source:** [`IBrokerPublisher.cs`](../src/EricksonLopez.Outbox/Core/IBrokerPublisher.cs)
-
-Implement this to integrate with any message broker.
+Stores a batch of messages in the outbox table using a zero-allocation `ReadOnlyMemory<TMessage>` slice.
 
 ```csharp
-public interface IBrokerPublisher
-{
-    ValueTask<DispatchResult> PublishRawAsync(
-        OutboxMessage message,
-        MessageMetadata metadata,
-        DispatchContext context);
-}
+ValueTask StoreAsync<TMessage>(
+    ReadOnlyMemory<TMessage> messages,
+    IOutboxTransactionContext transaction,
+    CancellationToken cancellationToken = default) where TMessage : notnull;
+```
 
-// Optional: strongly-typed publishing
-public interface ITypedBrokerPublisher : IBrokerPublisher
-{
-    ValueTask<DispatchResult> PublishAsync<T>(
-        MessageEnvelope<T> message, DispatchContext context) where T : notnull;
+- **Parameters:**
+  - `messages` (`ReadOnlyMemory<TMessage>`): Contiguous memory slice of messages to insert in a single SQL batch.
+  - `transaction` (`IOutboxTransactionContext`): The ambient transaction context.
+  - `cancellationToken` (`CancellationToken`): Cancellation token.
+- **Performance:** Zero intermediate heap allocation; ideal for high-throughput batching loops with pre-rented buffers.
 
-    ValueTask<IReadOnlyList<DispatchResult>> PublishBatchAsync<T>(
-        IReadOnlyList<MessageEnvelope<T>> messages, DispatchContext context) where T : notnull;
+---
+
+##### `StoreAsync<TMessage>(TMessage, IOutboxTransactionContext, OutboxMessageMetadata, DateTimeOffset?, CancellationToken)`
+
+Stores a message with explicit pre-built metadata and optional delayed delivery timestamp.
+
+```csharp
+ValueTask StoreAsync<TMessage>(
+    TMessage message,
+    IOutboxTransactionContext transaction,
+    OutboxMessageMetadata metadata,
+    DateTimeOffset? deliverAt,
+    CancellationToken cancellationToken = default) where TMessage : notnull;
+```
+
+- **Parameters:**
+  - `metadata` (`OutboxMessageMetadata`): Struct containing CorrelationId, CausationId, and custom headers.
+  - `deliverAt` (`DateTimeOffset?`): Timestamp when the message becomes eligible for polling. If null, dispatched immediately.
+
+---
+
+##### `Publish<TMessage>(TMessage)`
+
+Initializes the fluent builder for fine-grained message configuration before storing.
+
+```csharp
+OutboxMessageBuilder<TMessage> Publish<TMessage>(TMessage message) where TMessage : notnull;
+```
+
+- **Returns:** `OutboxMessageBuilder<TMessage>` — a `sealed class` (heap-allocated, `IDisposable`). Dispose is handled automatically by `await StoreAsync()`. Do **not** manually call `Dispose()` unless aborting the fluent chain early.
+
+---
+
+## 2. Fluent Message Builder API
+
+### `OutboxMessageBuilder<TMessage>`
+
+**Namespace:** `EricksonLopez.Outbox`  
+**Assembly:** `EricksonLopez.Outbox.dll`  
+**Type:** `sealed class` implementing `IDisposable`
+
+> [!NOTE]
+> `OutboxMessageBuilder<TMessage>` is a **heap-allocated class**, not a `ref struct`. It rents an internal
+> `MetadataEntry[]` from `ArrayPool<MetadataEntry>.Shared` when headers are added, and returns it on
+> disposal. The builder is automatically disposed by `StoreAsync()`. If you abandon the fluent chain
+> without calling `StoreAsync()`, dispose the builder manually to avoid a pool buffer leak. See [ADR-037](adr/037-outboxmessagebuilder-sealed-class-rationale.md).
+
+#### Methods
+
+| Method Signature | Description |
+| :--- | :--- |
+| `WithTransaction(IOutboxTransactionContext transaction)` | Binds the target database transaction context. |
+| `WithCorrelationId(string correlationId)` | Sets the distributed tracing Correlation ID header. |
+| `WithCausationId(string causationId)` | Sets the Causation ID header indicating the command origin. |
+| `WithHeader(string key, string value)` | Adds a custom metadata key-value header entry. |
+| `WithTenantId(string tenantId)` | Adds the reserved `x-tenant-id` header (shortcut for `WithHeader("x-tenant-id", tenantId)`). |
+| `WithDelay(TimeSpan delay)` | Schedules delivery after a specified time delay from now. Sets the `deliver_at` column. |
+| `WithDeliverAt(DateTimeOffset deliverAt)` | Schedules delivery at an exact absolute UTC timestamp. Sets the `deliver_at` column. |
+| `StoreAsync(CancellationToken ct = default)` | Persists the configured message into the database and disposes the builder. |
+
+#### Example
+```csharp
+await outbox.Publish(@event)
+    .WithCorrelationId(correlationId)
+    .WithCausationId(commandId)
+    .WithTenantId(tenantId)           // idiomatic: sets x-tenant-id header
+    .WithHeader("X-Source-System", "showcase")
+    .WithDelay(TimeSpan.FromMinutes(10))
+    .WithTransaction(tx.ToOutboxContext())
+    .StoreAsync(cancellationToken);
+```
+
+---
+
+## 3. Configuration & Dependency Injection
+
+### `OutboxServiceCollectionExtensions`
+
+**Namespace:** `EricksonLopez.Outbox`
+
+```csharp
+public static class OutboxServiceCollectionExtensions
+{
+    // Registers core Outbox services (IOutbox, Serializer, TypeResolver)
+    public static IServiceCollection AddOutbox(
+        this IServiceCollection services, 
+        Action<OutboxOptions> configure);
+
+    // Registers the background Dispatcher daemon
+    public static IServiceCollection AddOutboxDispatcher(
+        this IServiceCollection services, 
+        Action<OutboxDispatcherOptions> configure);
+
+    // Registers the Inbox deduplication retention daemon
+    public static IServiceCollection AddOutboxInbox(
+        this IServiceCollection services, 
+        Action<OutboxInboxOptions> configure);
 }
 ```
 
-**Built-in implementations:**
+> [!TIP]
+> To purge dispatched messages in soft-delete mode (`DeleteOnDispatch = false`), call
+> `IOutboxRepository.PurgeDispatchedMessagesAsync(cutoff, batchSize, ct)` directly from your own
+> `IHostedService` or scheduled job (e.g., Hangfire, NCronJob, Quartz.NET).
 
-| Class | Package | Broker |
+### `OutboxOptions` Routing API
+
+| Method | Returns | Description |
 |---|---|---|
-| `RabbitMQBrokerPublisher` | `Brokers.RabbitMQ` | RabbitMQ |
-| `KafkaBrokerPublisher` | `Brokers.Kafka` | Apache Kafka |
-| `AzureServiceBusBrokerPublisher` | `Brokers.AzureServiceBus` | Azure Service Bus |
-| `AwsSqsBrokerPublisher` | `Brokers.AwsSqs` | AWS SQS |
-| `GooglePubSubBrokerPublisher` | `Brokers.GooglePubSub` | Google Cloud Pub/Sub |
-| `NatsBrokerPublisher` | `Brokers.Nats` | NATS |
-| `RedisStreamsBrokerPublisher` | `Brokers.RedisStreams` | Redis Streams |
-| `MassTransitBrokerPublisher` | `MassTransit` | MassTransit (any transport) |
+| `Route(string alias)` | `BrokerRouteBuilder` | Configures a single alias to a specific publisher. |
+| `RouteGroup(params string[] aliases)` | `BrokerRouteGroupBuilder` | Configures multiple aliases to the same publisher (params array). |
+| `RouteGroup(IEnumerable<string> aliases)` | `BrokerRouteGroupBuilder` | Configures multiple aliases from any enumerable. |
+
+### Options Classes
+
+#### `OutboxDispatcherOptions`
+- `BatchSize` (`int`, default: 100): Maximum messages fetched per poll.
+- `MaxDegreeOfParallelism` (`int`, default: `min(ProcessorCount, 8)`): Concurrent pipeline dispatch tasks.
+- `PollingInterval` (`TimeSpan`, default: 500ms): Poller sleep duration when queue is empty.
+- `UseAdaptivePolling` (`bool`, default: true): Dynamically switches between 0ms (under load) and PollingInterval (idle).
+- `ChannelCapacity` (`int`, default: 1000): Capacity of internal bounded channel for worker backpressure.
+- `MaxBatchesPerSecond` (`int`, default: 0): Rate limit for backlog drain (0 = unlimited).
+- `MaxRetryCount` (`int`, default: 10): Max retries before dead-lettering.
+- `ReclaimTimeout` (`TimeSpan`, default: 5 min): InFlight lock expiration for crash recovery.
+- `ReclaimInterval` (`TimeSpan`, default: 1 min): Frequency of the stale message recovery job.
+- `HasOnlySingletonMiddlewares` (`bool`, default: false): Caches pipeline delegate per batch when all middlewares are Singleton.
+
+---
+
+## 4. Dispatcher & Resilience
 
 ### `DispatchResult`
 
-**Namespace:** `EricksonLopez.Outbox`
+**Namespace:** `EricksonLopez.Outbox`  
+**Type:** `readonly record struct`
+
+Returned by `IBrokerPublisher.PublishRawAsync()` to signal publication outcome.
 
 ```csharp
 public readonly record struct DispatchResult
 {
-    bool IsSuccess { get; }
-    Exception? Error { get; }
-    static DispatchResult Success();
-    static DispatchResult Failure(Exception error);
+    public bool Success { get; }
+    public bool ShouldRetry { get; }
+    public bool IncrementRetryCount { get; }
+    public Exception? Exception { get; }
+    public string? ErrorMessage { get; }
+
+    public static DispatchResult Ok();
+    public static DispatchResult FailAndRetry(Exception ex, bool incrementRetryCount = true);
+    public static DispatchResult FailFatal(Exception ex);
+    public static DispatchResult FailFatal(string errorMessage);
 }
 ```
 
-### `IRetryPolicy`
+### `IBrokerPublisher`
 
-**Namespace:** `EricksonLopez.Outbox.Retry`
+**Namespace:** `EricksonLopez.Outbox`
+
+The minimal contract required by the Outbox dispatcher. All broker adapter packages implement this interface.
 
 ```csharp
-public interface IRetryPolicy
+public interface IBrokerPublisher
 {
-    TimeSpan GetDelay(int retryAttempt);
+    // Called exclusively by the Outbox dispatcher. Works on pre-serialized payloads
+    // for NativeAOT compatibility — no runtime generics required.
+    ValueTask<DispatchResult> PublishRawAsync(
+        OutboxMessage message,
+        OutboxMessageMetadata metadata,
+        DispatchContext context);
+
+    // Default Interface Method — returns the OpenTelemetry messaging.system tag for this broker.
+    // Override in your implementation (e.g., return "rabbitmq", "kafka", "azure_service_bus").
+    // Default fallback: "outbox".
+    string BrokerSystemName => Diagnostics.OutboxActivitySource.OutboxSystemName;
 }
 ```
 
-**Built-in policies:** `ExponentialBackoffPolicy`, `FixedDelayRetryPolicy`, `JitterRetryPolicy`
+> [!IMPORTANT]
+> **Do NOT throw exceptions** from `PublishRawAsync`. Catch all broker exceptions and map them to
+> `DispatchResult.FailAndRetry(ex)` (transient) or `DispatchResult.FailFatal(ex)` (unrecoverable).
+> Uncaught exceptions are treated as fatal by the dispatcher and will dead-letter the message.
 
-### `IOutboxMiddleware`
+### `ITypedBrokerPublisher`
 
-**Namespace:** `EricksonLopez.Outbox.Pipeline`
+**Namespace:** `EricksonLopez.Outbox`
+
+Extends `IBrokerPublisher` with strongly-typed publishing overloads. Implement this interface (**in addition to** `IBrokerPublisher`) if your broker adapter supports typed envelope publishing.
 
 ```csharp
-public interface IOutboxMiddleware
+public interface ITypedBrokerPublisher : IBrokerPublisher
 {
-    ValueTask<DispatchResult> InvokeAsync(
-        DispatchContext context,
-        Func<DispatchContext, ValueTask<DispatchResult>> next,
-        CancellationToken cancellationToken = default);
+    // Publishes a single strongly-typed message envelope.
+    ValueTask<DispatchResult> PublishAsync<T>(
+        MessageEnvelope<T> message,
+        DispatchContext context) where T : notnull;
+
+    // Publishes a batch of strongly-typed message envelopes.
+    ValueTask<IReadOnlyList<DispatchResult>> PublishBatchAsync<T>(
+        IReadOnlyList<MessageEnvelope<T>> messages,
+        DispatchContext context) where T : notnull;
 }
 ```
 
 ---
 
-## 3. Core — Serialization
-
-### `IOutboxSerializer`
-
-**Namespace:** `EricksonLopez.Outbox.Serialization`
-**Source:** [`IOutboxSerializer.cs`](../src/EricksonLopez.Outbox/Serialization/IOutboxSerializer.cs)
-
-```csharp
-public interface IOutboxSerializer
-{
-    ReadOnlyMemory<byte> Serialize<TMessage>(TMessage message);
-
-    // Zero-allocation overload — writes directly to IBufferWriter
-    void Serialize<TMessage>(TMessage message, IBufferWriter<byte> buffer);
-
-    TMessage Deserialize<TMessage>(ReadOnlySpan<byte> data);
-}
-```
-
-**Built-in:** `NativeAotJsonSerializer` (uses `System.Text.Json` with `JsonSerializerContext`)
-
-### `IOutboxMessageTypeResolver`
-
-**Namespace:** `EricksonLopez.Outbox.Serialization`
-
-```csharp
-public interface IOutboxMessageTypeResolver
-{
-    Type? Resolve(string alias);
-    string? GetAlias(Type type);
-}
-```
-
-**Built-in:** `InMemoryMessageTypeResolver`, source-generated resolver via `OutboxTypeMappingGenerator`
-
----
-
-## 4. Core — Idempotency (Inbox)
+## 5. Inbox & Idempotency API
 
 ### `IInboxIdempotencyChecker`
 
 **Namespace:** `EricksonLopez.Outbox.Idempotency`
-**Source:** [`IInboxIdempotencyChecker.cs`](../src/EricksonLopez.Outbox/Idempotency/IInboxIdempotencyChecker.cs)
 
 ```csharp
 public interface IInboxIdempotencyChecker
 {
+    // Returns true if the message should be processed (idempotency record inserted successfully).
+    // Returns false if the message was already processed (duplicate detected).
     Task<bool> ShouldProcessAsync(
         string messageId,
         string consumerId,
         IOutboxTransactionContext transaction,
         CancellationToken cancellationToken = default);
 
+    // Returns true if the message has already been processed and should be SKIPPED.
+    // Returns false if the message is new and should be processed.
+    // consumerId defaults to OutboxConstants.DispatcherConsumerId for internal dispatcher use.
+    // Always provide a unique, stable consumer-specific ID from user-facing consumers.
     Task<bool> ShouldSkipAsync(
         Guid messageId,
         IOutboxTransactionContext transaction,
+        string consumerId = OutboxConstants.DispatcherConsumerId,
         CancellationToken cancellationToken = default);
 }
 ```
 
-### `IIdempotencyRepository`
+> [!WARNING]
+> Both methods return `Task<bool>`, **not** `ValueTask<bool>`. The return type is intentionally `Task`
+> because the underlying database operation involves I/O that cannot be completed synchronously.
+> Note also that `ShouldSkipAsync` takes a `Guid messageId`, not a `string`.
+
+---
+
+## 6. Testing & In-Memory Verification API
+
+### `InMemoryOutboxStore`
+
+**Namespace:** `EricksonLopez.Outbox.Testing`
+
+Provides a complete, in-memory implementation of `IOutbox` for unit and integration testing without database dependencies.
+
+```csharp
+public sealed class InMemoryOutboxStore : IOutbox
+{
+    // Retrieve all messages stored of type TMessage.
+    public IReadOnlyList<TMessage> GetPublishedMessages<TMessage>() where TMessage : notnull;
+
+    // Reset all stored messages (use between tests).
+    public void Reset();
+
+    // Fluent builder — same API as production IOutbox.
+    public OutboxMessageBuilder<TMessage> Publish<TMessage>(TMessage message) where TMessage : notnull;
+}
+```
+
+#### Assertion Extensions (`TestingOutboxExtensions`):
+- `store.ShouldHavePublished<T>()`
+- `store.ShouldHavePublished<T>(predicate)`
+- `store.ShouldHavePublishedOnce<T>()`
+- `store.ShouldHavePublishedTimes<T>(n)`
+- `store.ShouldNotHavePublished<T>()`
+
+> [!NOTE]
+> `InMemoryOutboxStore` does **not** expose a `PublishedMessages` property returning `IReadOnlyList<object>`.
+> Use the generic `GetPublishedMessages<TMessage>()` method to retrieve typed messages.
+
+---
+
+## 7. Persistence Administration API (`IOutboxRepository`)
 
 **Namespace:** `EricksonLopez.Outbox.Persistence`
 
-```csharp
-public interface IIdempotencyRepository
-{
-    ValueTask<bool> TryInsertAsync(
-        IdempotencyRecord record,
-        IOutboxTransactionContext? transaction = default,
-        CancellationToken cancellationToken = default);
+Key administrative methods available on `IOutboxRepository`:
 
-    ValueTask PurgeExpiredRecordsAsync(
-        DateTimeOffset olderThan,
-        CancellationToken cancellationToken = default);
+| Method | DIM? | Description |
+|---|---|---|
+| `GetPendingCountAsync(ct)` | No | Approximate count of messages in **Pending (0) or Failed (3)** state. Used for metrics and monitoring. Uses catalog estimate for large tables in PostgreSQL. |
+| `GetMessageAsync(Guid id, ct)` | Yes | Look up a single message by ID (any state). Throws `NotSupportedException` if not overridden. |
+| `GetMessageAsync(Guid id, DateTimeOffset createdAtHint, ct)` | Yes | Same as above with PostgreSQL partition pruning hint. |
+| `PurgeDispatchedMessagesAsync(DateTimeOffset cutoff, int batchSize, ct)` | No | Deletes dispatched messages older than cutoff. **Only effective when `DeleteOnDispatch = false`.** |
+
+> [!NOTE]
+> **DIM** = Default Interface Method. The method has a default implementation on the interface that throws `NotSupportedException`. Concrete storage implementations may override it.
+
+---
+
+## 8. `Publisher` Struct
+
+**Namespace:** `EricksonLopez.Outbox`  
+**Type:** `readonly record struct`
+
+Lightweight identity for a logical publisher node in multi-instance or multi-publisher topologies.
+
+```csharp
+public readonly record struct Publisher
+{
+    public string Id { get; }           // Unique ID (Guid, format "N" — no dashes)
+    public string Name { get; }         // Human-readable node name
+    public DateTimeOffset RegisteredAt { get; }  // Timestamp when Create() was called
+
+    public static Publisher Create(string name); // Auto-generates a unique Id + RegisteredAt = UtcNow
+    public static Publisher None { get; }        // Null-object: Id = "0...0", Name = "none"
 }
 ```
 
 ---
 
-## 5. Persistence — Repositories
+## 9. Multi-Tenancy Interfaces
 
-### `IOutboxRepository`
+**Namespace:** `EricksonLopez.Outbox.MultiTenancy`
 
-**Namespace:** `EricksonLopez.Outbox.Persistence`
-**Source:** [`IOutboxRepository.cs`](../src/EricksonLopez.Outbox/Persistence/IOutboxRepository.cs)
+Both interfaces are opt-in extension points resolved via DI. Neither is registered automatically.
+
+### `ITenantBrokerRouter`
 
 ```csharp
-public interface IOutboxRepository
+public interface ITenantBrokerRouter
 {
-    ValueTask InsertAsync(
-        OutboxMessage record,
-        IOutboxTransactionContext transaction,
-        CancellationToken cancellationToken = default);
-
-    ValueTask InsertBatchAsync(
-        ReadOnlyMemory<OutboxMessage> records,
-        IOutboxTransactionContext transaction,
-        CancellationToken cancellationToken = default);
-
-    ValueTask<IReadOnlyList<OutboxMessage>> FetchPendingAsync(
-        int batchSize,
-        CancellationToken cancellationToken = default);
-
-    ValueTask MarkAsDispatchedAsync(
-        IReadOnlyList<OutboxMessage> messages,
-        CancellationToken cancellationToken = default);
-
-    ValueTask MarkAsFailedAsync(
-        IReadOnlyList<OutboxMessage> messages,
-        string error,
-        bool isDeadLetter = false,
-        CancellationToken cancellationToken = default);
-
-    ValueTask<int> ReclaimStaleMessagesAsync(
-        TimeSpan staleTimeout,
-        CancellationToken cancellationToken = default);
-
-    ValueTask<long> GetPendingCountAsync(
-        CancellationToken cancellationToken = default);
+    // Resolves the final topic/queue destination for a given tenant.
+    // Returns baseDestination if tenantId is null (no tenant context).
+    string ResolveDestination(string? tenantId, string baseDestination, string messageType);
 }
 ```
 
-**Implementations:**
-
-| Class | Package | Database |
-|---|---|---|
-| `PostgreSqlOutboxRepository` | `Storage.PostgreSql` | PostgreSQL (Npgsql) |
-| `SqlServerOutboxRepository` | `Storage.SqlServer` | SQL Server |
-| `MySqlOutboxRepository` | `Storage.MySql` | MySQL (MySqlConnector) |
-| `OracleOutboxRepository` | `Storage.Oracle` | Oracle |
-| `SqliteOutboxRepository` | `Storage.Sqlite` | SQLite |
-| `EntityFrameworkCoreOutboxRepository` | `EntityFrameworkCore` | Any EF Core provider |
-
-### `IDeadLetterRepository`
-
-**Namespace:** `EricksonLopez.Outbox.Persistence`
+### `ITenantConnectionResolver`
 
 ```csharp
-public interface IDeadLetterRepository
+public interface ITenantConnectionResolver
 {
-    ValueTask InsertAsync(DeadLetterMessage message, CancellationToken ct = default);
-    ValueTask<IReadOnlyList<DeadLetterMessage>> GetAsync(int limit, CancellationToken ct = default);
-    ValueTask DeleteAsync(Guid id, CancellationToken ct = default);
-    ValueTask PurgeAsync(DateTimeOffset olderThan, CancellationToken ct = default);
+    // Resolves the DB connection string for the specified tenant.
+    ValueTask<string> ResolveConnectionStringAsync(string tenantId, CancellationToken ct = default);
 }
 ```
+
+The `x-tenant-id` header (set via `OutboxMessageBuilder.WithTenantId()`) is the contract between the producer and `ITenantBrokerRouter`. The header value is passed as the `tenantId` parameter to `ResolveDestination()`.
 
 ---
 
-## 6. Persistence — Transaction Context
+## 10. Delayed Delivery (`deliver_at`)
 
-### `IOutboxTransactionContext`
+The Outbox supports deferred message delivery via the `deliver_at` database column. This is **not** a scheduler — it is a visibility timeout mechanism. The dispatcher polls only messages where `deliver_at IS NULL OR deliver_at <= NOW()`.
 
-**Namespace:** `EricksonLopez.Outbox.Persistence`
-**Source:** [`IOutboxTransactionContext.cs`](../src/EricksonLopez.Outbox/Persistence/IOutboxTransactionContext.cs)
-
-```csharp
-public interface IOutboxTransactionContext
-{
-    object Transaction { get; }
-    object? Connection { get; }
-    T? GetContext<T>() where T : class;  // Default Interface Method
-}
-
-public interface IRelationalOutboxTransactionContext : IOutboxTransactionContext
-{
-    DbConnection? DbConnection { get; }
-    DbTransaction? DbTransaction { get; }
-}
-
-// Built-in implementation for ADO.NET transactions
-public sealed class DbTransactionContext : IRelationalOutboxTransactionContext
-{
-    public DbTransactionContext(DbTransaction dbTransaction);
-}
-```
-
----
-
-## 7. Persistence — Data Models
-
-### `OutboxMessage`
-
-**Namespace:** `EricksonLopez.Outbox`
-**Type:** `readonly record struct` (stack-allocated, value equality)
-
-| Property | Type | Description |
-|---|---|---|
-| `Id` | `Guid` | Unique message identifier |
-| `Type` | `string` | Message type alias (from `[OutboxMessage]`) |
-| `Payload` | `ReadOnlyMemory<byte>` | Serialized message body |
-| `State` | `int` | 0=Pending, 1=InFlight, 2=Dispatched, 3=Failed, 4=DeadLettered |
-| `RetryCount` | `int` | Number of dispatch attempts |
-| `Error` | `string?` | Last error message (truncated by `IErrorSanitizer`) |
-| `CreatedAt` | `DateTimeOffset` | Creation timestamp |
-| `DeliverAt` | `DateTimeOffset?` | Scheduled delivery time |
-
-### `MessageMetadata`
-
-| Property | Type | Description |
-|---|---|---|
-| `CorrelationId` | `string?` | Distributed tracing correlation ID |
-| `CausationId` | `string?` | ID of the command/event that caused this message |
-
-### `DeadLetterMessage`
-
-| Property | Type | Description |
-|---|---|---|
-| `Id` | `Guid` | Original message ID |
-| `Type` | `string` | Message type alias |
-| `Payload` | `ReadOnlyMemory<byte>` | Serialized message body |
-| `Error` | `string?` | Last error that caused dead-lettering |
-| `DeadLetteredAt` | `DateTimeOffset` | Timestamp of dead-lettering |
-| `RetryCount` | `int` | Total retry attempts made |
-
-### `IdempotencyRecord`
-
-| Property | Type | Description |
-|---|---|---|
-| `MessageId` | `string` | Unique identifier of the processed message |
-| `ConsumerId` | `string` | Identifier of the consumer that processed it |
-| `ProcessedAt` | `DateTimeOffset` | When the record was created |
-
----
-
-## 8. Configuration & DI
-
-### `OutboxServiceCollectionExtensions`
-
-**Namespace:** `EricksonLopez.Outbox.Hosting`
-**Source:** [`OutboxServiceCollectionExtensions.cs`](../src/EricksonLopez.Outbox/Hosting/OutboxServiceCollectionExtensions.cs)
+**API surface for setting `deliver_at`:**
 
 ```csharp
-public static class OutboxServiceCollectionExtensions
-{
-    // Register core Outbox services (IOutbox, serialization, options)
-    static IServiceCollection AddOutbox(
-        this IServiceCollection services,
-        Action<OutboxOptions>? configure = null);
+// Via the fluent builder:
+await outbox.Publish(@event)
+    .WithDelay(TimeSpan.FromMinutes(30))          // deliver_at = UtcNow + 30 min
+    .WithTransaction(tx.ToOutboxContext())
+    .StoreAsync(ct);
 
-    // Register the background dispatcher service
-    static IServiceCollection AddOutboxDispatcher(
-        this IServiceCollection services,
-        Action<OutboxDispatcherOptions>? configure = null);
+await outbox.Publish(@event)
+    .WithDeliverAt(DateTimeOffset.UtcNow.AddHours(2))  // explicit absolute timestamp
+    .WithTransaction(tx.ToOutboxContext())
+    .StoreAsync(ct);
 
-    // Register Inbox idempotency services
-    static IServiceCollection AddOutboxInbox(
-        this IServiceCollection services,
-        Action<OutboxInboxOptions>? configure = null);
-}
-
-public static class OutboxHealthCheckExtensions
-{
-    static IHealthChecksBuilder AddOutbox(
-        this IHealthChecksBuilder builder,
-        string name = "outbox",
-        int? warningThreshold = null,
-        params string[] tags);
-}
+// Via the explicit overload:
+await outbox.StoreAsync(
+    @event,
+    tx.ToOutboxContext(),
+    metadata,
+    deliverAt: DateTimeOffset.UtcNow.AddMinutes(15),
+    ct);
 ```
 
-### `OutboxOptions`
-
-```csharp
-public class OutboxOptions
-{
-    OutboxOptions UseSerializer(IOutboxSerializer serializer);
-    OutboxOptions UseSerializer<TSerializer>() where TSerializer : class, IOutboxSerializer;
-    OutboxOptions UseGeneratedTypes();
-    OutboxOptions UseBroker(Func<IServiceProvider, IBrokerPublisher> factory);
-    OutboxOptions UseBroker(string route, Func<IServiceProvider, IBrokerPublisher> factory);
-    OutboxOptions UseBroker<TBroker>(string? route = null) where TBroker : class, IBrokerPublisher;
-}
-```
-
-### `OutboxDispatcherOptions`
-
-| Property | Type | Default | Description |
-|---|---|---|---|
-| `BatchSize` | `int` | `50` | Messages per polling cycle |
-| `PollingInterval` | `TimeSpan` | `1s` | Base polling interval |
-| `MaxDegreeOfParallelism` | `int` | `1` | Concurrent dispatch workers |
-| `UseAdaptivePolling` | `bool` | `true` | Dynamic polling frequency |
-| `MaxRetryCount` | `int` | `3` | Retries before dead-lettering |
-
-### EF Core Registration
-
-**Package:** `EricksonLopez.Outbox.EntityFrameworkCore`
-
-```csharp
-public static class OutboxEntityFrameworkCoreSetup
-{
-    static IServiceCollection AddOutboxEntityFrameworkCore<TDbContext>(
-        this IServiceCollection services) where TDbContext : DbContext;
-}
-
-public static class OutboxModelBuilderExtensions
-{
-    static ModelBuilder ApplyOutboxEntityConfigurations(this ModelBuilder builder);
-}
-```
-
----
-
-## 9. Diagnostics
-
-### `OutboxMetrics`
-
-**Namespace:** `EricksonLopez.Outbox.Diagnostics`
-
-Emits `System.Diagnostics.Metrics` counters under the `EricksonLopez.Outbox` meter.
-
-| Instrument | Type | Description |
-|---|---|---|
-| `outbox.messages.stored` | Counter | Messages stored via `StoreAsync()` |
-| `outbox.messages.dispatched` | Counter | Messages successfully published |
-| `outbox.messages.failed` | Counter | Failed dispatch attempts |
-| `outbox.messages.dead_lettered` | Counter | Messages moved to DLQ |
-
-### `OutboxActivitySource`
-
-Tracing source name: `EricksonLopez.Outbox`
-
-Register with OpenTelemetry:
-```csharp
-builder.Services.AddOpenTelemetry()
-    .WithTracing(t => t.AddSource("EricksonLopez.Outbox"));
-```
-
-### `IErrorSanitizer`
-
-```csharp
-public interface IErrorSanitizer
-{
-    string Sanitize(string? error);
-}
-```
-
-**Default:** `DefaultErrorSanitizer` — truncates to 4000 characters.
-
----
-
-## 10. Roslyn Tooling
-
-### Analyzers (`EricksonLopez.Outbox.Analyzers`)
-
-| Diagnostic ID | Severity | Description |
-|---|---|---|
-| `OUTBOX001` | Warning | Message type missing `[OutboxMessage]` attribute |
-| `OUTBOX002` | Warning | `StoreAsync()` called outside transaction context |
-
-### Source Generator (`EricksonLopez.Outbox.SourceGenerators`)
-
-**`OutboxTypeMappingGenerator`** — Incremental source generator that:
-1. Discovers all types decorated with `[OutboxMessage("alias")]`
-2. Emits `[assembly: OutboxTypeMapping("alias", typeof(T))]` registration
-3. Emits a commented `JsonSerializerContext` template for NativeAOT
-
-### `[OutboxMessage]` Attribute
-
-```csharp
-[AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct, Inherited = false)]
-public sealed class OutboxMessageAttribute : Attribute
-{
-    public OutboxMessageAttribute(string alias);
-    public string Alias { get; }
-}
-```
+> [!NOTE]
+> See [ADR-025](adr/025-no-scheduler.md) — the Outbox is not a scheduler. For recurring jobs,
+> use Hangfire, Quartz.NET, or NCronJob to enqueue outbox messages at the appropriate time.

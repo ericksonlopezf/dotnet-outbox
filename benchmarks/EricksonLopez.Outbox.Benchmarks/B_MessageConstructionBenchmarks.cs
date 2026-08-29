@@ -1,3 +1,4 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using BenchmarkDotNet.Attributes;
 using EricksonLopez.Outbox;
@@ -31,9 +32,9 @@ public class B_MessageConstructionBenchmarks
     }
 
     [Benchmark]
-    public MessageMetadata EricksonLopezOutbox_CreateMessageMetadata()
+    public OutboxMessageMetadata EricksonLopezOutbox_CreateMessageMetadata()
     {
-        return new MessageMetadata(
+        return new OutboxMessageMetadata(
             correlationId: "corr-123",
             causationId: null,
             messageType: "order.created.v1",
@@ -44,3 +45,5 @@ public class B_MessageConstructionBenchmarks
             });
     }
 }
+
+

@@ -1,3 +1,4 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 
 namespace EricksonLopez.Outbox;
@@ -48,6 +49,7 @@ public readonly record struct FailedMessage(
         string? error,
         TimeSpan? retryAfter = null)
     {
+        var now = DateTimeOffset.UtcNow;
         return new FailedMessage(
 #if NET9_0_OR_GREATER
             Id: Guid.CreateVersion7(),
@@ -61,11 +63,12 @@ public readonly record struct FailedMessage(
             CausationId: original.CausationId,
             Headers: original.Headers,
             CreatedAt: original.CreatedAt,
-            FailedAt: DateTimeOffset.UtcNow,
+            FailedAt: now,
             Error: error,
             RetryCount: retryCount,
             NextRetryAt: retryAfter.HasValue
-                ? DateTimeOffset.UtcNow.Add(retryAfter.Value)
+                ? now.Add(retryAfter.Value)
                 : null);
     }
 }
+

@@ -1,10 +1,12 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Linq;
-using System.Threading.Tasks;
+using System.Threading;
 using EricksonLopez.Outbox;
 using EricksonLopez.Outbox.Persistence;
 using EricksonLopez.Outbox.Testing;
 using Sample.OrderService.Domain.Aggregates.OrderAggregate;
+using System.Threading.Tasks;
 
 namespace Sample.OrderService.Infrastructure.Testing;
 
@@ -68,7 +70,7 @@ public static class ShowcaseTestingGuide
             tester.ShouldNotHavePublished<OrderConfirmedEvent>();
             tester.ShouldHavePublishedOnce<OrderCreatedEvent>(e => e.Total == 150m);
         }
-        catch (System.Exception ex)
+        catch (Exception ex)
         {
             // The fluent assertions throw an exception if they fail,
             // which integrates perfectly with xUnit/NUnit/MSTest.
@@ -104,3 +106,5 @@ public static class ShowcaseTestingGuide
         store.StoreAsync(@event, fakeTransaction).AsTask().Wait();
     }
 }
+
+

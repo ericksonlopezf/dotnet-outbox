@@ -1,19 +1,21 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Data.Sqlite;
-
 using EricksonLopez.Outbox;
 using EricksonLopez.Outbox.Persistence;
+using EricksonLopez.Result;
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 namespace EricksonLopez.Outbox.Storage.Sqlite;
 
 /// <summary>
-/// SQLite-specific implementation of <see cref="IOutboxRepository"/>.
+/// Provides an SQLite-specific implementation of <see cref="IOutboxRepository"/>.
 /// </summary>
 public sealed class SqliteOutboxRepository : IOutboxRepository
 {
@@ -26,6 +28,7 @@ public sealed class SqliteOutboxRepository : IOutboxRepository
     private readonly string _markFailedSql;
     private readonly string _reclaimSql;
     private readonly string _countSql;
+    private readonly string _purgeDispatchedSql;
     private readonly string _fullTableName;
 
     /// <summary>
@@ -34,6 +37,7 @@ public sealed class SqliteOutboxRepository : IOutboxRepository
     /// <param name="connectionFactory">The factory that creates SQLite connections.</param>
     /// <param name="options">The runtime options containing thresholds and configurations.</param>
     /// <exception cref="ArgumentNullException"><paramref name="connectionFactory"/> is <see langword="null"/>.</exception>
+
     public SqliteOutboxRepository(Func<IDbConnection> connectionFactory, IOptions<OutboxRuntimeOptions>? options = null)
     {
         _connectionFactory = connectionFactory ?? throw new ArgumentNullException(nameof(connectionFactory));
@@ -41,10 +45,12 @@ public sealed class SqliteOutboxRepository : IOutboxRepository
         
         var table = _options.TableName;
         
-        if (!System.Text.RegularExpressions.Regex.IsMatch(table, "^[a-zA-Z0-9_]+$"))
+        if (!System.Text.RegularExpressions.Regex.IsMatch(table, "^[a-zA-Z0-9_]+$", System.Text.RegularExpressions.RegexOptions.None, TimeSpan.FromSeconds(1)))
             throw new ArgumentException("Table name contains invalid characters.", nameof(options));
 
+        // Stryker disable Conditional,String : Table name interpolation strings and schema routing per ADR-013
         _fullTableName = table == "outbox_messages" ? "outbox_messages" : $"\"{table}\"";
+        // Stryker restore Conditional,String
 
         _insertSql = $@"
         INSERT INTO {_fullTableName} 
@@ -93,9 +99,20 @@ public sealed class SqliteOutboxRepository : IOutboxRepository
               AND created_at > @MaxAge;";
 
         _countSql = $"SELECT COUNT(*) FROM {_fullTableName} WHERE state IN (0, 3);";
+
+        _purgeDispatchedSql = $@"
+            DELETE FROM {_fullTableName}
+            WHERE id IN (
+                SELECT id FROM {_fullTableName}
+                WHERE state = 2
+                  AND (processed_at < @Cutoff OR (processed_at IS NULL AND updated_at < @Cutoff))
+                ORDER BY created_at ASC
+                LIMIT @BatchSize
+            );";
     }
 
     /// <inheritdoc/>
+
     public async ValueTask InsertAsync(OutboxMessage record, IOutboxTransactionContext transaction, CancellationToken cancellationToken = default)
     {
         var conn = (transaction.Connection as System.Data.Common.DbConnection) ?? throw new InvalidOperationException("Transaction connection is null.");
@@ -115,6 +132,7 @@ public sealed class SqliteOutboxRepository : IOutboxRepository
     }
 
     /// <inheritdoc/>
+
     public async ValueTask InsertBatchAsync(ReadOnlyMemory<OutboxMessage> records, IOutboxTransactionContext transaction, CancellationToken cancellationToken = default)
     {
         if (records.IsEmpty) return;
@@ -180,10 +198,9 @@ public sealed class SqliteOutboxRepository : IOutboxRepository
 
         while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
-            var state = (int)reader.GetInt64(stateOrd);
-            if (!Enum.IsDefined(typeof(EricksonLopez.Outbox.OutboxMessageStatus), state))
-                continue;
+            var state = (OutboxMessageStatus)reader.GetInt64(stateOrd);
 
+            // Stryker disable Conditional,Boolean : Nullable reader conditionals — field nullability varies by row per ADR-013
             var processedAtString = reader.IsDBNull(processedAtOrd) ? null : reader.GetString(processedAtOrd);
             var deliverAtString = reader.IsDBNull(deliverAtOrd) ? null : reader.GetString(deliverAtOrd);
             result.Add(new OutboxMessage(
@@ -199,11 +216,13 @@ public sealed class SqliteOutboxRepository : IOutboxRepository
                 Status: (EricksonLopez.Outbox.OutboxMessageStatus)state,
                 RetryCount: (int)reader.GetInt64(retryCountOrd),
                 Error: reader.IsDBNull(errorOrd) ? null : reader.GetString(errorOrd)));
+            // Stryker restore Conditional,Boolean
         }
         return result;
     }
 
     /// <inheritdoc/>
+
     public async ValueTask MarkAsDispatchedAsync(IReadOnlyList<OutboxMessage> messages, CancellationToken cancellationToken = default)
     {
         if (messages.Count == 0) return;
@@ -223,6 +242,7 @@ public sealed class SqliteOutboxRepository : IOutboxRepository
     }
 
     /// <inheritdoc/>
+
     public async ValueTask MarkAsFailedAsync(IReadOnlyList<OutboxMessage> messages, string error, bool isDeadLetter = false, CancellationToken cancellationToken = default)
     {
         if (messages.Count == 0) return;
@@ -272,6 +292,40 @@ public sealed class SqliteOutboxRepository : IOutboxRepository
         var result = await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
         return Convert.ToInt32(result, System.Globalization.CultureInfo.InvariantCulture);
     }
+
+    /// <inheritdoc/>
+
+    public async ValueTask<int> PurgeDispatchedMessagesAsync(
+        DateTimeOffset cutoff,
+        int batchSize = 1000,
+        CancellationToken cancellationToken = default)
+    {
+        // Stryker disable once Equality : Defensive parameter guard per ADR-013
+        if (batchSize <= 0) return 0;
+
+        using var conn = (System.Data.Common.DbConnection)_connectionFactory();
+        await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
+
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = _purgeDispatchedSql;
+
+        var pCutoff = cmd.CreateParameter();
+        pCutoff.ParameterName = "@Cutoff";
+        pCutoff.Value = cutoff.UtcDateTime.ToString("O");
+        cmd.Parameters.Add(pCutoff);
+
+        var pBatchSize = cmd.CreateParameter();
+        pBatchSize.ParameterName = "@BatchSize";
+        pBatchSize.Value = batchSize;
+        cmd.Parameters.Add(pBatchSize);
+
+        return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
 }
+
+
+
+
+
 
 

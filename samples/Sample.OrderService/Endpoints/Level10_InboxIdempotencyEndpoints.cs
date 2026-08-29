@@ -1,14 +1,15 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Collections.Generic;
+using EricksonLopez.Outbox.Contracts;
+using EricksonLopez.Outbox.Idempotency;
+using EricksonLopez.Outbox.Persistence;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Routing;
-using EricksonLopez.Outbox.Idempotency;
-using EricksonLopez.Outbox.Contracts;
-using EricksonLopez.Outbox.Persistence;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Routing;
 using Npgsql;
 
 namespace Sample.OrderService.Endpoints;
@@ -184,3 +185,6 @@ services.AddOutboxInbox(options =>
 
     public record EventPayload(Guid EventId);
 }
+
+
+

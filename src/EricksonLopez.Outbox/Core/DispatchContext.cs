@@ -1,3 +1,4 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Threading;
 
@@ -17,7 +18,7 @@ public readonly struct DispatchContext
     /// Gets the current attempt number for this specific dispatch operation.
     /// </summary>
     public int Attempt { get; }
-    
+
     /// <summary>
     /// Initializes a new instance of the <see cref="DispatchContext"/> struct.
     /// </summary>
@@ -29,3 +30,4 @@ public readonly struct DispatchContext
         Attempt = attempt;
     }
 }
+

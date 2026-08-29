@@ -1,18 +1,19 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using EricksonLopez.Outbox;
+using EricksonLopez.Outbox.Persistence;
 using Microsoft.Extensions.Options;
 using MySqlConnector;
-using EricksonLopez.Outbox;
-
-using EricksonLopez.Outbox.Persistence;
 
 namespace EricksonLopez.Outbox.Storage.MySql;
 
 /// <summary>
-/// MySQL implementation of <see cref="IDeadLetterRepository"/>.
+/// Provides a MySQL implementation of <see cref="IDeadLetterRepository"/>.
 /// </summary>
 public sealed class MySqlDeadLetterRepository : IDeadLetterRepository
 {
@@ -31,6 +32,7 @@ public sealed class MySqlDeadLetterRepository : IDeadLetterRepository
     /// <param name="connectionFactory">The factory that creates MySQL connections.</param>
     /// <param name="options">The outbox runtime options.</param>
     /// <exception cref="ArgumentNullException"><paramref name="connectionFactory"/> or <paramref name="options"/> is <see langword="null"/>.</exception>
+
     public MySqlDeadLetterRepository(Func<IDbConnection> connectionFactory, IOptionsMonitor<OutboxRuntimeOptions> options)
     {
         _connectionFactory = connectionFactory ?? throw new ArgumentNullException(nameof(connectionFactory));
@@ -57,6 +59,7 @@ public sealed class MySqlDeadLetterRepository : IDeadLetterRepository
     }
 
     /// <inheritdoc/>
+
     public async ValueTask InsertAsync(
         DeadLetterMessage message,
         IOutboxTransactionContext? transaction = default,
@@ -160,3 +163,7 @@ public sealed class MySqlDeadLetterRepository : IDeadLetterRepository
         await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 }
+
+
+
+

@@ -1,3 +1,4 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using Xunit;
 
@@ -16,5 +17,6 @@ public sealed class RequiresEnvironmentVariableFactAttribute : FactAttribute
         }
     }
 }
+
 
 

@@ -1,5 +1,7 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Buffers;
+using System.Linq;
 using AwesomeAssertions;
 using EricksonLopez.Outbox.Serialization;
 using Xunit;
@@ -29,5 +31,7 @@ public class IOutboxSerializerTests
         buffer.WrittenSpan.ToArray().Should().BeEquivalentTo(new byte[] { 1, 2, 3 });
     }
 }
+
+
 
 
