@@ -1,17 +1,17 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Threading;
 using System.Threading.Tasks;
-
 using EricksonLopez.Outbox.Persistence;
 using Microsoft.Extensions.Options;
 
 namespace EricksonLopez.Outbox.Storage.SqlServer;
 
 /// <summary>
-/// SQL Server implementation of the Dead Letter Queue storage.
+/// Provides a SQL Server implementation of <see cref="IDeadLetterRepository"/>.
 /// </summary>
 public sealed class SqlServerDeadLetterRepository : IDeadLetterRepository
 {
@@ -30,6 +30,7 @@ public sealed class SqlServerDeadLetterRepository : IDeadLetterRepository
     /// <param name="connectionFactory">The factory that creates SQL Server connections.</param>
     /// <param name="options">The outbox runtime options.</param>
     /// <exception cref="ArgumentNullException"><paramref name="connectionFactory"/> or <paramref name="options"/> is <see langword="null"/>.</exception>
+
     public SqlServerDeadLetterRepository(Func<IDbConnection> connectionFactory, IOptionsMonitor<OutboxRuntimeOptions> options)
     {
         _connectionFactory = connectionFactory ?? throw new ArgumentNullException(nameof(connectionFactory));
@@ -57,6 +58,7 @@ public sealed class SqlServerDeadLetterRepository : IDeadLetterRepository
     }
 
     /// <inheritdoc/>
+
     public async ValueTask InsertAsync(
         DeadLetterMessage message,
         IOutboxTransactionContext? transaction = default,
@@ -158,3 +160,6 @@ public sealed class SqlServerDeadLetterRepository : IDeadLetterRepository
         await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 }
+
+
+

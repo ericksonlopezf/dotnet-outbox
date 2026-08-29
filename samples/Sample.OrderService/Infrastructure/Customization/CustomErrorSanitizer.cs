@@ -1,3 +1,4 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using EricksonLopez.Outbox.Diagnostics;
 

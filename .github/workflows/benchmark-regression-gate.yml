@@ -1,0 +1,169 @@
+# Copyright © Erickson Lopez. MIT License.
+name: Benchmark Regression Gate
+
+# ─── Purpose ─────────────────────────────────────────────────────────────────
+# Runs BenchmarkDotNet against the PR branch and compares the results against
+# the baseline captured on `main` (stored in benchmarks/results/).
+#
+# If any benchmark regresses by more than REGRESSION_THRESHOLD (default: 10%),
+# the CI gate FAILS with a detailed report showing the exact delta.
+# ─────────────────────────────────────────────────────────────────────────────
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - "src/**"
+      - "benchmarks/**"
+  workflow_dispatch:
+    inputs:
+      threshold:
+        description: "Regression threshold in percent (e.g. 10 for +10%)"
+        required: false
+        default: "10"
+        type: string
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  REGRESSION_THRESHOLD: ${{ inputs.threshold || '10' }}
+
+jobs:
+  benchmark-gate:
+    name: Benchmark Regression Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            9.0.x
+            10.0.x
+
+      - name: Restore Strong Name key
+        env:
+          SNK_KEY: ${{ secrets.SNK_KEY }}
+        run: |
+          if [ -n "$SNK_KEY" ]; then
+            echo "$SNK_KEY" | tr -d '\n\r ' | base64 --decode > EricksonLopez.snk
+          fi
+
+      - name: Restore dependencies
+        run: dotnet restore EricksonLopez.Outbox.slnx
+
+      - name: Build (Release)
+        run: dotnet build EricksonLopez.Outbox.slnx --no-restore --configuration Release
+
+      - name: Run benchmarks (PR head)
+        run: >
+          dotnet run
+          --project benchmarks/EricksonLopez.Outbox.Benchmarks/EricksonLopez.Outbox.Benchmarks.csproj
+          --configuration Release
+          --framework net10.0
+          --
+          --filter "*"
+          --job short
+          --runtimes net8.0 net10.0
+          --exporters json
+          --artifacts ./benchmarks/pr-results
+
+      - name: Check for baseline results
+        id: baseline-check
+        run: |
+          if ls benchmarks/results/**/*.json 2>/dev/null | head -1 | grep -q .; then
+            echo "has_baseline=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_baseline=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::No benchmark baseline found in benchmarks/results/. Skipping regression check. Run the 'Weekly Benchmarks' workflow on main to establish a baseline."
+          fi
+
+      - name: Compare results vs baseline
+        if: steps.baseline-check.outputs.has_baseline == 'true'
+        run: |
+          python3 - <<'PYEOF'
+          import json, os, glob, sys
+
+          THRESHOLD = float(os.environ.get("REGRESSION_THRESHOLD", "10")) / 100.0
+          baseline_files = glob.glob("benchmarks/results/**/*.json", recursive=True)
+          pr_files = glob.glob("benchmarks/pr-results/**/*.json", recursive=True)
+
+          if not baseline_files:
+              print("No baseline JSON files found. Skipping comparison.")
+              sys.exit(0)
+          if not pr_files:
+              print("No PR benchmark JSON files found.")
+              sys.exit(1)
+
+          def load_benchmarks(files):
+              results = {}
+              for f in files:
+                  try:
+                      data = json.load(open(f))
+                      for bench in data.get("Benchmarks", []):
+                          name = bench.get("FullName", bench.get("Method", ""))
+                          mean = bench.get("Statistics", {}).get("Mean", None)
+                          if name and mean:
+                              results[name] = mean
+                  except Exception as e:
+                      print(f"Warning: Could not parse {f}: {e}")
+              return results
+
+          baseline = load_benchmarks(baseline_files)
+          pr = load_benchmarks(pr_files)
+
+          regressions = []
+          improvements = []
+          for name, pr_mean in pr.items():
+              if name in baseline:
+                  base_mean = baseline[name]
+                  if base_mean > 0:
+                      delta_pct = (pr_mean - base_mean) / base_mean * 100
+                      if delta_pct > THRESHOLD * 100:
+                          regressions.append((name, base_mean, pr_mean, delta_pct))
+                      elif delta_pct < -5:
+                          improvements.append((name, base_mean, pr_mean, delta_pct))
+
+          summary_lines = []
+          summary_lines.append(f"## Benchmark Regression Report (threshold: {THRESHOLD*100:.0f}%)\n")
+
+          if improvements:
+              summary_lines.append("### ✅ Improvements")
+              for name, base, pr_val, delta in improvements:
+                  summary_lines.append(f"- **{name}**: {base/1000000:.3f}ms → {pr_val/1000000:.3f}ms ({delta:+.1f}%)")
+              summary_lines.append("")
+
+          if regressions:
+              summary_lines.append("### ❌ Regressions (above threshold)")
+              for name, base, pr_val, delta in regressions:
+                  summary_lines.append(f"- **{name}**: {base/1000000:.3f}ms → {pr_val/1000000:.3f}ms ({delta:+.1f}%) ← REGRESSION")
+              summary_lines.append("")
+          else:
+              summary_lines.append("### ✅ No regressions detected\n")
+
+          report = "\n".join(summary_lines)
+          print(report)
+
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
+              f.write(report + "\n")
+
+          if regressions:
+              print(f"\n❌ {len(regressions)} benchmark(s) regressed beyond {THRESHOLD*100:.0f}% threshold. Failing build.")
+              sys.exit(1)
+          else:
+              print(f"\n✅ All benchmarks within {THRESHOLD*100:.0f}% regression threshold.")
+          PYEOF
+
+      - name: Upload PR benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-benchmark-results-${{ github.run_id }}
+          path: benchmarks/pr-results/
+          retention-days: 30

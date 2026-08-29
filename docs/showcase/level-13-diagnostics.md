@@ -1,4 +1,6 @@
-﻿# Level 13: Diagnostics and Observability
+<!-- Copyright © Erickson Lopez. MIT License. -->
+
+# Level 13: Diagnostics and Observability
 
 This level covers the built-in observability layer of `EricksonLopez.Outbox`: OpenTelemetry traces, metrics, and error sanitization.
 

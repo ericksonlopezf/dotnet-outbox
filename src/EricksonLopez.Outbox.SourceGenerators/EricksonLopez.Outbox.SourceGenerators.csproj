@@ -1,12 +1,13 @@
+<!-- Copyright © Erickson Lopez. MIT License. -->
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <Description>Source Generators for EricksonLopez.Outbox. Delivers high-performance, Zero-Reflection, NativeAOT-ready compile-time code generation for the transactional outbox pattern.</Description>
-    <PackageTags>$(PackageTags);source-generator;roslyn;csharp;codegen</PackageTags>
+    <PackageTags>$(CommonPackageTags);source-generator;source-generators;roslyn;codegen;native-aot</PackageTags>
     <TargetFramework>netstandard2.0</TargetFramework>
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
     <!-- CS8622: Known Roslyn nullability quirk with IncrementalValuesProvider Collect()
-         RS1032: False-positive about DiagnosticDescriptor Ã¢â‚¬â€ not applicable to pure source generators. -->
+         RS1032: False-positive about DiagnosticDescriptor — not applicable to pure source generators. -->
     <NoWarn>$(NoWarn);CS8622;RS1032</NoWarn>
   </PropertyGroup>
 
@@ -21,6 +22,11 @@
          AnalyzerReleases.Unshipped.md (case-sensitive). -->
     <AdditionalFiles Include="AnalyzerReleases.Shipped.md" />
     <AdditionalFiles Include="AnalyzerReleases.Unshipped.md" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="EricksonLopez.Outbox.Tests" />
+    <InternalsVisibleTo Include="EricksonLopez.Outbox.SourceGenerators.Tests" />
   </ItemGroup>
 
 </Project>

@@ -1,3 +1,4 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -5,7 +6,7 @@ using System.Threading.Tasks;
 namespace EricksonLopez.Outbox.Retry;
 
 /// <summary>
-/// A retry policy that applies exponential backoff with random jitter to prevent the
+/// Represents a retry policy that applies exponential backoff with random jitter to prevent the
 /// thundering-herd problem when multiple dispatcher instances retry concurrently after a shared failure.
 /// </summary>
 /// <param name="InitialDelay">The base delay for the first retry attempt, before the exponential factor is applied.</param>
@@ -20,8 +21,19 @@ public sealed record JitterRetryPolicy(
     TimeSpan? MaxDelay = null,
     double JitterFactor = 0.25) : RetryPolicy
 {
-    // Thread-safe random for jitter calculation
-    private static readonly Random _rng = Random.Shared;
+    private readonly Func<double> _randomDoubleProvider = () => Random.Shared.NextDouble();
+
+    internal JitterRetryPolicy(
+        TimeSpan initialDelay,
+        int maxAttempts,
+        double factor,
+        TimeSpan? maxDelay,
+        double jitterFactor,
+        Func<double> randomDoubleProvider)
+        : this(initialDelay, maxAttempts, factor, maxDelay, jitterFactor)
+    {
+        _randomDoubleProvider = randomDoubleProvider ?? (() => Random.Shared.NextDouble());
+    }
 
     /// <inheritdoc/>
     public override TimeSpan? GetNextDelay(int currentAttempt)
@@ -31,15 +43,17 @@ public sealed record JitterRetryPolicy(
         // Exponential base delay
         var baseMs = InitialDelay.TotalMilliseconds * Math.Pow(Factor, currentAttempt - 1);
 
-        // Stryker disable all : Math and floating point equality inside jitter calculations are notoriously brittle to test
-        if (MaxDelay.HasValue && baseMs > MaxDelay.Value.TotalMilliseconds)
-            baseMs = MaxDelay.Value.TotalMilliseconds;
+        if (MaxDelay.HasValue)
+        {
+            baseMs = Math.Min(baseMs, MaxDelay.Value.TotalMilliseconds);
+        }
 
-        // Add Â±JitterFactor random deviation to the base
-        var jitterMs = baseMs * JitterFactor * (2.0 * _rng.NextDouble() - 1.0);
+        // Add ±JitterFactor random deviation to the base: (2.0 * nextDouble - 1.0) is in [-1.0, 1.0]
+        var jitterMs = baseMs * JitterFactor * (2.0 * _randomDoubleProvider() - 1.0);
         var total = Math.Max(0, baseMs + jitterMs);
 
         return TimeSpan.FromMilliseconds(total);
-        // Stryker restore all
     }
 }
+
+

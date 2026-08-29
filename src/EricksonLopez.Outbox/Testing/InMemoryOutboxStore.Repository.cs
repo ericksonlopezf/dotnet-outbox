@@ -1,3 +1,4 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -17,10 +18,20 @@ namespace EricksonLopez.Outbox.Testing;
 /// </remarks>
 public sealed class InMemoryOutboxStoreRepository : IOutboxRepository
 {
+    private readonly TimeProvider _timeProvider;
     private readonly ConcurrentDictionary<Guid, OutboxMessage> _pending = new();
     private readonly ConcurrentDictionary<Guid, (OutboxMessage Message, DateTimeOffset FetchedAt)> _inFlight = new();
     private readonly ConcurrentDictionary<Guid, OutboxMessage> _dispatched = new();
     private readonly ConcurrentDictionary<Guid, OutboxMessage> _failed = new();
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="InMemoryOutboxStoreRepository"/> class.
+    /// </summary>
+    /// <param name="timeProvider">Optional time provider for deterministic time manipulation in tests.</param>
+    public InMemoryOutboxStoreRepository(TimeProvider? timeProvider = null)
+    {
+        _timeProvider = timeProvider ?? TimeProvider.System;
+    }
 
     /// <inheritdoc/>
     public ValueTask InsertAsync(
@@ -51,9 +62,10 @@ public sealed class InMemoryOutboxStoreRepository : IOutboxRepository
         int batchSize,
         CancellationToken cancellationToken = default)
     {
-        var now = DateTimeOffset.UtcNow;
+        var now = _timeProvider.GetUtcNow();
+
         var batch = _pending.Values
-            .Where(m => m.DeliverAt is null || m.DeliverAt <= now)
+            .Where(m => m.DeliverAt is null || m.DeliverAt.Value <= now)
             .Take(batchSize)
             .ToList();
 
@@ -127,11 +139,12 @@ public sealed class InMemoryOutboxStoreRepository : IOutboxRepository
         TimeSpan staleTimeout,
         CancellationToken cancellationToken = default)
     {
-        var threshold = DateTimeOffset.UtcNow - staleTimeout;
+        var threshold = _timeProvider.GetUtcNow() - staleTimeout;
         int count = 0;
 
         foreach (var kvp in _inFlight)
         {
+
             if (kvp.Value.FetchedAt < threshold)
             {
                 if (_inFlight.TryRemove(kvp.Key, out var entry))
@@ -197,6 +210,28 @@ public sealed class InMemoryOutboxStoreRepository : IOutboxRepository
     /// <returns>A read-only list of failed outbox messages.</returns>
     public IReadOnlyList<OutboxMessage> GetFailed() => _failed.Values.ToList();
 
+    /// <inheritdoc/>
+    public ValueTask<int> PurgeDispatchedMessagesAsync(
+        DateTimeOffset cutoff,
+        int batchSize = 1000,
+        CancellationToken cancellationToken = default)
+    {
+        int count = 0;
+        foreach (var kvp in _dispatched)
+        {
+            var processedAt = kvp.Value.ProcessedAt ?? kvp.Value.CreatedAt;
+            if (processedAt < cutoff)
+            {
+                if (_dispatched.TryRemove(kvp.Key, out _))
+                {
+                    count++;
+                    if (count >= batchSize) break;
+                }
+            }
+        }
+        return new ValueTask<int>(count);
+    }
+
     /// <summary>
     /// Clears all state across the pending, dispatched, and failed collections.
     /// </summary>
@@ -208,3 +243,6 @@ public sealed class InMemoryOutboxStoreRepository : IOutboxRepository
         _failed.Clear();
     }
 }
+
+
+

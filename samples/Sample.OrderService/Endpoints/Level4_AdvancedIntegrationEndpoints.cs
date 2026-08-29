@@ -1,17 +1,17 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Collections.Generic;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Routing;
+using System.Threading;
 using EricksonLopez.Outbox;
 using EricksonLopez.Outbox.EntityFrameworkCore;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Routing;
+using Microsoft.EntityFrameworkCore.Storage;
 using Sample.OrderService.Domain.Aggregates.OrderAggregate;
 using Sample.OrderService.Infrastructure;
-
-using Microsoft.EntityFrameworkCore.Storage;
+using System.Threading.Tasks;
 
 namespace Sample.OrderService.Endpoints;
 
@@ -47,4 +47,6 @@ public static class Level4_AdvancedIntegrationEndpoints
         .WithSummary("Level 4 - Entity Framework Core Transaction Boundary");
     }
 }
+
+
 

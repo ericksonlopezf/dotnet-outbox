@@ -1,15 +1,17 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Data;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Hosting;
-using Npgsql;
 using EricksonLopez.Outbox.Dispatcher;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Npgsql;
+
 namespace EricksonLopez.Outbox.Storage.PostgreSql;
 
 /// <summary>
-/// A dedicated background listener for PostgreSQL <c>LISTEN</c>/<c>NOTIFY</c> commands.
+/// Provides a dedicated background listener for PostgreSQL <c>LISTEN</c>/<c>NOTIFY</c> commands.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -26,18 +28,21 @@ public sealed class PostgresNotificationListener : BackgroundService
     private readonly NpgsqlDataSource _dataSource;
     private readonly ILogger<PostgresNotificationListener> _logger;
     private readonly IPollerWakeup? _pollerWakeup;
+    private readonly TimeProvider _timeProvider;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PostgresNotificationListener"/> class.
     /// </summary>
     /// <param name="dataSource">The PostgreSQL data source that creates connections.</param>
     /// <param name="logger">The logger that records listener activity and errors.</param>
+    /// <param name="timeProvider">The time provider for deterministic testing.</param>
     /// <param name="pollerWakeup">The wakeup signal interface to trigger the dispatcher poller (optional).</param>
     [CLSCompliant(false)]
-    public PostgresNotificationListener(NpgsqlDataSource dataSource, ILogger<PostgresNotificationListener> logger, IPollerWakeup? pollerWakeup = null)
+    public PostgresNotificationListener(NpgsqlDataSource dataSource, ILogger<PostgresNotificationListener> logger, TimeProvider timeProvider, IPollerWakeup? pollerWakeup = null)
     {
-        _dataSource = dataSource;
-        _logger = logger;
+        _dataSource = dataSource ?? throw new ArgumentNullException(nameof(dataSource));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
         _pollerWakeup = pollerWakeup;
     }
 
@@ -60,22 +65,27 @@ public sealed class PostgresNotificationListener : BackgroundService
             {
                 await ListenLoopAsync(stoppingToken).ConfigureAwait(false);
             }
+            // Stryker disable Block, Statement : Equivalent loop exit on cancellation
             catch (OperationCanceledException)
             {
                 break;
             }
+            // Stryker restore Block, Statement
+            // Stryker disable once Block : ADR-013 Retry delay and telemetry logging
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error in PostgreSQL notification listener. Retrying in 5 seconds...");
                 
                 try
                 {
-                    await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken).ConfigureAwait(false);
+                    await Task.Delay(TimeSpan.FromSeconds(5), _timeProvider, stoppingToken).ConfigureAwait(false);
                 }
+                // Stryker disable Block, Statement : Equivalent loop exit on cancellation
                 catch (OperationCanceledException)
                 {
                     break;
                 }
+                // Stryker restore Block, Statement
             }
         }
     }
@@ -99,7 +109,9 @@ public sealed class PostgresNotificationListener : BackgroundService
         }
 
         _logger.LogInformation("Listening for PostgreSQL notifications on 'outbox_new_messages'...");
+        OnListeningStarted?.Invoke(this, EventArgs.Empty);
 
+        // Stryker disable once Logical : Connection state guard against wait on closed connection
         while (connection.State == ConnectionState.Open && !stoppingToken.IsCancellationRequested)
         {
             await connection.WaitAsync(stoppingToken).ConfigureAwait(false);
@@ -107,7 +119,15 @@ public sealed class PostgresNotificationListener : BackgroundService
     }
 
     /// <summary>
+    /// Event raised when the listener has successfully connected and subscribed to the notification channel.
+    /// </summary>
+    public event EventHandler? OnListeningStarted;
+
+    /// <summary>
     /// Event raised when a notification message is received from PostgreSQL.
     /// </summary>
     public event EventHandler? OnMessageReceived;
 }
+
+
+

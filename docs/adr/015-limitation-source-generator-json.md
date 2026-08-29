@@ -1,3 +1,5 @@
+<!-- Copyright © Erickson Lopez. MIT License. -->
+
 # ADR-015: STJ `JsonSerializerContext` Auto-Generation — Roslyn Single-Pass Limitation
 
 ## Status
@@ -70,5 +72,5 @@ builder.Services.AddOutbox(options =>
 
 ## Related
 
-- [ADR-004](004-roslyn_source_generators_aot.md) — Roslyn Source Generators for AOT
-- [ADR-011](011-source_generator_json_context.md) — Source Generator JSON Context (Consumer-side validation)
+- [ADR-004](004-roslyn-source-generators-aot.md) — Roslyn Source Generators for AOT
+- [ADR-011](011-source-generator-json-context.md) — Source Generator JSON Context (Consumer-side validation)

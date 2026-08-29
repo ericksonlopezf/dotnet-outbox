@@ -1,3 +1,4 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -8,15 +9,18 @@ using AutoFixture.AutoNSubstitute;
 using AwesomeAssertions;
 using Dapper;
 using EricksonLopez.Outbox;
-using Microsoft.Extensions.Options;
-
+using EricksonLopez.Outbox.Persistence;
 using EricksonLopez.Outbox.Storage.PostgreSql;
+using Microsoft.Extensions.Options;
 using Npgsql;
+using NSubstitute;
 using Xunit;
 
-namespace EricksonLopez.Outbox.Tests;
+namespace EricksonLopez.Outbox.Storage.PostgreSql.Tests;
 
-public class PostgreSqlDeadLetterRepositoryTests : IClassFixture<PostgreSqlContainerFixture>, IAsyncLifetime
+[Collection("PostgreSql")]
+[Trait("Category", "Integration")]
+public class PostgreSqlDeadLetterRepositoryTests : IAsyncLifetime
 {
     private readonly PostgreSqlContainerFixture _fixture;
     private readonly IFixture _autoFixture;
@@ -30,27 +34,7 @@ public class PostgreSqlDeadLetterRepositoryTests : IClassFixture<PostgreSqlConta
 
     public async Task InitializeAsync()
     {
-        using var connection = await _dataSource.OpenConnectionAsync();
-
-        const string schema = @"
-            CREATE SCHEMA IF NOT EXISTS outbox;
-            CREATE TABLE IF NOT EXISTS outbox.messages_dead_letters (
-                id UUID PRIMARY KEY,
-                original_message_id UUID NOT NULL,
-                type VARCHAR(255) NOT NULL,
-                payload JSONB,
-                correlation_id VARCHAR(255),
-                causation_id VARCHAR(255),
-                headers_json JSONB,
-                created_at TIMESTAMPTZ NOT NULL,
-                dead_lettered_at TIMESTAMPTZ NOT NULL,
-                retry_count INT NOT NULL,
-                error_reason TEXT NOT NULL,
-                last_error TEXT
-            );
-            TRUNCATE TABLE outbox.messages_dead_letters;";
-        
-        await connection.ExecuteAsync(schema);
+        await PostgreSqlTestDatabase.EnsureSchemaAsync(_dataSource);
     }
 
     public Task DisposeAsync() => Task.CompletedTask;
@@ -129,8 +113,8 @@ public class PostgreSqlDeadLetterRepositoryTests : IClassFixture<PostgreSqlConta
         var msg = CreateDeadLetterMessage();
         
         // Force the fallback path by creating a ReadOnlyMemory that isn't cleanly array-backed from offset 0
-        var fullPayload = new byte[] { 0, 123, 125, 0 }; // "{}"
-        var slicedPayload = new ReadOnlyMemory<byte>(fullPayload, 1, 2);
+        var fullPayload = new byte[] { 99, 123, 34, 107, 34, 58, 34, 118, 34, 125, 99 }; // 'c' + "{\"k\":\"v\"}" + 'c'
+        var slicedPayload = new ReadOnlyMemory<byte>(fullPayload, 1, 9);
         
         var nullPropsMsg = new DeadLetterMessage(
             msg.Id,
@@ -158,9 +142,9 @@ public class PostgreSqlDeadLetterRepositoryTests : IClassFixture<PostgreSqlConta
         ((string?)dbRecord.last_error).Should().BeNull();
         
         var payloadJson = await connection.ExecuteScalarAsync<string>("SELECT payload::text FROM outbox.messages_dead_letters WHERE id = @Id", new { msg.Id });
-        payloadJson.Should().Be("{}");
+        payloadJson.Should().Be("{\"k\": \"v\"}");
         var headersJson = await connection.ExecuteScalarAsync<string>("SELECT headers_json::text FROM outbox.messages_dead_letters WHERE id = @Id", new { msg.Id });
-        headersJson.Should().Be("{}");
+        headersJson.Should().Be("{\"k\": \"v\"}");
     }
 
     [Fact]
@@ -192,6 +176,40 @@ public class PostgreSqlDeadLetterRepositoryTests : IClassFixture<PostgreSqlConta
         var afterResults = await sut.GetAsync(limit: 10, after: msg1.DeadLetteredAt);
         afterResults.Should().HaveCount(1);
         afterResults[0].Id.Should().Be(msg2.Id);
+    }
+
+    [Fact]
+    public async Task GetAsync_WithCustomPayloadAndHeaders_ReturnsExactValues()
+    {
+        var sut = CreateSut();
+        var msg = CreateDeadLetterMessage() with 
+        { 
+            Payload = System.Text.Encoding.UTF8.GetBytes("{\"custom\":\"dl_payload_123\"}"), 
+            Headers = System.Text.Encoding.UTF8.GetBytes("{\"custom\":\"dl_headers_456\"}") 
+        };
+
+        await sut.InsertAsync(msg);
+
+        var results = await sut.GetAsync(limit: 10);
+        var retrieved = results.Single(m => m.Id == msg.Id);
+        System.Text.Encoding.UTF8.GetString(retrieved.Payload.Span).Should().Be("{\"custom\": \"dl_payload_123\"}");
+        System.Text.Encoding.UTF8.GetString(retrieved.Headers.Span).Should().Be("{\"custom\": \"dl_headers_456\"}");
+    }
+
+    [Fact]
+    public async Task InsertAsync_WithSubArrayStartingAtZero_PersistsOnlySubArray()
+    {
+        var sut = CreateSut();
+        var fullPayload = new byte[10] { 123, 34, 107, 34, 58, 34, 118, 34, 125, 0 }; // {"k":"v"} followed by 0
+        var subPayload = new ReadOnlyMemory<byte>(fullPayload, 0, 9); // Offset = 0, Count = 9 < Length 10
+        var msg = CreateDeadLetterMessage() with { Payload = subPayload, Headers = subPayload };
+
+        await sut.InsertAsync(msg);
+
+        var list = await sut.GetAsync(limit: 10);
+        var retrieved = list.Single(x => x.Id == msg.Id);
+        System.Text.Encoding.UTF8.GetString(retrieved.Payload.Span).Should().Be("{\"k\": \"v\"}");
+        System.Text.Encoding.UTF8.GetString(retrieved.Headers.Span).Should().Be("{\"k\": \"v\"}");
     }
     
     [Fact]
@@ -266,7 +284,96 @@ public class PostgreSqlDeadLetterRepositoryTests : IClassFixture<PostgreSqlConta
         var countNew = await connection.ExecuteScalarAsync<int>("SELECT COUNT(1) FROM outbox.messages_dead_letters WHERE id = @Id", new { newMsg.Id });
         countNew.Should().Be(1);
     }
+
+    [Fact]
+    public void IsFirstPartyImplementation_ShouldBeTrue()
+    {
+        var sut = CreateSut();
+        sut.IsFirstPartyImplementation.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Constructor_NullParameters_ThrowsArgumentNullException()
+    {
+        var optionsMonitor = NSubstitute.Substitute.For<IOptionsMonitor<OutboxRuntimeOptions>>();
+        optionsMonitor.CurrentValue.Returns(new OutboxRuntimeOptions { SchemaName = "outbox", TableName = "messages" });
+
+        Action act1 = () => _ = new PostgreSqlDeadLetterRepository(null!, optionsMonitor);
+        act1.Should().Throw<ArgumentNullException>().WithParameterName("dataSource");
+
+        Action act2 = () => _ = new PostgreSqlDeadLetterRepository(_dataSource, null!);
+        act2.Should().Throw<ArgumentNullException>().WithParameterName("options");
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task InsertAsync_NullOrWhitespaceSchema_UsesPublicSchema(string? schema)
+    {
+        await using var connection = await _dataSource.OpenConnectionAsync();
+        await connection.ExecuteAsync("CREATE TABLE IF NOT EXISTS public.messages_dead_letters (id uuid NOT NULL, original_message_id uuid NOT NULL, type text NOT NULL, payload jsonb NOT NULL, correlation_id text, causation_id text, headers_json jsonb NOT NULL, created_at timestamp with time zone NOT NULL, dead_lettered_at timestamp with time zone NOT NULL, retry_count integer NOT NULL, error_reason text NOT NULL, last_error text, CONSTRAINT pk_public_dead_letters PRIMARY KEY (id, dead_lettered_at));");
+
+        var optionsMonitor = NSubstitute.Substitute.For<IOptionsMonitor<OutboxRuntimeOptions>>();
+        optionsMonitor.CurrentValue.Returns(new OutboxRuntimeOptions { SchemaName = schema!, TableName = "messages" });
+
+        var repo = new PostgreSqlDeadLetterRepository(_dataSource, optionsMonitor);
+        var msg = CreateDeadLetterMessage();
+
+        await repo.InsertAsync(msg);
+
+        var count = await connection.ExecuteScalarAsync<int>("SELECT COUNT(1) FROM public.messages_dead_letters WHERE id = @Id", new { msg.Id });
+        count.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task InsertAsync_NonNpgsqlConnectionTransaction_ThrowsInvalidOperationException()
+    {
+        var sut = CreateSut();
+        var msg = CreateDeadLetterMessage();
+        
+        var mockTx = Substitute.For<IOutboxTransactionContext>();
+        mockTx.Connection.Returns(Substitute.For<System.Data.Common.DbConnection>());
+
+        Func<Task> act = async () => await sut.InsertAsync(msg, mockTx);
+        var ex = await act.Should().ThrowAsync<InvalidOperationException>();
+        ex.WithMessage("*NpgsqlConnection*");
+    }
+
+    [Fact]
+    public async Task InsertAsync_NullReason_SetsUnknown()
+    {
+        var sut = CreateSut();
+        var msg = CreateDeadLetterMessage() with { Reason = null! };
+
+        await sut.InsertAsync(msg);
+
+        await using var connection = await _dataSource.OpenConnectionAsync();
+        var reason = await connection.ExecuteScalarAsync<string>("SELECT error_reason FROM outbox.messages_dead_letters WHERE id = @Id", new { msg.Id });
+        reason.Should().Be("Unknown");
+    }
+
+    [Fact]
+    public async Task InsertAsync_WithoutTransaction_DisposesConnectionProperly()
+    {
+        var connString = _fixture.Container.GetConnectionString() + ";Maximum Pool Size=2;Timeout=2";
+        await using var limitedDs = NpgsqlDataSource.Create(connString);
+
+        var optionsMonitor = Substitute.For<IOptionsMonitor<OutboxRuntimeOptions>>();
+        optionsMonitor.CurrentValue.Returns(new OutboxRuntimeOptions { SchemaName = "outbox", TableName = "messages" });
+
+        var repo = new PostgreSqlDeadLetterRepository(limitedDs, optionsMonitor);
+
+        for (int i = 0; i < 5; i++)
+        {
+            var msg = CreateDeadLetterMessage();
+            await repo.InsertAsync(msg);
+        }
+    }
 }
+
+
+
 
 
 

@@ -1,10 +1,10 @@
+<!-- Copyright © Erickson Lopez. MIT License. -->
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <Description>Redis Streams message broker transport for EricksonLopez.Outbox. Delivers high-performance, Zero-Reflection, NativeAOT-ready event publishing to Redis Streams.</Description>
-    <PackageTags>$(PackageTags);redis;redis-streams;streams</PackageTags>
+    <PackageTags>$(CommonPackageTags);redis;redis-streams;message-broker;streaming;native-aot</PackageTags>
     <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
-    <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
 

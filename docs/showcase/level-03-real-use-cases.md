@@ -1,3 +1,5 @@
+<!-- Copyright © Erickson Lopez. MIT License. -->
+
 # Level 3: Real-World Use Cases
 
 This level demonstrates practical integration patterns for `EricksonLopez.Outbox` in common microservice scenarios.
@@ -255,7 +257,7 @@ public async Task CommitAsync(CancellationToken ct)
 ```
 
 > [!TIP]
-> Each domain event type in the collection must be decorated with `[OutboxMessage("alias")]` and registered in the type resolver. When `ThrowOnUnregisteredType = false` (the default), unregistered types are silently skipped.
+> Each domain event type in the collection must be decorated with `[OutboxMessage("alias")]` and registered in the type resolver. When `ThrowOnUnregisteredType = true` (the default), any unregistered type immediately throws `OutboxTypeNotRegisteredException` for fail-fast safety.
 
 ---
 

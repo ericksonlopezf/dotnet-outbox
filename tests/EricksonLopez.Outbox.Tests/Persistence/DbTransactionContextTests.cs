@@ -1,8 +1,10 @@
+// Copyright © Erickson Lopez. MIT License.
+using System;
 using System.Data.Common;
 using AwesomeAssertions;
+using EricksonLopez.Outbox.Persistence;
 using NSubstitute;
 using Xunit;
-using EricksonLopez.Outbox.Persistence;
 
 namespace EricksonLopez.Outbox.Tests.Persistence;
 
@@ -45,6 +47,18 @@ public class DbTransactionContextTests
     }
 
     [Fact]
+    public void GetContext_WhenCastFails_ReturnsNull()
+    {
+        var dbTransaction = Substitute.For<DbTransaction>();
+        
+        var sut = new DbTransactionContext(dbTransaction);
+        
+        var context = ((IOutboxTransactionContext)sut).GetContext<string>();
+        
+        context.Should().BeNull();
+    }
+
+    [Fact]
     public void DbConnection_WhenTransactionIsNull_ReturnsNull()
     {
         var sut = new DbTransactionContext(null!);
@@ -53,3 +67,4 @@ public class DbTransactionContextTests
         sut.Connection.Should().BeNull();
     }
 }
+
