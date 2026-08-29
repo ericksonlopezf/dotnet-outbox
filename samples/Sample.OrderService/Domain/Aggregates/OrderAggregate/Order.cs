@@ -1,3 +1,5 @@
+// Copyright © Erickson Lopez. MIT License.
+using System;
 using Sample.OrderService.Shared;
 
 namespace Sample.OrderService.Domain.Aggregates.OrderAggregate;
@@ -31,3 +33,5 @@ public sealed class Order : AggregateRoot
         return order;
     }
 }
+
+

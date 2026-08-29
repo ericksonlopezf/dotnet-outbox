@@ -1,10 +1,13 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
-using Xunit;
 using AwesomeAssertions;
 using EricksonLopez.Outbox;
 using EricksonLopez.Outbox.Testing;
+using EricksonLopez.Result;
+using Xunit;
 
 namespace EricksonLopez.Outbox.Tests.Testing;
 
@@ -35,6 +38,18 @@ public class FakeDeadLetterRepositoryTests
         var result = await _sut.GetAsync(100, now);
         
         result.Should().ContainSingle().Which.Id.Should().Be(msg2.Id);
+    }
+
+    [Fact]
+    public async Task GetAsync_WhenDeadLetteredAtEqualsAfter_ExcludesMessage()
+    {
+        var exactTime = DateTimeOffset.UtcNow;
+        var msg = CreateMessage(exactTime);
+        await _sut.InsertAsync(msg);
+
+        var result = await _sut.GetAsync(100, after: exactTime);
+
+        result.Should().BeEmpty();
     }
 
     [Fact]
@@ -82,6 +97,24 @@ public class FakeDeadLetterRepositoryTests
     }
 
     [Fact]
+    public async Task PurgeAsync_WhenDeadLetteredAtEqualsOlderThan_RetainsMessage()
+    {
+        var exactTime = DateTimeOffset.UtcNow;
+        var msg = CreateMessage(exactTime);
+        await _sut.InsertAsync(msg);
+
+        await _sut.PurgeAsync(exactTime);
+
+        _sut.Count.Should().Be(1);
+    }
+
+    [Fact]
+    public void IsFirstPartyImplementation_ReturnsTrue()
+    {
+        _sut.IsFirstPartyImplementation.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task Clear_EmptiesRepository()
     {
         await _sut.InsertAsync(CreateMessage(DateTimeOffset.UtcNow));
@@ -106,3 +139,7 @@ public class FakeDeadLetterRepositoryTests
             null);
     }
 }
+
+
+
+

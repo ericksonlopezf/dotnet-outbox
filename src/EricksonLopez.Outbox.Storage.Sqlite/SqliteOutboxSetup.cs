@@ -1,13 +1,13 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
-
 using EricksonLopez.Outbox.Persistence;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace EricksonLopez.Outbox.Storage.Sqlite;
 
 /// <summary>
-/// Dependency Injection setup extensions for SQLite Outbox Storage.
+/// Provides extension methods for configuring SQLite outbox storage.
 /// </summary>
 public static class SqliteOutboxSetup
 {
@@ -34,3 +34,4 @@ public static class SqliteOutboxSetup
         return options;
     }
 }
+

@@ -1,3 +1,5 @@
+<!-- Copyright © Erickson Lopez. MIT License. -->
+
 # Level 6: Error Handling and Dead Letter Queue
 
 This level covers the resilience mechanisms built into the dispatcher: retry policies, circuit breaker, Dead Letter Queue (DLQ), exceptions, and error sanitization.

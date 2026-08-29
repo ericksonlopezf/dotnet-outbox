@@ -1,3 +1,4 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Buffers;
 using BenchmarkDotNet.Attributes;
@@ -46,3 +47,4 @@ public class A_SerializationBenchmarks
         _serializer.Serialize(_event, _buffer);
     }
 }
+

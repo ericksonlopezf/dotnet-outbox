@@ -1,8 +1,9 @@
-// Stryker disable all : Covered by ADR-013. Edge cases, micro-optimizations, logging, and validation strings are not rigorously mutated.
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Buffers;
 using System.Collections.Generic;
 using System.Data.Common;
+using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -27,6 +28,7 @@ public sealed class DefaultOutbox : IOutbox
     private readonly IOutboxMessageTypeResolver _typeResolver;
     private readonly Microsoft.Extensions.Options.IOptions<OutboxRuntimeOptions> _options;
     private readonly OutboxMetrics _metrics;
+    private readonly TimeProvider _timeProvider;
 
     private static readonly ReadOnlyMemory<byte> EmptyJsonObjectBytes = "{}"u8.ToArray();
 
@@ -47,19 +49,22 @@ public sealed class DefaultOutbox : IOutbox
     /// <param name="typeResolver">The resolver used to map message types to their string aliases.</param>
     /// <param name="options">The configuration options for the outbox runtime.</param>
     /// <param name="metrics">The telemetry metrics tracker.</param>
+    /// <param name="timeProvider">The optional time provider used for timestamping and deadline calculations.</param>
     /// <exception cref="ArgumentNullException">Any of the provided arguments is <see langword="null"/>.</exception>
     public DefaultOutbox(
         IOutboxRepository repository,
         IOutboxSerializer serializer,
         IOutboxMessageTypeResolver typeResolver,
         Microsoft.Extensions.Options.IOptions<OutboxRuntimeOptions> options,
-        OutboxMetrics metrics)
+        OutboxMetrics metrics,
+        TimeProvider? timeProvider = null)
     {
         _repository = repository ?? throw new ArgumentNullException(nameof(repository));
         _serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
         _typeResolver = typeResolver ?? throw new ArgumentNullException(nameof(typeResolver));
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _metrics = metrics ?? throw new ArgumentNullException(nameof(metrics));
+        _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
     /// <inheritdoc/>
@@ -68,8 +73,7 @@ public sealed class DefaultOutbox : IOutbox
         IOutboxTransactionContext transaction,
         CancellationToken cancellationToken = default) where TMessage : notnull
     {
-        ArgumentNullException.ThrowIfNull(transaction);
-        var metadata = new MessageMetadata(
+        var metadata = new OutboxMessageMetadata(
             correlationId: null,
             causationId: null,
             messageType: null); // Will be resolved in BuildOutboxMessage
@@ -93,7 +97,7 @@ public sealed class DefaultOutbox : IOutbox
 
         try
         {
-            var metadata = new MessageMetadata(correlationId: null, causationId: null, messageType: null);
+            var metadata = new OutboxMessageMetadata(correlationId: null, causationId: null, messageType: null);
             for (int i = 0; i < span.Length; i++)
             {
                 outboxMessages[i] = BuildOutboxMessage(span[i], metadata, deliverAt: null);
@@ -104,18 +108,21 @@ public sealed class DefaultOutbox : IOutbox
             // P0-2 FIX: MUST await before returning — the finally block clears the rented array.
             // Without await, the array could be returned to the pool and reused by another thread
             // while InsertBatchAsync is still reading from it (use-after-free race condition).
-            // Stryker disable all : Time boundaries and metrics are untestable. The clearArray=true param is an optimization not strictly testable for correctness here.
             var sw = System.Diagnostics.Stopwatch.GetTimestamp();
             await _repository.InsertBatchAsync(slice, transaction, cancellationToken);
-            _metrics.StoreDuration.Record(
-                System.Diagnostics.Stopwatch.GetElapsedTime(sw).TotalSeconds, 
-                new System.Diagnostics.TagList { { "message_type", "batch" } });
+            // Stryker disable once Statement,String : Metrics telemetry per ADR-013
+            _metrics.RecordStoreDuration(
+                System.Diagnostics.Stopwatch.GetElapsedTime(sw).TotalSeconds,
+                "batch");
         }
+        // Stryker disable Block : ArrayPool finally block cannot be meaningfully removed per ADR-013
         finally
         {
+            // Stryker disable Statement,Boolean : ArrayPool cleanup cannot be meaningfully tested in isolation per ADR-013
             ArrayPool<OutboxMessage>.Shared.Return(outboxMessages, clearArray: true);
+            // Stryker restore Statement,Boolean
         }
-        // Stryker restore all
+        // Stryker restore Block
     }
 
 
@@ -123,7 +130,7 @@ public sealed class DefaultOutbox : IOutbox
     public ValueTask StoreAsync<TMessage>(
         TMessage message,
         IOutboxTransactionContext transaction,
-        MessageMetadata metadata,
+        OutboxMessageMetadata metadata,
         DateTimeOffset? deliverAt,
         CancellationToken cancellationToken = default) where TMessage : notnull
     {
@@ -140,26 +147,32 @@ public sealed class DefaultOutbox : IOutbox
 
         var sw = System.Diagnostics.Stopwatch.GetTimestamp();
         var task = _repository.InsertAsync(outboxMessage, transaction, cancellationToken);
-        if (task.IsCompletedSuccessfully)
+        if (!task.IsCompletedSuccessfully)
         {
-            _metrics.StoreDuration.Record(
-                System.Diagnostics.Stopwatch.GetElapsedTime(sw).TotalSeconds, 
-                new System.Diagnostics.TagList { { "message_type", outboxMessage.MessageType } });
-            return task;
+            return AwaitAndRecordAsync(task, sw, outboxMessage.MessageType);
         }
 
-        return AwaitAndRecordAsync(task, sw, outboxMessage.MessageType);
+        // Stryker disable once Statement : Metrics telemetry per ADR-013
+        _metrics.RecordStoreDuration(
+            System.Diagnostics.Stopwatch.GetElapsedTime(sw).TotalSeconds,
+            outboxMessage.MessageType);
+        return task;
 
         async ValueTask AwaitAndRecordAsync(ValueTask innerTask, long startTicks, string type)
         {
             await innerTask;
-            _metrics.StoreDuration.Record(
-                System.Diagnostics.Stopwatch.GetElapsedTime(startTicks).TotalSeconds, 
-                new System.Diagnostics.TagList { { "message_type", type } });
+            _metrics.RecordStoreDuration(
+                System.Diagnostics.Stopwatch.GetElapsedTime(startTicks).TotalSeconds,
+                type);
         }
     }
 
-    /// <inheritdoc/>
+    /// <summary>
+    /// Begins a fluent message-building chain for enriching a message before persisting it to the outbox.
+    /// </summary>
+    /// <typeparam name="TMessage">The type of the message being built.</typeparam>
+    /// <param name="message">The initial message payload to begin enriching.</param>
+    /// <returns>A fluent builder instance to configure transaction, delay, metadata, and headers.</returns>
     public OutboxMessageBuilder<TMessage> Publish<TMessage>(TMessage message) where TMessage : notnull
     {
         return new OutboxMessageBuilder<TMessage>(this, message);
@@ -168,7 +181,7 @@ public sealed class DefaultOutbox : IOutbox
 
     private OutboxMessage BuildOutboxMessage<TMessage>(
         TMessage message,
-        MessageMetadata metadata,
+        OutboxMessageMetadata metadata,
         DateTimeOffset? deliverAt) where TMessage : notnull
     {
         // P1-B FIX: Guard against the "deliver_at Dead Zone" — messages whose deliver_at timestamp
@@ -182,19 +195,23 @@ public sealed class DefaultOutbox : IOutbox
         if (deliverAt.HasValue)
         {
             var maxAge = _options.Value.MaxMessageAge;
-            var deadline = DateTimeOffset.UtcNow.Add(maxAge);
-            if (deliverAt.Value >= deadline)
+            var deadline = _timeProvider.GetUtcNow().Add(maxAge);
+
+            if (deliverAt.Value > deadline)
             {
+                // Stryker disable String : Exception message strings per ADR-013
                 throw new ArgumentOutOfRangeException(
                     nameof(deliverAt),
                     deliverAt.Value,
                     $"The scheduled deliver_at time ({deliverAt.Value:O}) is at or beyond the MaxMessageAge deadline " +
                     $"({deadline:O}). The message would be stored but silently excluded from polling and never delivered. " +
                     $"To schedule this far ahead, increase OutboxRuntimeOptions.MaxMessageAge (currently {maxAge}).");
+                // Stryker restore String
             }
         }
 
-        string messageTypeAlias;
+        // Stryker disable once String : Default empty alias — empty string is the correct sentinel value per ADR-013
+        string messageTypeAlias = string.Empty;
         if (!string.IsNullOrEmpty(metadata.MessageType))
         {
             messageTypeAlias = metadata.MessageType;
@@ -245,8 +262,16 @@ public sealed class DefaultOutbox : IOutbox
         // within this synchronous scope, so the buffer is fully consumed before any thread switch.
         // If you ever introduce an `await` inside this method, you MUST switch to a pooled buffer
         // approach (ArrayPool<byte>.Shared.Rent) to avoid use-after-free on a different thread's buffer.
-        var payloadWriter = t_payloadBufferWriter ??= new ArrayPoolBufferWriter<byte>(1024);
-        payloadWriter.Clear();
+        var payloadWriter = t_payloadBufferWriter;
+        if (payloadWriter == null)
+        {
+            t_payloadBufferWriter = payloadWriter = new ArrayPoolBufferWriter<byte>(1024);
+        }
+        else
+        {
+            payloadWriter.Clear();
+        }
+
         _serializer.Serialize(message, payloadWriter);
 
         if (payloadWriter.WrittenCount > _options.Value.MaxPayloadSizeInBytes)
@@ -258,14 +283,14 @@ public sealed class DefaultOutbox : IOutbox
 
         // The DB layer requires a byte[] — copy exactly once at the boundary.
         var payloadBytes = payloadWriter.WrittenSpan.ToArray();
-        
+
         // Ensure payloadWriter isn't holding onto huge arrays indefinitely.
-        if (payloadWriter.Capacity > 1024 * 64) 
+        if (payloadWriter.Capacity > 65536)
         {
             payloadWriter.Dispose();
             t_payloadBufferWriter = null;
         }
-        
+
         ReadOnlyMemory<byte> headersBytes = EmptyJsonObjectBytes;
         var baggage = System.Diagnostics.Activity.Current?.Baggage;
         bool hasBaggage = false;
@@ -277,15 +302,26 @@ public sealed class DefaultOutbox : IOutbox
 
         if (!metadata.Entries.IsEmpty || hasBaggage)
         {
-            var headerWriter = t_headerBufferWriter ??= new ArrayPoolBufferWriter<byte>(256);
-            headerWriter.Clear();
+            var headerWriter = t_headerBufferWriter;
+            if (headerWriter == null)
+            {
+                t_headerBufferWriter = headerWriter = new ArrayPoolBufferWriter<byte>(256);
+            }
+            else
+            {
+                headerWriter.Clear();
+            }
 
             try
             {
-                var jsonWriter = t_headersJsonWriter ??= new Utf8JsonWriter(headerWriter);
+                var jsonWriter = t_headersJsonWriter;
+                if (jsonWriter == null)
+                {
+                    t_headersJsonWriter = jsonWriter = new Utf8JsonWriter(headerWriter);
+                }
                 jsonWriter.Reset(headerWriter);
                 jsonWriter.WriteStartObject();
-                
+
                 var entriesSpan = metadata.Entries.Span;
                 for (int i = 0; i < entriesSpan.Length; i++)
                 {
@@ -310,7 +346,7 @@ public sealed class DefaultOutbox : IOutbox
 
                 jsonWriter.WriteEndObject();
                 jsonWriter.Flush();
-                
+
                 headersBytes = headerWriter.WrittenSpan.ToArray(); // exactly sized copy
                 if (headersBytes.Length > _options.Value.MaxHeaderSizeInBytes)
                 {
@@ -320,25 +356,24 @@ public sealed class DefaultOutbox : IOutbox
             }
             catch
             {
-                // Ensure writer does not hold a reference to the buffer if an exception occurs
-                ResetHeadersJsonWriter();
+                t_headersJsonWriter = null;
+                // Stryker disable once Statement : Defensive cleanup in catch per ADR-013
+                headerWriter.Dispose();
+                t_headerBufferWriter = null;
                 throw;
             }
             finally
             {
+                // Stryker disable once Statement : Intentionally empty — buffer lifetime is managed by thread-local per ADR-013
                 // We keep the buffer alive for the thread, so we don't dispose it.
                 // It will be cleared on the next usage via Clear().
             }
         }
 
 #if NET9_0_OR_GREATER
-        var id = message is Contracts.IIntegrationEvent ev && ev.EventId != Guid.Empty 
-            ? ev.EventId 
-            : Guid.CreateVersion7();
+        var id = Guid.CreateVersion7();
 #else
-        var id = message is Contracts.IIntegrationEvent ev && ev.EventId != Guid.Empty 
-            ? ev.EventId 
-            : Guid.NewGuid();
+        var id = Guid.NewGuid();
 #endif
 
         return new OutboxMessage(
@@ -356,9 +391,9 @@ public sealed class DefaultOutbox : IOutbox
             Error: null
         );
     }
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
-    private static void ResetHeadersJsonWriter()
-    {
-        t_headersJsonWriter?.Reset(System.IO.Stream.Null);
-    }
 }
+
+
+
+
+

@@ -1,3 +1,4 @@
+; Copyright © Erickson Lopez. MIT License.
 ; Shipped analyzer releases for OutboxTypeMappingGenerator
 ; https://github.com/dotnet/roslyn-analyzers/blob/main/src/Microsoft.CodeAnalysis.Analyzers/ReleaseTrackingAnalyzers.Help.md
 

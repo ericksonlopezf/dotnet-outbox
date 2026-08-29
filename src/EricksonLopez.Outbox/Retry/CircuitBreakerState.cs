@@ -1,22 +1,10 @@
-// Stryker disable all : Covered by ADR-013. Edge cases, micro-optimizations, logging, and validation strings are not rigorously mutated.
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Diagnostics;
 using System.Threading;
 
 namespace EricksonLopez.Outbox.Retry;
 
-/// <summary>
-/// Represents the three states of a circuit breaker.
-/// </summary>
-public enum CircuitState
-{
-    /// <summary>Normal operation. All publish calls pass through.</summary>
-    Closed,
-    /// <summary>Too many failures. Publish calls are rejected immediately without hitting the broker.</summary>
-    Open,
-    /// <summary>A probe period has elapsed. The next single call is allowed through to test broker recovery.</summary>
-    HalfOpen
-}
 
 /// <summary>
 /// Tracks the circuit-breaker state for a single broker publisher, providing zero-allocation
@@ -37,24 +25,15 @@ public enum CircuitState
 [DebuggerDisplay("State={State} Failures={_failureCount}/{FailureThreshold}")]
 public sealed class CircuitBreakerState
 {
+    private readonly TimeProvider _timeProvider;
     private int _failureCount;
-    private int _state = (int)CircuitState.Closed;
+    private int _state;
     private long _openedAtTicks;
-    // A-05 AUDIT FIX: Use System.Threading.Lock on .NET 9+ for improved low-contention locking.
-    // Lock provides a thinner kernel object and shorter spin count compared to lock(object),
-    // reducing overhead in the common case where the circuit is Closed (no contention).
-    //
-    // On .NET 8 and earlier, fall back to the standard object-based monitor lock.
-    // Both types support the C# lock(...) statement identically at the language level.
-#if NET9_0_OR_GREATER
-    private readonly System.Threading.Lock _syncRoot = new System.Threading.Lock();
-#else
-    private readonly object _syncRoot = new object();
-#endif
+    private readonly object _syncRoot = new();
 
     /// <summary>Gets the number of consecutive failures required before the circuit transitions to the Open state.</summary>
     public int FailureThreshold { get; }
-    
+
     /// <summary>Gets the duration the circuit remains in the Open state before transitioning to HalfOpen and allowing a probe attempt.</summary>
     public TimeSpan OpenDuration { get; }
 
@@ -65,12 +44,25 @@ public sealed class CircuitBreakerState
     /// <param name="openDuration">The duration the circuit stays open. Defaults to 30 seconds.</param>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="failureThreshold"/> is less than or equal to 0.</exception>
     public CircuitBreakerState(int failureThreshold = 5, TimeSpan? openDuration = null)
+        : this(failureThreshold, openDuration, TimeProvider.System)
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="CircuitBreakerState"/> class with a custom <see cref="TimeProvider"/>.
+    /// </summary>
+    /// <param name="failureThreshold">The number of consecutive failures before opening the circuit.</param>
+    /// <param name="openDuration">The duration the circuit stays open. Defaults to 30 seconds.</param>
+    /// <param name="timeProvider">The time provider to use for time measurements.</param>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="failureThreshold"/> is less than or equal to 0.</exception>
+    public CircuitBreakerState(int failureThreshold, TimeSpan? openDuration, TimeProvider? timeProvider)
     {
         if (failureThreshold <= 0)
             throw new ArgumentOutOfRangeException(nameof(failureThreshold), "Must be > 0.");
 
         FailureThreshold = failureThreshold;
         OpenDuration = openDuration ?? TimeSpan.FromSeconds(30);
+        _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
     /// <summary>Gets the current state of the circuit breaker, automatically transitioning from Open to HalfOpen when the open duration has elapsed.</summary>
@@ -86,7 +78,7 @@ public sealed class CircuitBreakerState
                     if ((CircuitState)_state == CircuitState.Open)
                     {
                         var openedAt = new DateTimeOffset(_openedAtTicks, TimeSpan.Zero);
-                        if (DateTimeOffset.UtcNow - openedAt >= OpenDuration)
+                        if (_timeProvider.GetUtcNow() - openedAt >= OpenDuration)
                         {
                             _state = (int)CircuitState.HalfOpen;
                             _failureCount = 0;
@@ -121,7 +113,7 @@ public sealed class CircuitBreakerState
             var currentState = (CircuitState)_state;
             if (currentState == CircuitState.HalfOpen)
             {
-                _openedAtTicks = DateTimeOffset.UtcNow.UtcTicks;
+                _openedAtTicks = _timeProvider.GetUtcNow().UtcTicks;
                 _state = (int)CircuitState.Open;
                 _failureCount = FailureThreshold;
                 return;
@@ -130,9 +122,10 @@ public sealed class CircuitBreakerState
             _failureCount++;
             if (_failureCount >= FailureThreshold)
             {
-                _openedAtTicks = DateTimeOffset.UtcNow.UtcTicks;
+                _openedAtTicks = _timeProvider.GetUtcNow().UtcTicks;
                 _state = (int)CircuitState.Open;
             }
         }
     }
 }
+

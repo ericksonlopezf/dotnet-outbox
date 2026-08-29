@@ -1,3 +1,4 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Collections.Generic;
 using System.Data.Common;
@@ -11,26 +12,16 @@ using Dapper;
 using EricksonLopez.Outbox;
 using EricksonLopez.Outbox.Storage.Oracle;
 using Microsoft.Extensions.Options;
+using NSubstitute;
 using Oracle.ManagedDataAccess.Client;
 using Testcontainers.Oracle;
 using Xunit;
-using NSubstitute;
 
+namespace EricksonLopez.Outbox.Storage.Oracle.Tests;
 
-namespace EricksonLopez.Outbox.Tests;
-
-public class OracleContainerFixture : IAsyncLifetime
-{
-    public OracleContainer Container { get; } = new OracleBuilder()
-        .WithImage("gvenzl/oracle-xe:21-slim-faststart")
-        .WithPassword("password")
-        .Build();
-
-    public Task InitializeAsync() => Container.StartAsync();
-    public Task DisposeAsync() => Container.DisposeAsync().AsTask();
-}
-
-public class OracleOutboxRepositoryTests : IClassFixture<OracleContainerFixture>, IAsyncLifetime
+[Collection("Oracle")]
+[Trait("Category", "Integration")]
+public class OracleOutboxRepositoryTests : IAsyncLifetime
 {
     private readonly OracleContainerFixture _fixture;
     private readonly IFixture _autoFixture;
@@ -43,39 +34,17 @@ public class OracleOutboxRepositoryTests : IClassFixture<OracleContainerFixture>
 
     public async Task InitializeAsync()
     {
-        using var connection = new OracleConnection(_fixture.Container.GetConnectionString());
-        await connection.OpenAsync();
-
-        const string schema = @"
-            BEGIN
-                EXECUTE IMMEDIATE 'CREATE TABLE ""messages"" (
-                    id RAW(16) PRIMARY KEY,
-                    type VARCHAR2(255) NOT NULL,
-                    payload BLOB,
-                    correlation_id VARCHAR2(255),
-                    causation_id VARCHAR2(255),
-                    headers_json BLOB,
-                    created_at TIMESTAMP(6) WITH TIME ZONE NOT NULL,
-                    updated_at TIMESTAMP(6) WITH TIME ZONE NOT NULL,
-                    processed_at TIMESTAMP(6) WITH TIME ZONE,
-                    deliver_at TIMESTAMP(6) WITH TIME ZONE,
-                    state NUMBER(10) NOT NULL,
-                    retry_count NUMBER(10) DEFAULT 0 NOT NULL,
-                    owner_id RAW(16),
-                    error CLOB
-                )';
-            EXCEPTION
-                WHEN OTHERS THEN
-                    IF SQLCODE != -955 THEN
-                        RAISE;
-                    END IF;
-            END;";
-            
-        await connection.ExecuteAsync(schema);
-        await connection.ExecuteAsync("TRUNCATE TABLE \"messages\"");
+        await OracleTestDatabase.EnsureSchemaAsync(_fixture.Container.GetConnectionString(), "messages");
     }
 
     public Task DisposeAsync() => Task.CompletedTask;
+
+    private OracleOutboxRepository CreateSut(OutboxRuntimeOptions? customOptions = null)
+    {
+        var optionsMonitor = Substitute.For<IOptions<OutboxRuntimeOptions>>();
+        optionsMonitor.Value.Returns(customOptions ?? new OutboxRuntimeOptions { SchemaName = string.Empty, TableName = "messages" });
+        return new OracleOutboxRepository(() => new OracleConnection(_fixture.Container.GetConnectionString()), optionsMonitor);
+    }
 
     [Fact]
     public void Constructor_Should_Throw_On_Invalid_Schema()
@@ -100,14 +69,51 @@ public class OracleOutboxRepositoryTests : IClassFixture<OracleContainerFixture>
     }
 
     [Fact]
+    public void Constructor_NullConnectionFactory_ThrowsArgumentNullException()
+    {
+        Action act = () => { _ = new OracleOutboxRepository(null!); };
+        act.Should().Throw<ArgumentNullException>().WithParameterName("connectionFactory");
+    }
+
+    [Fact]
+    public void Constructor_DefaultOptions_WhenNullOptionsPassed()
+    {
+        var sut = new OracleOutboxRepository(() => new OracleConnection(), null);
+        sut.Should().NotBeNull();
+    }
+
+    [Fact]
     public void Constructor_Should_Allow_Public_OutboxMessages_Fallback()
     {
         var optionsMonitor = Substitute.For<IOptions<OutboxRuntimeOptions>>();
         optionsMonitor.Value.Returns(new OutboxRuntimeOptions { SchemaName = "public", TableName = "outbox_messages" });
 
         var sut = new OracleOutboxRepository(() => new FakeDbConnection(), optionsMonitor);
-
         sut.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task InsertAsync_NullTransactionConnection_ThrowsInvalidOperationException()
+    {
+        var sut = CreateSut();
+        var invalidTx = Substitute.For<EricksonLopez.Outbox.Persistence.IOutboxTransactionContext>();
+        invalidTx.Connection.Returns((System.Data.IDbConnection)null!);
+
+        Func<Task> act = async () => await sut.InsertAsync(CreateMessage(), invalidTx);
+        var ex = await act.Should().ThrowAsync<InvalidOperationException>();
+        ex.WithMessage("Transaction connection is null.");
+    }
+
+    [Fact]
+    public async Task InsertBatchAsync_NullTransactionConnection_ThrowsInvalidOperationException()
+    {
+        var sut = CreateSut();
+        var invalidTx = Substitute.For<EricksonLopez.Outbox.Persistence.IOutboxTransactionContext>();
+        invalidTx.Connection.Returns((System.Data.IDbConnection)null!);
+
+        Func<Task> act = async () => await sut.InsertBatchAsync(new[] { CreateMessage() }, invalidTx);
+        var ex = await act.Should().ThrowAsync<InvalidOperationException>();
+        ex.WithMessage("Not an OracleConnection");
     }
 
     private OracleOutboxRepository CreateSut(FakeDbConnection conn)
@@ -263,44 +269,6 @@ public class OracleOutboxRepositoryTests : IClassFixture<OracleContainerFixture>
     }
 
     [Fact]
-    public async Task FetchPendingAsync_Should_Skip_Invalid_State()
-    {
-        var mockConn = new FakeDbConnection();
-        
-        var claimCmd = Substitute.For<DbCommand>();
-        var claimReader = Substitute.For<DbDataReader>();
-        claimReader.ReadAsync(Arg.Any<CancellationToken>()).Returns(true, false);
-        claimReader.GetValue(0).Returns(Guid.NewGuid().ToByteArray());
-        claimCmd.ExecuteReaderAsync(Arg.Any<CancellationToken>()).Returns(claimReader);
-        
-        var updateCmd = Substitute.For<DbCommand>();
-        var updateParams = Substitute.For<DbParameterCollection>();
-        updateCmd.Parameters.Returns(updateParams);
-        var p = Substitute.For<DbParameter>();
-        updateCmd.CreateParameter().Returns(p);
-        
-        var hydrateCmd = Substitute.For<DbCommand>();
-        var hydrateParams = Substitute.For<DbParameterCollection>();
-        hydrateCmd.Parameters.Returns(hydrateParams);
-        hydrateCmd.CreateParameter().Returns(p);
-        
-        var hydrateReader = Substitute.For<DbDataReader>();
-        hydrateReader.HasRows.Returns(true);
-        hydrateReader.ReadAsync(Arg.Any<CancellationToken>()).Returns(true, false);
-        hydrateReader.GetInt32(Arg.Any<int>()).Returns(99); // Invalid state
-        hydrateCmd.ExecuteReaderAsync(Arg.Any<CancellationToken>()).Returns(hydrateReader);
-
-        mockConn.ClaimCmd = claimCmd;
-        mockConn.UpdateCmd = updateCmd;
-        mockConn.HydrateCmd = hydrateCmd;
-
-        var sut = new OracleOutboxRepository(() => mockConn, Microsoft.Extensions.Options.Options.Create(new OutboxRuntimeOptions()));
-        var fetched = await sut.FetchPendingAsync(10);
-        
-        fetched.Should().BeEmpty();
-    }
-    
-    [Fact]
     public async Task FetchPendingAsync_Should_Return_Empty_If_No_Messages()
     {
         var sut = CreateSut();
@@ -350,33 +318,80 @@ public class OracleOutboxRepositoryTests : IClassFixture<OracleContainerFixture>
     public async Task MarkAsFailedAsync_Should_Update_Status_And_Increment_Retry(bool isDeadLetter, int expectedState)
     {
         var sut = CreateSut();
-        var msg = CreateMessage(state: 1, retryCount: 0);
+        var msg1 = CreateMessage(state: 1, retryCount: 0);
+        var msg2 = CreateMessage(state: 1, retryCount: 2);
 
         await using var connection = new OracleConnection(_fixture.Container.GetConnectionString());
         await connection.OpenAsync();
-        await connection.ExecuteAsync("INSERT INTO \"messages\" (id, type, payload, headers_json, created_at, updated_at, state, retry_count) VALUES (:Id, :MessageType, :P, :H, :CreatedAt, CURRENT_TIMESTAMP, :State, :RetryCount)", new { Id = msg.Id.ToByteArray(), msg.MessageType, P = Array.Empty<byte>(), H = Array.Empty<byte>(), CreatedAt = msg.CreatedAt, State = (int)msg.Status, msg.RetryCount });
+        await connection.ExecuteAsync("INSERT INTO \"messages\" (id, type, payload, headers_json, created_at, updated_at, state, retry_count) VALUES (:Id, :MessageType, :P, :H, :CreatedAt, CURRENT_TIMESTAMP, :State, :RetryCount)", new { Id = msg1.Id.ToByteArray(), msg1.MessageType, P = Array.Empty<byte>(), H = Array.Empty<byte>(), CreatedAt = msg1.CreatedAt, State = (int)msg1.Status, msg1.RetryCount });
+        await connection.ExecuteAsync("INSERT INTO \"messages\" (id, type, payload, headers_json, created_at, updated_at, state, retry_count) VALUES (:Id, :MessageType, :P, :H, :CreatedAt, CURRENT_TIMESTAMP, :State, :RetryCount)", new { Id = msg2.Id.ToByteArray(), msg2.MessageType, P = Array.Empty<byte>(), H = Array.Empty<byte>(), CreatedAt = msg2.CreatedAt, State = (int)msg2.Status, msg2.RetryCount });
 
-        await sut.MarkAsFailedAsync(new[] { msg }, "error", isDeadLetter);
+        await sut.MarkAsFailedAsync(new[] { msg1, msg2 }, "error", isDeadLetter);
 
-        var db1 = await connection.QuerySingleAsync<(int state, int retry_count)>("SELECT state, retry_count FROM \"messages\" WHERE id = :Id", new { Id = msg.Id.ToByteArray() });
+        var db1 = await connection.QuerySingleAsync<(int state, int retry_count)>("SELECT state, retry_count FROM \"messages\" WHERE id = :Id", new { Id = msg1.Id.ToByteArray() });
         db1.state.Should().Be(expectedState);
         db1.retry_count.Should().Be(1);
+
+        var db2 = await connection.QuerySingleAsync<(int state, int retry_count)>("SELECT state, retry_count FROM \"messages\" WHERE id = :Id", new { Id = msg2.Id.ToByteArray() });
+        db2.state.Should().Be(expectedState);
+        db2.retry_count.Should().Be(3);
     }
 
     [Fact]
     public async Task MarkAsDispatchedAsync_Should_Update_Status_To_Dispatched()
     {
         var sut = CreateSut();
-        var msg = CreateMessage(state: 1);
+        var msg1 = CreateMessage(state: 1);
+        var msg2 = CreateMessage(state: 1);
 
         await using var connection = new OracleConnection(_fixture.Container.GetConnectionString());
         await connection.OpenAsync();
-        await connection.ExecuteAsync("INSERT INTO \"messages\" (id, type, payload, headers_json, created_at, updated_at, state) VALUES (:Id, :MessageType, :P, :H, :CreatedAt, CURRENT_TIMESTAMP, :State)", new { Id = msg.Id.ToByteArray(), msg.MessageType, P = Array.Empty<byte>(), H = Array.Empty<byte>(), CreatedAt = msg.CreatedAt, State = (int)msg.Status });
+        await connection.ExecuteAsync("INSERT INTO \"messages\" (id, type, payload, headers_json, created_at, updated_at, state) VALUES (:Id, :MessageType, :P, :H, :CreatedAt, CURRENT_TIMESTAMP, :State)", new { Id = msg1.Id.ToByteArray(), msg1.MessageType, P = Array.Empty<byte>(), H = Array.Empty<byte>(), CreatedAt = msg1.CreatedAt, State = (int)msg1.Status });
+        await connection.ExecuteAsync("INSERT INTO \"messages\" (id, type, payload, headers_json, created_at, updated_at, state) VALUES (:Id, :MessageType, :P, :H, :CreatedAt, CURRENT_TIMESTAMP, :State)", new { Id = msg2.Id.ToByteArray(), msg2.MessageType, P = Array.Empty<byte>(), H = Array.Empty<byte>(), CreatedAt = msg2.CreatedAt, State = (int)msg2.Status });
 
-        await sut.MarkAsDispatchedAsync(new[] { msg });
+        await sut.MarkAsDispatchedAsync(new[] { msg1, msg2 });
 
-        var count1 = await connection.ExecuteScalarAsync<int>("SELECT COUNT(1) FROM \"messages\" WHERE id = :Id", new { Id = msg.Id.ToByteArray() });
+        var count1 = await connection.ExecuteScalarAsync<int>("SELECT COUNT(1) FROM \"messages\" WHERE id = :Id", new { Id = msg1.Id.ToByteArray() });
         count1.Should().Be(0);
+
+        var count2 = await connection.ExecuteScalarAsync<int>("SELECT COUNT(1) FROM \"messages\" WHERE id = :Id", new { Id = msg2.Id.ToByteArray() });
+        count2.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task PurgeDispatchedMessagesAsync_BatchSizeZeroOrNegative_ReturnsZero()
+    {
+        var sut = CreateSut();
+        var count = await sut.PurgeDispatchedMessagesAsync(DateTimeOffset.UtcNow, 0);
+        count.Should().Be(0);
+
+        var countNeg = await sut.PurgeDispatchedMessagesAsync(DateTimeOffset.UtcNow, -5);
+        countNeg.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task PurgeDispatchedMessagesAsync_Should_Delete_Dispatched_Messages_Older_Than_Cutoff()
+    {
+        var sut = CreateSut();
+        var msgOld = CreateMessage(state: 2);
+        var msgFresh = CreateMessage(state: 2);
+        var oldDate = DateTime.UtcNow.AddDays(-10);
+        var freshDate = DateTime.UtcNow.AddDays(10);
+
+        await using var connection = new OracleConnection(_fixture.Container.GetConnectionString());
+        await connection.OpenAsync();
+
+        await connection.ExecuteAsync("INSERT INTO \"messages\" (id, type, payload, headers_json, created_at, updated_at, processed_at, state) VALUES (:Id, :MessageType, :P, :H, :CreatedAt, :UpdatedAt, :ProcessedAt, :State)", new { Id = msgOld.Id.ToByteArray(), msgOld.MessageType, P = Array.Empty<byte>(), H = Array.Empty<byte>(), CreatedAt = oldDate, UpdatedAt = oldDate, ProcessedAt = oldDate, State = 2 });
+        await connection.ExecuteAsync("INSERT INTO \"messages\" (id, type, payload, headers_json, created_at, updated_at, processed_at, state) VALUES (:Id, :MessageType, :P, :H, :CreatedAt, :UpdatedAt, :ProcessedAt, :State)", new { Id = msgFresh.Id.ToByteArray(), msgFresh.MessageType, P = Array.Empty<byte>(), H = Array.Empty<byte>(), CreatedAt = freshDate, UpdatedAt = freshDate, ProcessedAt = freshDate, State = 2 });
+
+        var purged = await sut.PurgeDispatchedMessagesAsync(DateTimeOffset.UtcNow.AddDays(-1), 100);
+        purged.Should().Be(1);
+
+        var remainingOld = await connection.ExecuteScalarAsync<int>("SELECT COUNT(1) FROM \"messages\" WHERE id = :Id", new { Id = msgOld.Id.ToByteArray() });
+        remainingOld.Should().Be(0);
+
+        var remainingFresh = await connection.ExecuteScalarAsync<int>("SELECT COUNT(1) FROM \"messages\" WHERE id = :Id", new { Id = msgFresh.Id.ToByteArray() });
+        remainingFresh.Should().Be(1);
     }
 
     [Fact]
@@ -429,10 +444,84 @@ public class OracleOutboxRepositoryTests : IClassFixture<OracleContainerFixture>
     public async Task GetPendingCountAsync_Should_Return_Count()
     {
         var sut = CreateSut();
+        var msg1 = CreateMessage(state: 0);
+        var msg2 = CreateMessage(state: 3);
+
+        await using var connection = new OracleConnection(_fixture.Container.GetConnectionString());
+        await connection.OpenAsync();
+        await using var tx = connection.BeginTransaction();
+
+        await sut.InsertAsync(msg1, new EricksonLopez.Outbox.Persistence.DbTransactionContext(tx));
+        await sut.InsertAsync(msg2, new EricksonLopez.Outbox.Persistence.DbTransactionContext(tx));
+        await tx.CommitAsync();
+
         var count = await sut.GetPendingCountAsync(CancellationToken.None);
-        count.Should().Be(0);
+        count.Should().BeGreaterThanOrEqualTo(2);
+    }
+
+    [Fact]
+    public async Task Constructor_CustomSchemaWithMessagesTable_TargetsQualifiedTable()
+    {
+        var opt = new OutboxRuntimeOptions { SchemaName = "CUSTOM_NONEXISTENT_SCHEMA", TableName = "messages" };
+        var sut = CreateSut(opt);
+        Func<Task> act = async () => await sut.GetPendingCountAsync(CancellationToken.None);
+        await act.Should().ThrowAsync<OracleException>();
+    }
+
+    [Fact]
+    public async Task MarkAsDispatchedAsync_NonOracleConnection_ThrowsInvalidOperationException()
+    {
+        var sut = new OracleOutboxRepository(() => new FakeDbConnection(), Microsoft.Extensions.Options.Options.Create(new OutboxRuntimeOptions()));
+        Func<Task> act = async () => await sut.MarkAsDispatchedAsync(new[] { CreateMessage() });
+        var ex = await act.Should().ThrowAsync<InvalidOperationException>();
+        ex.WithMessage("Not an OracleConnection");
+    }
+
+    [Fact]
+    public async Task MarkAsFailedAsync_NonOracleConnection_ThrowsInvalidOperationException()
+    {
+        var sut = new OracleOutboxRepository(() => new FakeDbConnection(), Microsoft.Extensions.Options.Options.Create(new OutboxRuntimeOptions()));
+        Func<Task> act = async () => await sut.MarkAsFailedAsync(new[] { CreateMessage() }, "error");
+        var ex = await act.Should().ThrowAsync<InvalidOperationException>();
+        ex.WithMessage("Not an OracleConnection");
+    }
+
+    [Fact]
+    public async Task InsertBatchAsync_WhenRecordsEmpty_ReturnsImmediately()
+    {
+        var sut = CreateSut();
+        var tx = Substitute.For<EricksonLopez.Outbox.Persistence.IOutboxTransactionContext>();
+        await sut.InsertBatchAsync(ReadOnlyMemory<OutboxMessage>.Empty, tx);
+    }
+
+    [Fact]
+    public async Task MarkAsDispatchedAsync_WhenEmptyList_ReturnsImmediately()
+    {
+        var sut = CreateSut();
+        await sut.MarkAsDispatchedAsync(Array.Empty<OutboxMessage>());
+    }
+
+    [Fact]
+    public async Task MarkAsFailedAsync_WhenEmptyList_ReturnsImmediately()
+    {
+        var sut = CreateSut();
+        await sut.MarkAsFailedAsync(Array.Empty<OutboxMessage>(), "error");
+    }
+
+    [Fact]
+    public async Task PurgeDispatchedMessagesAsync_WhenBatchSizeZeroOrNegative_ReturnsZero()
+    {
+        var sut = CreateSut();
+        var purgedZero = await sut.PurgeDispatchedMessagesAsync(DateTimeOffset.UtcNow, batchSize: 0);
+        purgedZero.Should().Be(0);
+
+        var purgedNeg = await sut.PurgeDispatchedMessagesAsync(DateTimeOffset.UtcNow, batchSize: -5);
+        purgedNeg.Should().Be(0);
     }
 }
+
+
+
 
 
 

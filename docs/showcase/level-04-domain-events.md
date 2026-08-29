@@ -1,3 +1,5 @@
+<!-- Copyright © Erickson Lopez. MIT License. -->
+
 # Level 4: Domain Events and Integration Events
 
 This level explores the distinction between domain events and integration events, and how `EricksonLopez.Outbox` bridges the gap.
@@ -15,31 +17,31 @@ This level explores the distinction between domain events and integration events
 
 ## Designing Integration Events
 
-### The `IIntegrationEvent` Interface and `[OutboxMessage]` Attribute
+### The `[OutboxMessage]` Attribute and Optional `IIntegrationEvent` Contract
 
-The library provides an optional `IIntegrationEvent` marker interface that enforces standard properties (`EventId` and `OccurredOn`) on your public contracts.
-
-Every type stored in the outbox must be decorated with `[OutboxMessage]`:
+Every type stored in the outbox is a standard C# type (class, struct, or record) decorated with `[OutboxMessage]`:
 
 ```csharp
 using EricksonLopez.Outbox.Contracts;
 
 [OutboxMessage("order-created-v1")]
-public record OrderCreatedEvent(
+public sealed record OrderCreatedEvent(
     Guid EventId,
     string CustomerId,
     decimal Total,
-    DateTimeOffset OccurredOn) : IIntegrationEvent;
+    DateTimeOffset OccurredOn);
 ```
 
+When integrating with the `EricksonLopez.Events` ecosystem via `EricksonLopez.Outbox.Events`, event types can also implement `EricksonLopez.Events.Contracts.IIntegrationEvent`.
+
 The **alias** (`"order-created-v1"`) is:
-- Stored in the `type` column of the `outbox.messages` table
-- Used by the `IOutboxMessageTypeResolver` to reconstruct the CLR type during dispatch
+- Stored in the `type` column of the `outbox_messages` table
+- Used by `IOutboxMessageTypeResolver` to resolve the CLR type
 - Must be **unique** across all registered message types
 - Should include a version suffix for safe schema evolution
 
 > [!NOTE]
-> `IIntegrationEvent` is **optional**. The outbox does not require it — `[OutboxMessage]` alone is sufficient. The interface is useful in DDD environments where you want to enforce that every event contract carries a standard `EventId` and `OccurredOn`.
+> Types stored in the Outbox do not require any base interface; `[OutboxMessage("alias")]` alone is sufficient for full AOT serialization and dispatching.
 
 ### Event Versioning Strategy
 
@@ -136,7 +138,7 @@ builder.Services.AddOutbox(options =>
 ```
 
 > [!NOTE]
-> Due to a Roslyn limitation (see [ADR-0001](../adr/0001-limitacion-source-generator-json.md)),
+> Due to a Roslyn limitation (see [ADR 011](../adr/011-source-generator-json-context.md)),
 > the `JsonSerializerContext` must be declared manually by the consumer.
 > The source generator emits a commented template to simplify this.
 

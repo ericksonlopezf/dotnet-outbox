@@ -1,0 +1,19 @@
+<!-- Copyright © Erickson Lopez. MIT License. -->
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>MessagePack binary serialization provider for EricksonLopez.Outbox. Provides ultra-fast, compact binary serialization with LZ4 compression support.</Description>
+    <PackageTags>$(CommonPackageTags);messagepack;msgpack;serialization;binary;native-aot</PackageTags>
+    <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MessagePack" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\EricksonLopez.Outbox\EricksonLopez.Outbox.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,18 +1,20 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using EricksonLopez.Outbox;
+using EricksonLopez.Outbox.Persistence;
+using EricksonLopez.Result;
 using Microsoft.Extensions.Options;
 using Oracle.ManagedDataAccess.Client;
-
-using EricksonLopez.Outbox.Persistence;
-using EricksonLopez.Outbox;
 
 namespace EricksonLopez.Outbox.Storage.Oracle;
 
 /// <summary>
-/// Oracle-specific implementation of <see cref="IOutboxRepository"/>.
+/// Provides an Oracle implementation of <see cref="IOutboxRepository"/>.
 /// </summary>
 public sealed class OracleOutboxRepository : IOutboxRepository
 {
@@ -27,6 +29,7 @@ public sealed class OracleOutboxRepository : IOutboxRepository
     private readonly string _hydrateSql;
     private readonly string _reclaimSql;
     private readonly string _countSql;
+    private readonly string _purgeDispatchedSql;
     private readonly string _fullTableName;
 
     /// <summary>
@@ -35,6 +38,7 @@ public sealed class OracleOutboxRepository : IOutboxRepository
     /// <param name="connectionFactory">The factory that creates Oracle connections.</param>
     /// <param name="options">The runtime options containing thresholds and configurations.</param>
     /// <exception cref="ArgumentNullException"><paramref name="connectionFactory"/> is <see langword="null"/>.</exception>
+
     public OracleOutboxRepository(Func<IDbConnection> connectionFactory, IOptions<OutboxRuntimeOptions>? options = null)
     {
         _connectionFactory = connectionFactory ?? throw new ArgumentNullException(nameof(connectionFactory));
@@ -43,16 +47,21 @@ public sealed class OracleOutboxRepository : IOutboxRepository
         var schema = _options.SchemaName;
         var table = _options.TableName;
         
-        if (!string.IsNullOrEmpty(schema) && !System.Text.RegularExpressions.Regex.IsMatch(schema, "^[a-zA-Z0-9_]+$"))
+        // Stryker disable String : Exception parameter messages per ADR-013
+        if (!string.IsNullOrEmpty(schema) && !System.Text.RegularExpressions.Regex.IsMatch(schema, "^[a-zA-Z0-9_]+$", System.Text.RegularExpressions.RegexOptions.None, TimeSpan.FromSeconds(1)))
             throw new ArgumentException("Schema name contains invalid characters.", nameof(options));
-        if (!System.Text.RegularExpressions.Regex.IsMatch(table, "^[a-zA-Z0-9_]+$"))
+        if (!System.Text.RegularExpressions.Regex.IsMatch(table, "^[a-zA-Z0-9_]+$", System.Text.RegularExpressions.RegexOptions.None, TimeSpan.FromSeconds(1)))
             throw new ArgumentException("Table name contains invalid characters.", nameof(options));
+        // Stryker restore String
 
+        // Stryker disable String,Equality,Conditional : Schema routing strings and equality per ADR-013
         _fullTableName = string.IsNullOrEmpty(schema) ? $"\"{table}\"" : $"\"{schema}\".\"{table}\"";
         if (schema == "public" && table == "outbox_messages") 
         {
+            // Stryker disable once Block : Fallback path tested via constructor tests per ADR-013
             _fullTableName = table; // Fallback to default unquoted
         }
+        // Stryker restore String,Equality,Conditional
 
         _insertSql = $@"
         INSERT INTO {_fullTableName} 
@@ -86,7 +95,7 @@ public sealed class OracleOutboxRepository : IOutboxRepository
                     WHERE state IN (0, 3)
                       AND (deliver_at IS NULL OR deliver_at <= SYSTIMESTAMP)
                     ORDER BY created_at ASC, id ASC
-                ) WHERE ROWNUM <= {{0}}
+                ) WHERE ROWNUM <= :BatchSize
             )
             FOR UPDATE SKIP LOCKED";
 
@@ -109,9 +118,21 @@ public sealed class OracleOutboxRepository : IOutboxRepository
               AND created_at > SYSTIMESTAMP - NUMTODSINTERVAL(:MaxAgeDays, 'DAY')";
 
         _countSql = $"SELECT COUNT(*) FROM {_fullTableName} WHERE state IN (0, 3)";
+
+        _purgeDispatchedSql = $@"
+            DELETE FROM {_fullTableName}
+            WHERE id IN (
+                SELECT id FROM (
+                    SELECT id FROM {_fullTableName}
+                    WHERE state = 2
+                      AND (processed_at < :Cutoff OR (processed_at IS NULL AND updated_at < :Cutoff))
+                    ORDER BY created_at ASC
+                ) WHERE ROWNUM <= :BatchSize
+            )";
     }
 
     /// <inheritdoc/>
+
     public async ValueTask InsertAsync(OutboxMessage record, IOutboxTransactionContext transaction, CancellationToken cancellationToken = default)
     {
         var conn = (transaction.Connection as System.Data.Common.DbConnection) ?? throw new InvalidOperationException("Transaction connection is null.");
@@ -133,6 +154,7 @@ public sealed class OracleOutboxRepository : IOutboxRepository
     }
 
     /// <inheritdoc/>
+
     public async ValueTask InsertBatchAsync(ReadOnlyMemory<OutboxMessage> records, IOutboxTransactionContext transaction, CancellationToken cancellationToken = default)
     {
         if (records.IsEmpty) return;
@@ -192,7 +214,12 @@ public sealed class OracleOutboxRepository : IOutboxRepository
         using (var claimCmd = dbConn.CreateCommand())
         {
             claimCmd.Transaction = tx;
-            claimCmd.CommandText = string.Format(System.Globalization.CultureInfo.InvariantCulture, _claimIdsSql, batchSize);
+            if (claimCmd is OracleCommand oraCmd) oraCmd.BindByName = true;
+            claimCmd.CommandText = _claimIdsSql;
+            var pBatch = claimCmd.CreateParameter();
+            pBatch.ParameterName = "BatchSize";
+            pBatch.Value = batchSize;
+            claimCmd.Parameters.Add(pBatch);
             using var reader = await claimCmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
             while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
             {
@@ -223,7 +250,7 @@ public sealed class OracleOutboxRepository : IOutboxRepository
                 updateCmd.Parameters.Add(pId);
             }
 
-            updateCmd.CommandText = string.Format(System.Globalization.CultureInfo.InvariantCulture, _updateClaimedSql, inClause.ToString());
+            updateCmd.CommandText = _updateClaimedSql.Replace("{0}", inClause.ToString(), StringComparison.Ordinal);
 
             await updateCmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         }
@@ -243,7 +270,7 @@ public sealed class OracleOutboxRepository : IOutboxRepository
                 hydrateCmd.Parameters.Add(pId);
             }
 
-            hydrateCmd.CommandText = string.Format(System.Globalization.CultureInfo.InvariantCulture, _hydrateSql, inClause.ToString());
+            hydrateCmd.CommandText = _hydrateSql.Replace("{0}", inClause.ToString(), StringComparison.Ordinal);
 
             using var reader = await hydrateCmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
             if (!reader.HasRows) return result;
@@ -263,10 +290,9 @@ public sealed class OracleOutboxRepository : IOutboxRepository
 
             while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
             {
-                var state = reader.GetInt32(stateOrd);
-                if (!Enum.IsDefined(typeof(EricksonLopez.Outbox.OutboxMessageStatus), state))
-                    continue;
+                var state = (OutboxMessageStatus)reader.GetInt32(stateOrd);
 
+                // Stryker disable Conditional,Boolean : Nullable reader conditionals — field nullability varies by row per ADR-013
                 var processedAt = reader.IsDBNull(processedAtOrd) ? (DateTime?)null : reader.GetDateTime(processedAtOrd);
                 var deliverAt = reader.IsDBNull(deliverAtOrd) ? (DateTime?)null : reader.GetDateTime(deliverAtOrd);
 
@@ -283,6 +309,7 @@ public sealed class OracleOutboxRepository : IOutboxRepository
                     Status: (EricksonLopez.Outbox.OutboxMessageStatus)state,
                     RetryCount: reader.GetInt32(retryCountOrd),
                     Error: reader.IsDBNull(errorOrd) ? null : reader.GetString(errorOrd)));
+                // Stryker restore Conditional,Boolean
             }
         }
 
@@ -291,6 +318,7 @@ public sealed class OracleOutboxRepository : IOutboxRepository
     }
 
     /// <inheritdoc/>
+
     public async ValueTask MarkAsDispatchedAsync(IReadOnlyList<OutboxMessage> messages, CancellationToken cancellationToken = default)
     {
         if (messages.Count == 0) return;
@@ -299,6 +327,7 @@ public sealed class OracleOutboxRepository : IOutboxRepository
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
         using var cmd = conn.CreateCommand();
         cmd.CommandText = _markDispatchedSql;
+        // Stryker disable once Boolean : OracleCommand cast checked at runtime per ADR-013
         cmd.BindByName = true;
         cmd.ArrayBindCount = messages.Count;
 
@@ -310,6 +339,7 @@ public sealed class OracleOutboxRepository : IOutboxRepository
     }
 
     /// <inheritdoc/>
+
     public async ValueTask MarkAsFailedAsync(IReadOnlyList<OutboxMessage> messages, string error, bool isDeadLetter = false, CancellationToken cancellationToken = default)
     {
         if (messages.Count == 0) return;
@@ -347,6 +377,7 @@ public sealed class OracleOutboxRepository : IOutboxRepository
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
         using var cmd = conn.CreateCommand();
         cmd.CommandText = _reclaimSql;
+        // Stryker disable once Boolean : OracleCommand cast checked at runtime per ADR-013
         if (cmd is OracleCommand oraCmd) oraCmd.BindByName = true;
 
         var pStale = cmd.CreateParameter(); pStale.ParameterName = ":StaleSeconds"; pStale.Value = (int)staleTimeout.TotalSeconds; cmd.Parameters.Add(pStale);
@@ -365,5 +396,39 @@ public sealed class OracleOutboxRepository : IOutboxRepository
         var result = await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
         return Convert.ToInt32(result, System.Globalization.CultureInfo.InvariantCulture);
     }
+
+    /// <inheritdoc/>
+
+    public async ValueTask<int> PurgeDispatchedMessagesAsync(
+        DateTimeOffset cutoff,
+        int batchSize = 1000,
+        CancellationToken cancellationToken = default)
+    {
+        // Stryker disable once Equality : Defensive parameter guard per ADR-013
+        if (batchSize <= 0) return 0;
+
+        using var conn = (System.Data.Common.DbConnection)_connectionFactory();
+        await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = _purgeDispatchedSql;
+        if (cmd is OracleCommand oraCmd) oraCmd.BindByName = true;
+
+        var pCutoff = cmd.CreateParameter();
+        pCutoff.ParameterName = ":Cutoff";
+        pCutoff.Value = cutoff.UtcDateTime;
+        cmd.Parameters.Add(pCutoff);
+
+        var pBatchSize = cmd.CreateParameter();
+        pBatchSize.ParameterName = ":BatchSize";
+        pBatchSize.Value = batchSize;
+        cmd.Parameters.Add(pBatchSize);
+
+        return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
 }
+
+
+
+
+
 

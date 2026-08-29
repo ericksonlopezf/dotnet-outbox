@@ -1,3 +1,4 @@
+// Copyright © Erickson Lopez. MIT License.
 namespace EricksonLopez.Outbox;
 
 /// <summary>
@@ -34,3 +35,4 @@ public static class OutboxConstants
     /// </remarks>
     public const string DispatcherConsumerId = "outbox-dispatcher";
 }
+

@@ -1,0 +1,19 @@
+<!-- Copyright © Erickson Lopez. MIT License. -->
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>Azure Event Hubs broker transport for EricksonLopez.Outbox. Delivers high-performance, Zero-Reflection, NativeAOT-ready event streaming to Azure Event Hubs.</Description>
+    <PackageTags>$(CommonPackageTags);azure;azure-event-hubs;event-hubs;event-streaming;native-aot</PackageTags>
+    <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Azure.Messaging.EventHubs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\EricksonLopez.Outbox\EricksonLopez.Outbox.csproj" />
+  </ItemGroup>
+
+</Project>

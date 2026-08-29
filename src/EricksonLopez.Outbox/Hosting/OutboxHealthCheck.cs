@@ -1,9 +1,8 @@
-// Stryker disable all : Covered by ADR-013. Edge cases, micro-optimizations, logging, and validation strings are not rigorously mutated.
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-
 using EricksonLopez.Outbox.Dispatcher;
 using EricksonLopez.Outbox.Persistence;
 using Microsoft.Extensions.DependencyInjection;
@@ -36,7 +35,7 @@ namespace EricksonLopez.Outbox.Hosting;
 /// </para>
 /// </remarks>
 [System.CLSCompliant(false)]
-// Stryker disable String : Exception and health check messages are not strictly verified for exact matches
+
 public sealed class OutboxHealthCheck : IHealthCheck
 {
     private readonly IServiceProvider _serviceProvider;
@@ -115,7 +114,8 @@ public sealed class OutboxHealthCheck : IHealthCheck
         {
             ["dispatcher_state"] = "running",
             ["pending_messages"] = pendingCount,
-            ["warning_threshold"] = _options.WarningThreshold
+            ["warning_threshold"] = _options.WarningThreshold,
+            ["storage_provider"] = _repository.GetType().Name
         };
 
         if (pendingCount >= _options.WarningThreshold)
@@ -130,3 +130,6 @@ public sealed class OutboxHealthCheck : IHealthCheck
             data: data);
     }
 }
+
+
+

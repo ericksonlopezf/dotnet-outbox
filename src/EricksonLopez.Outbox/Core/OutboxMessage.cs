@@ -1,3 +1,4 @@
+// Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -65,8 +66,12 @@ public sealed record OutboxMessage(
     /// </remarks>
     public IReadOnlyDictionary<string, string>? Extensions { get; init; }
 
+    /// <summary>
+    /// Optional tenant identifier for multi-tenant deployments and routing.
+    /// </summary>
+    public string? TenantId { get; init; }
+
     /// <inheritdoc/>
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
     public bool Equals(OutboxMessage? other)
     {
         if (other is null) return false;
@@ -87,7 +92,6 @@ public sealed record OutboxMessage(
     }
 
     /// <inheritdoc/>
-    // Stryker disable all : GetHashCode mutations do not alter equality correctness and testing collisions is brittle
     public override int GetHashCode()
     {
         var hash = new HashCode();
@@ -107,3 +111,4 @@ public sealed record OutboxMessage(
         return hash.ToHashCode();
     }
 }
+
