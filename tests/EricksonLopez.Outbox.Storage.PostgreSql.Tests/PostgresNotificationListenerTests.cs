@@ -160,8 +160,8 @@ public class PostgresNotificationListenerTests
     public async Task StartAsync_Should_Retry_On_Connection_Error()
     {
         var poller = CreatePoller(out var outboxChannel);
-        // Bad connection string to force exception
-        var badDataSource = NpgsqlDataSource.Create("Host=localhost;Username=test;Password=wrong");
+        // Bad connection string to force exception without DNS delay
+        var badDataSource = NpgsqlDataSource.Create("Host=127.0.0.1;Port=59999;Username=test;Password=wrong;Timeout=1;CommandTimeout=1");
         
         var listener = new PostgresNotificationListener(
             badDataSource, 
@@ -255,7 +255,7 @@ public class PostgresNotificationListenerTests
     public async Task StartAsync_WhenListenLoopThrowsException_RetriesAndLogsError()
     {
         var pollerMock = Substitute.For<IPollerWakeup>();
-        await using var faultyDataSource = NpgsqlDataSource.Create("Host=invalid.host.nonexistent;Database=test;Username=u;Password=p;Timeout=1;CommandTimeout=1");
+        await using var faultyDataSource = NpgsqlDataSource.Create("Host=127.0.0.1;Port=59999;Database=test;Username=u;Password=p;Timeout=1;CommandTimeout=1");
         
         var listener = new PostgresNotificationListener(
             faultyDataSource,
@@ -281,7 +281,7 @@ public class PostgresNotificationListenerTests
     {
         var pollerMock = Substitute.For<IPollerWakeup>();
         var fakeTime = new Microsoft.Extensions.Time.Testing.FakeTimeProvider();
-        await using var faultyDataSource = NpgsqlDataSource.Create("Host=invalid.host.nonexistent;Database=test;Username=u;Password=p;Timeout=1;CommandTimeout=1");
+        await using var faultyDataSource = NpgsqlDataSource.Create("Host=127.0.0.1;Port=59999;Database=test;Username=u;Password=p;Timeout=1;CommandTimeout=1");
 
         var listener = new PostgresNotificationListener(
             faultyDataSource,

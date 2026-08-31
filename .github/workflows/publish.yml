@@ -148,7 +148,7 @@ jobs:
             --logger "trx" \
             --results-directory ./test-results \
             --collect:"XPlat Code Coverage" \
-            -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
+            --settings coverlet.runsettings
 
       - name: Upload coverage to Codecov (publish gate)
         uses: codecov/codecov-action@0fb7174895f61a3b6b78fc075e0cd60383518dac # v5

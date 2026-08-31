@@ -5,7 +5,7 @@ High-performance, zero-allocation, NativeAOT-ready Transactional Outbox and Idem
 [![CI](https://img.shields.io/github/actions/workflow/status/ericksonlopezf/dotnet-outbox/ci.yml?branch=main&style=for-the-badge&logo=githubactions&logoColor=white&label=CI)](https://github.com/ericksonlopezf/dotnet-outbox/actions)
 [![Coverage](https://img.shields.io/codecov/c/github/ericksonlopezf/dotnet-outbox?style=for-the-badge&logo=codecov&logoColor=white)](https://codecov.io/gh/ericksonlopezf/dotnet-outbox)
 [![Quality Gate](https://img.shields.io/sonar/quality_gate/ericksonlopezf_dotnet-outbox?server=https%3A%2F%2Fsonarcloud.io&style=for-the-badge&logo=sonarcloud&logoColor=white)](https://sonarcloud.io/summary/new_code?id=ericksonlopezf_dotnet-outbox)
-[![Mutation Score](https://img.shields.io/badge/Mutation_Score-100.00%25-brightgreen?style=for-the-badge&logo=stryker&logoColor=white)](https://github.com/ericksonlopezf/dotnet-outbox/blob/main/docs/quality-gates.md)
+[![Mutation Score](https://img.shields.io/badge/Mutation_Score-99.74%25-green?style=for-the-badge&logo=stryker&logoColor=white)](https://github.com/ericksonlopezf/dotnet-outbox/blob/main/docs/quality-gates.md)
 [![NuGet](https://img.shields.io/nuget/v/EricksonLopez.Outbox?style=for-the-badge&logo=nuget&logoColor=white&color=512BD4)](https://www.nuget.org/packages/EricksonLopez.Outbox)
 [![NuGet Downloads](https://img.shields.io/nuget/dt/EricksonLopez.Outbox?style=for-the-badge&logo=nuget&logoColor=white&color=004880)](https://www.nuget.org/packages/EricksonLopez.Outbox)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://github.com/ericksonlopezf/dotnet-outbox/blob/main/LICENSE)
