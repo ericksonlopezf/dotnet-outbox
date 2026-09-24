@@ -52,7 +52,7 @@ public class GooglePubSubBrokerPublisherTests
         var publisher = new GooglePubSubBrokerPublisher(client, "project-id");
 
         var act = () => publisher.PublishBatchAsync(Array.Empty<MessageEnvelope<string>>(), new DispatchContext(CancellationToken.None, 1));
-        
+
         var ex = await Assert.ThrowsAsync<NotSupportedException>(async () => await act());
         ex.Message.Should().Be("Use PublishRawAsync for dispatcher-initiated publishing. Strongly-typed publish via the Outbox stores the message first.");
     }
@@ -69,10 +69,10 @@ public class GooglePubSubBrokerPublisherTests
         var result = await publisher.PublishRawAsync(msg, meta, new DispatchContext(CancellationToken.None, 1));
 
         result.Success.Should().BeTrue();
-        
+
         await client.Received(1).PublishAsync(
             Arg.Is<TopicName>(t => t.TopicId == "alias" && t.ProjectId == "project-id"),
-            Arg.Is<IEnumerable<PubsubMessage>>(msgs => 
+            Arg.Is<IEnumerable<PubsubMessage>>(msgs =>
                 msgs.FirstOrDefault() != null &&
                 msgs.First().Data.ToStringUtf8() == "test_payload" &&
                 msgs.First().Attributes["message_type"] == "alias" &&
@@ -87,7 +87,7 @@ public class GooglePubSubBrokerPublisherTests
     {
         var client = Substitute.For<PublisherServiceApiClient>();
         client.PublishAsync(Arg.Any<TopicName>(), Arg.Any<IEnumerable<PubsubMessage>>(), Arg.Any<CancellationToken>()).Returns(new PublishResponse());
-        
+
         // Pass custom strategy
         var publisher = new GooglePubSubBrokerPublisher(client, "project-id", alias => $"custom-{alias}");
 
@@ -97,10 +97,10 @@ public class GooglePubSubBrokerPublisherTests
         var result = await publisher.PublishRawAsync(msg, meta, new DispatchContext(CancellationToken.None, 1));
 
         result.Success.Should().BeTrue();
-        
+
         await client.Received(1).PublishAsync(
             Arg.Is<TopicName>(t => t.TopicId == "custom-alias" && t.ProjectId == "project-id"),
-            Arg.Is<IEnumerable<PubsubMessage>>(msgs => 
+            Arg.Is<IEnumerable<PubsubMessage>>(msgs =>
                 msgs.FirstOrDefault() != null &&
                 msgs.First().Data.ToStringUtf8() == "{\"data\":\"val\"}"),
             Arg.Any<CancellationToken>());

@@ -9,6 +9,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.0] - 2026-09-24
+
+### Breaking Changes
+
+- **[BC-018] Introduction of Strict Null Guard in `DbTransactionContext` Constructor**:
+  - **Previous State**: `public DbTransactionContext(DbTransaction dbTransaction)` permitted `null` without throwing, setting `DbTransaction = null`.
+  - **New State**: The constructor strictly validates the argument and throws `ArgumentNullException` if `dbTransaction` is `null`.
+  - **Affected Consumers**: Applications or unit tests passing `null!` to `new DbTransactionContext(...)`.
+  - **Migration Guidance**: Ensure a valid non-null `DbTransaction` instance is passed when instantiating `DbTransactionContext`. For non-relational or mock contexts, use custom implementations of `IOutboxTransactionContext`.
+
+- **[BC-019] Sanitization and Masking of Credentials in `DefaultErrorSanitizer`**:
+  - **Previous State**: `DefaultErrorSanitizer.Sanitize(Exception)` returned the unmutated `exception.Message`.
+  - **New State**: Passwords, connection string credentials (`password=***REDACTED***`), and Authorization Bearer tokens (`Bearer ***REDACTED***`) are masked using source-generated regular expressions before persisting to dead-letter storage.
+  - **Affected Consumers**: Systems or test assertions performing exact string matching on raw credential values in dead-letter error logs.
+  - **Migration Guidance**: Update downstream log assertions to expect masked tokens (`***REDACTED***`). If raw unmasked messages are strictly required for internal debugging, register a custom `IErrorSanitizer` implementation.
+
+### Added
+- **Credential & Secret Redaction in Error Column (`DefaultErrorSanitizer`)**: Implemented source-generated regex sanitization redacting connection string passwords/credentials (`password=***REDACTED***`) and authorization Bearer tokens (`Bearer ***REDACTED***`) from exception messages before persisting to dead-letter storage.
+- **Benchmark Regression Quality Gate**: Introduced `scripts/verify-benchmark-gate.ps1` with unit tests (`verify-benchmark-gate.test.ps1`) asserting against committed baseline (`benchmarks/results/baseline.json`) in CI (`benchmark-regression-gate.yml`).
+- **Native AOT Executable Smoke Test**: Added `EricksonLopez.Outbox.AotSmokeTest` project and CI workflow (`aot-smoke-test.yml`) validating compilation and execution with `PublishAot=true` and `TreatWarningsAsErrors=true`.
+- **Framework Testing Roadmap**: Added `docs/testing-roadmap.md` documenting coverage gates, Stryker mutation status, and work unit tracking across all 36 packages.
+
+### Changed
+- **Backoff Delay Calculation Hardening (`OutboxChannel`)**: Clamped retry attempt exponent using `Math.Clamp(attempt - 1, 0, 10)` in `CalculateBackoffDelay` to eliminate negative bit-shift delay overflow.
+- **Per-Instance JSON Type Info Resolution (`NativeAotJsonSerializer`)**: Eliminated static `TypeInfoCache` in favor of per-instance `GetTypeInfo<TMessage>()` lookups, preventing cross-context state leakage.
+- **Batch Parameterized Failure Updates in Storage Providers**: Optimized `MarkAsFailedAsync` across `Sqlite`, `SqlServer`, `MariaDb`, `MySql`, `Oracle`, and `PostgreSql` repositories using dynamic parameterized ID lists.
+- **Ordering Guarantee Documentation (`OutboxDispatcherOptions`)**: Added explicit XML documentation detailing global FIFO order versus aggregate-level causal ordering when `MaxDegreeOfParallelism > 1`.
+
+### Fixed
+- **Constructor Assertion in `DbTransactionContextTests`**: Corrected test verification on null transaction initialization.
+
 ---
 
 ## [2.0.0] - 2026-08-30
@@ -29,9 +60,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **[BC-003] Rename and Relocation of `MessageMetadata` to `OutboxMessageMetadata`**:
   - **Previous State**: `struct MessageMetadata` was defined in namespace `EricksonLopez.Outbox` inside `EricksonLopez.Outbox.dll`.
-  - **New State**: Renamed to `readonly struct OutboxMessageMetadata` and moved to namespace `EricksonLopez.Outbox.Abstractions` inside `EricksonLopez.Outbox.Abstractions.dll`.
+  - **New State**: Renamed to `readonly struct OutboxMessageMetadata` and moved to `EricksonLopez.Outbox.Abstractions.dll`. **The namespace remains `EricksonLopez.Outbox`** (the struct lives in the Abstractions assembly but keeps the root namespace for backward ergonomics).
   - **Affected Consumers**: Any code explicitly referencing the `MessageMetadata` type or passing raw metadata struct instances.
-  - **Migration Guidance**: Replace all occurrences of `MessageMetadata` with `OutboxMessageMetadata`, add `using EricksonLopez.Outbox.Abstractions;`, and recompile.
+  - **Migration Guidance**: Replace all occurrences of `MessageMetadata` with `OutboxMessageMetadata`, add a reference to the `EricksonLopez.Outbox.Abstractions` NuGet package (or the transitive dependency via `EricksonLopez.Outbox`), and recompile. No `using` directive change is needed — the namespace remains `EricksonLopez.Outbox`.
 
 - **[BC-004] Assembly Segregation & Extraction of `EricksonLopez.Outbox.Abstractions.dll`**:
   - **Previous State**: Core abstractions (`IOutbox`, `OutboxMessageStatus`, `IdempotencyRecord`, `[OutboxMessage]`, `[IdempotentConsumer]`, `IIdempotencyRepository`, `IOutboxTransactionContext`, `IRelationalOutboxTransactionContext`, `DbTransactionContext`, `IOutboxSerializer`) resided in `EricksonLopez.Outbox.dll`.
@@ -80,6 +111,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **New State**: Individual numbered scripts removed and consolidated into a unified idempotent deployment script `scripts/postgres/Outbox_DDL.sql`.
   - **Affected Consumers**: Automated database deployment pipelines (Flyway, Liquibase, DbUp, EF Core raw migration tasks) executing the legacy script paths.
   - **Migration Guidance**: Update database migration automation runners and CI/CD deployment jobs to point to `scripts/postgres/Outbox_DDL.sql`.
+
+- **[BC-012] Segregation and Deletion of Runtime and Poller Configuration Properties from `OutboxOptions`**:
+  - **Previous State**: `OutboxOptions` contained monolithic properties: `BatchSize`, `PollingIntervalMs`, `MaxDegreeOfParallelism`, `ChannelCapacity`, `MaxRetryCount`, `SchemaName`, `TableName`, `MaxPayloadSizeInBytes`, `MaxHeaderSizeInBytes`, `ThrowOnUnregisteredType`, `MaxMessageAge`, `MaxBackoffSeconds`, `LargeTableThreshold`, `DeleteOnDispatch`, `MaxStoreRatePerSecond`, `ReclaimBatchLimit`, and `IncludeMessageTypeTag`.
+  - **New State**: All runtime, poller, and storage tuning properties were removed from `OutboxOptions` and segregated into specialized options classes: `OutboxDispatcherOptions`, `OutboxRuntimeOptions`, and `OutboxCleanupOptions`.
+  - **Affected Consumers**: Applications configuring dispatcher, storage, or runtime limits directly inside `services.AddOutbox(options => { options.BatchSize = ...; })`.
+  - **Migration Guidance**: Configure dispatcher settings using `services.Configure<OutboxDispatcherOptions>(opts => { opts.BatchSize = ...; })` or `services.AddOutboxDispatcher(opts => ...)`. Configure database storage limits and thresholds using `services.Configure<OutboxRuntimeOptions>(opts => { opts.TableName = ...; })` or `options.ConfigureRuntimeOptions(...)`.
+
+- **[BC-013] Breaking Positional Constructor and Property Nullability Changes in `OutboxMessage` Record**:
+  - **Previous State**: `OutboxMessage` record had a 12-parameter primary constructor where `CorrelationId`, `CausationId`, and `Error` were non-nullable `string`, and `Extensions` was non-nullable `IReadOnlyDictionary<string, string>`.
+  - **New State**: Constructor parameter types updated to nullable `string?` for `CorrelationId`, `CausationId`, and `Error`. The `Extensions` property is now nullable `IReadOnlyDictionary<string, string>?`, and a new `string? TenantId` init-only property was introduced.
+  - **Affected Consumers**: Custom persistence providers, deserializers, or test doubles calling the primary constructor or positional deconstruction syntax of `OutboxMessage`.
+  - **Migration Guidance**: Update constructor invocations and deconstruction patterns to match nullable parameters and use property initialization (`with { TenantId = ... }`).
+
+- **[BC-014] Namespace Relocation of `OutboxHealthCheckExtensions`**:
+  - **Previous State**: `OutboxHealthCheckExtensions` resided in namespace `EricksonLopez.Outbox.Hosting`.
+  - **New State**: Relocated to root namespace `EricksonLopez.Outbox` to match common service registration patterns.
+  - **Affected Consumers**: Applications explicitly importing `using EricksonLopez.Outbox.Hosting;` without `using EricksonLopez.Outbox;`.
+  - **Migration Guidance**: Add `using EricksonLopez.Outbox;` or update fully qualified namespace references.
+
+- **[BC-015] Assembly Relocation of `MetadataEntry` Struct to `EricksonLopez.Outbox.Abstractions.dll`**:
+  - **Previous State**: `public readonly record struct MetadataEntry(string Key, string Value)` was defined in `EricksonLopez.Outbox.dll`.
+  - **New State**: Moved to `EricksonLopez.Outbox.Abstractions.dll` alongside `OutboxMessageMetadata`.
+  - **Affected Consumers**: Pre-compiled binaries expecting `MetadataEntry` in `EricksonLopez.Outbox.dll`.
+  - **Migration Guidance**: Recompile downstream projects referencing `EricksonLopez.Outbox.Abstractions`. No source changes needed as namespace remains `EricksonLopez.Outbox`.
+
+- **[BC-016] Renaming of SQL Server Deployment DDL Script to `Outbox_DDL.sql`**:
+  - **Previous State**: SQL Server schema initialization script was located at `src/EricksonLopez.Outbox.Storage.SqlServer/Scripts/01_Init_Outbox.sql`.
+  - **New State**: Renamed to `src/EricksonLopez.Outbox.Storage.SqlServer/Scripts/Outbox_DDL.sql` for consistency across all database providers.
+  - **Affected Consumers**: CI/CD database migration runners or automated deployment scripts referencing the legacy `01_Init_Outbox.sql` path.
+  - **Migration Guidance**: Update deployment pipeline configurations to target `Outbox_DDL.sql`.
+
+- **[BC-017] Removal of Parameterless Constructor in Test Harness `InMemoryOutboxStoreRepository`**:
+  - **Previous State**: `InMemoryOutboxStoreRepository` offered a public parameterless constructor `public InMemoryOutboxStoreRepository()`.
+  - **New State**: Parameterless constructor removed; requires `public InMemoryOutboxStoreRepository(TimeProvider timeProvider)`.
+  - **Affected Consumers**: Unit test suites instantiating `new InMemoryOutboxStoreRepository()` directly.
+  - **Migration Guidance**: Pass `TimeProvider.System` (or a `FakeTimeProvider`) when creating `InMemoryOutboxStoreRepository`, or use the higher-level test builder extensions.
 
 ### Added
 - **`EricksonLopez.Outbox.Storage.MongoDb`**: Native transactional document storage for MongoDB with `IClientSessionHandle` support, atomic state updates (`FindOneAndUpdate`), and NativeAOT safety (ADR-031).
@@ -202,6 +269,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   prevents the STJ source generator from processing output from another generator in the same pass. The template
   class name was standardized to `OutboxGeneratedJsonContext` for clarity.
 
-[Unreleased]: https://github.com/ericksonlopezf/dotnet-outbox/compare/v2.0.0...HEAD
+[Unreleased]: https://github.com/ericksonlopezf/dotnet-outbox/compare/v3.0.0...HEAD
+[3.0.0]: https://github.com/ericksonlopezf/dotnet-outbox/compare/v2.0.0...v3.0.0
 [2.0.0]: https://github.com/ericksonlopezf/dotnet-outbox/compare/v1.0.0...v2.0.0
 [1.0.0]: https://github.com/ericksonlopezf/dotnet-outbox/releases/tag/v1.0.0

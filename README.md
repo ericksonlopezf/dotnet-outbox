@@ -5,7 +5,7 @@ High-performance, zero-allocation, NativeAOT-ready Transactional Outbox and Idem
 [![CI](https://img.shields.io/github/actions/workflow/status/ericksonlopezf/dotnet-outbox/ci.yml?branch=main&style=for-the-badge&logo=githubactions&logoColor=white&label=CI)](https://github.com/ericksonlopezf/dotnet-outbox/actions)
 [![Coverage](https://img.shields.io/codecov/c/github/ericksonlopezf/dotnet-outbox?style=for-the-badge&logo=codecov&logoColor=white)](https://codecov.io/gh/ericksonlopezf/dotnet-outbox)
 [![Quality Gate](https://img.shields.io/sonar/quality_gate/ericksonlopezf_dotnet-outbox?server=https%3A%2F%2Fsonarcloud.io&style=for-the-badge&logo=sonarcloud&logoColor=white)](https://sonarcloud.io/summary/new_code?id=ericksonlopezf_dotnet-outbox)
-[![Mutation Score](https://img.shields.io/badge/Mutation_Score-99.74%25-green?style=for-the-badge&logo=stryker&logoColor=white)](https://github.com/ericksonlopezf/dotnet-outbox/blob/main/docs/quality-gates.md)
+[![Mutation Score](https://img.shields.io/badge/Mutation_Score-100.00%25-brightgreen?style=for-the-badge&logo=stryker&logoColor=white)](https://github.com/ericksonlopezf/dotnet-outbox/blob/main/docs/quality-gates.md)
 [![NuGet](https://img.shields.io/nuget/v/EricksonLopez.Outbox?style=for-the-badge&logo=nuget&logoColor=white&color=512BD4)](https://www.nuget.org/packages/EricksonLopez.Outbox)
 [![NuGet Downloads](https://img.shields.io/nuget/dt/EricksonLopez.Outbox?style=for-the-badge&logo=nuget&logoColor=white&color=004880)](https://www.nuget.org/packages/EricksonLopez.Outbox)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://github.com/ericksonlopezf/dotnet-outbox/blob/main/LICENSE)
@@ -68,7 +68,7 @@ In distributed architectures, persisting domain state changes while publishing m
 
 - **Atomic Database Transactions**: Outbox messages are serialized and inserted into the database within the **exact same ACID transaction** as your business entities (`DbTransactionContext`, EF Core `IDbContextTransaction`, or native MongoDB sessions). If the transaction rolls back, the message never exists.
 - **Optimistic Consumer Deduplication (Inbox)**: The standalone `EricksonLopez.Inbox` engine intercepts incoming messages and atomically registers unique message fingerprints (`INSERT ... ON CONFLICT DO NOTHING`), guaranteeing idempotent execution without locking.
-- **Zero-Allocation Hot Path**: Utilizes `ref struct OutboxMessageBuilder`, `readonly record struct OutboxMessage`, `[ThreadStatic] ArrayPoolBufferWriter<byte>`, and `ValueTask` across the entire pipeline to achieve **0 bytes allocated** during steady-state processing.
+- **Near-Zero-Allocation Hot Path**: Utilizes `sealed class OutboxMessageBuilder<T>` (with `ArrayPool<MetadataEntry>` buffer pooling and deterministic `Dispose()`, see [ADR-037](https://github.com/ericksonlopezf/dotnet-outbox/blob/main/docs/adr/037-outboxmessagebuilder-sealed-class-rationale.md)), `public sealed record OutboxMessage` (see [ADR-012](https://github.com/ericksonlopezf/dotnet-outbox/blob/main/docs/adr/012-outboxmessage-positional-ctor-breaking-change.md)), `[ThreadStatic] ArrayPoolBufferWriter<byte>`, and `ValueTask` across the entire pipeline for a minimal-allocation hot path (**448 B measured** in benchmarks — the `[ThreadStatic]` serialization buffer is fully amortized in steady-state; see [Benchmarks](https://github.com/ericksonlopezf/dotnet-outbox/blob/main/docs/benchmark-results.md)).
 - **NativeAOT-First & Compile-Time Safety**: Zero runtime reflection. Type aliases are resolved in **~1.4 ns** via `FrozenDictionary`, and payload serialization is strictly handled by `System.Text.Json` Source Generators.
 - **Adaptive Poller & Non-Blocking Bounded Channels**: Employs `System.Threading.Channels` with backpressure and adaptive polling (snaps to 0ms interval under load, backs off exponentially when idle) alongside database-native lock skipping (`SKIP LOCKED`, `READPAST`) for seamless multi-pod Kubernetes horizontal scaling.
 - **Dead-Letter Queue (DLQ) & Automated Stale Lease Recovery**: Poison messages are safely quarantined to `IDeadLetterRepository` without blocking healthy queues, while crashed instances are automatically recovered via `ReclaimStaleMessagesAsync`.
@@ -78,7 +78,7 @@ In distributed architectures, persisting domain state changes while publishing m
 ## ⚡ Key Features
 
 - 🔒 **Guaranteed ACID Atomicity**: Integrates natively with ADO.NET (`DbTransaction`), Entity Framework Core, Dapper-free raw SQL pipelines, and MongoDB transactional sessions.
-- ⚡ **Extreme Zero-Allocation Throughput**: Optimized with `ReadOnlyMemory<T>`, `ValueTask`, array pooling, and `ref struct` builders, running **3.3× faster** with **73% less memory** than CAP and **99× faster** than NServiceBus.
+- ⚡ **Extreme Near-Zero-Allocation Throughput**: Optimized with `ReadOnlyMemory<T>`, `ValueTask`, array pooling, and pooled buffer builders, running **3.3× faster** with **73% less memory** than CAP and **99× faster** than NServiceBus (benchmarked with `BenchmarkDotNet v0.15.8`).
 - 🌐 **NativeAOT Ready & Zero Reflection**: Full compatibility with Ahead-Of-Time (`PublishAot=true`) compilation and trim analyzers via Roslyn incremental source generators.
 - 🔄 **At-Least-Once Delivery Guarantee**: End-to-end delivery resilience with exponential backoff retries, dead-letter queue isolation, and automatic stale lease recovery.
 - 🏎️ **Adaptive Dispatcher & Parallel Channel Draining**: Backpressure-aware bounded channels (`System.Threading.Channels`) with multi-worker concurrent dispatching (`MaxDegreeOfParallelism`) and database lock-free polling (`SKIP LOCKED`).
@@ -250,7 +250,7 @@ Decorate message records with `[OutboxMessage]` to assign stable, versioned type
 ```csharp
 using System;
 using System.Text.Json.Serialization;
-using EricksonLopez.Outbox;
+using EricksonLopez.Outbox.Contracts; // Required for [OutboxMessage] attribute
 
 namespace MyApp.Contracts;
 
@@ -281,7 +281,11 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddOutbox(options =>
 {
     options.UseSerializer(new NativeAotJsonSerializer(AppJsonSerializerContext.Default));
-    options.ThrowOnUnregisteredType = true;
+    options.ConfigureRuntimeOptions(ro =>
+    {
+        ro.ThrowOnUnregisteredType = true;
+        ro.DeleteOnDispatch = true; // Auto-purge dispatched messages to prevent table bloat
+    });
 });
 
 // 2. Register Storage Provider (PostgreSQL Raw ADO.NET)
@@ -296,7 +300,6 @@ builder.Services.AddOutboxDispatcher(options =>
     options.BatchSize = 100;
     options.UseAdaptivePolling = true;
     options.MaxDegreeOfParallelism = Environment.ProcessorCount;
-    options.DeleteOnDispatch = true; // Prevents table bloat
 });
 
 var app = builder.Build();
@@ -348,16 +351,17 @@ public sealed class OrderService
 }
 ```
 
-### 4. Zero-Allocation Fluent Message Construction
+### 4. Fluent Message Construction with Metadata & Scheduling
 
 ```csharp
-// Fluent zero-allocation publishing with Correlation ID and scheduled delivery
+// Fluent publishing with Correlation ID, custom headers, and scheduled delivery
 await _outbox.Publish(@event)
+    .WithTransaction(tx.ToOutboxContext())         // Bind the ambient transaction
     .WithCorrelationId(Guid.NewGuid().ToString("N"))
     .WithCausationId("cmd-checkout-9812")
     .WithHeader("tenant-id", "tenant-eu-01")
-    .WithDelay(TimeSpan.FromMinutes(5)) // Delayed dispatch
-    .StoreAsync(tx.ToOutboxContext(), ct);
+    .WithDelay(TimeSpan.FromMinutes(5))           // Delayed dispatch
+    .StoreAsync(ct);
 ```
 
 ### 5. Deduplicate Consumer Execution with the Idempotent Inbox
@@ -366,6 +370,8 @@ await _outbox.Publish(@event)
 using System.Threading;
 using System.Threading.Tasks;
 using EricksonLopez.Inbox;
+using EricksonLopez.Outbox.Idempotency;
+using EricksonLopez.Outbox.Persistence;
 using MyApp.Contracts;
 
 public sealed class OrderCreatedConsumer
@@ -377,10 +383,18 @@ public sealed class OrderCreatedConsumer
         _inboxChecker = inboxChecker;
     }
 
-    public async Task HandleAsync(OrderCreatedEvent message, string messageId, CancellationToken ct)
+    public async Task HandleAsync(
+        OrderCreatedEvent message,
+        string messageId,
+        IOutboxTransactionContext transaction,
+        CancellationToken ct)
     {
-        // Atomically checks unique key; returns false if already processed
-        if (!await _inboxChecker.ShouldProcessAsync(messageId, consumerId: "order-billing-service", ct))
+        // Atomically checks unique key within the transaction; returns false if already processed
+        if (!await _inboxChecker.ShouldProcessAsync(
+                messageId,
+                consumerId: "order-billing-service",
+                transaction,
+                ct))
         {
             return; // Duplicate delivery safely skipped
         }
@@ -467,12 +481,15 @@ public sealed class OrderAppService
     {
         await using var tx = await _dbContext.Database.BeginTransactionAsync(ct);
 
+        // 1. Mutate domain entity
         order.Status = OrderStatus.Confirmed;
-        await _dbContext.SaveChangesAsync(ct);
 
+        // 2. Enqueue outbox message in the exact same transaction context
         var @event = new OrderConfirmedEvent(order.Id, order.Total);
-        await _outbox.StoreAsync(@event, tx.ToOutboxContext(), ct);
+        await _outbox.StoreAsync(@event, tx.GetDbTransaction().ToOutboxContext(), ct);
 
+        // 3. Persist entity changes and outbox records atomically
+        await _dbContext.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
     }
 }
@@ -508,28 +525,41 @@ public sealed class TelemetryBatchService
 ### Use Case 4: Scheduled & Delayed Delivery
 
 ```csharp
-// Schedule an outbox message to be dispatched strictly after 24 hours
+// Option A — Relative delay via WithDelay(TimeSpan)
 var reminderEvent = new PaymentReminderEvent(invoice.Id, invoice.DueDate);
 
 await _outbox.Publish(reminderEvent)
+    .WithTransaction(tx.ToOutboxContext())    // Bind the ambient transaction
     .WithCorrelationId(invoice.Id.ToString())
-    .WithDelay(TimeSpan.FromHours(24))
-    .StoreAsync(tx.ToOutboxContext(), ct);
+    .WithDelay(TimeSpan.FromHours(24))        // deliver_at = UtcNow + 24h
+    .StoreAsync(ct);
+
+// Option B — Absolute timestamp via WithDeliverAt(DateTimeOffset)
+// Prefer this when you need to align delivery to a business calendar date.
+var followUpAt = invoice.DueDate.AddDays(3);
+
+await _outbox.Publish(reminderEvent)
+    .WithTransaction(tx.ToOutboxContext())
+    .WithCorrelationId(invoice.Id.ToString())
+    .WithDeliverAt(followUpAt)               // deliver_at = explicit absolute timestamp
+    .StoreAsync(ct);
 ```
+
+> [!NOTE]
+> Both `WithDelay` and `WithDeliverAt` set the `deliver_at` column. The dispatcher skips messages where `deliver_at > NOW()`. This is a **visibility timeout**, not a scheduler — see [ADR-025](https://github.com/ericksonlopezf/dotnet-outbox/blob/main/docs/adr/025-no-scheduler.md).
 
 ### Use Case 5: ASP.NET Core HTTP `Idempotency-Key` Endpoint Filter
 
 ```csharp
+using EricksonLopez.Outbox.Inbox;
 using EricksonLopez.Outbox.Inbox.AspNetCore;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.Services.AddInboxHttpIdempotency(options =>
-{
-    options.HeaderName = "Idempotency-Key";
-    options.ExpiryWindow = TimeSpan.FromHours(1);
-});
+
+// Register consumer inbox deduplication filter
+builder.Services.AddInboxDeduplication();
 
 var app = builder.Build();
 
@@ -537,7 +567,7 @@ app.MapPost("/api/checkout", async (CheckoutRequest request) =>
 {
     return Results.Ok(new { status = "Payment Processed" });
 })
-.RequireIdempotency(); // Automatically rejects duplicate HTTP requests
+.RequireIdempotency("Idempotency-Key"); // Automatically intercepts and deduplicates HTTP requests
 ```
 
 ### Use Case 6: MassTransit / Mediator Pipeline Consumer Deduplication
@@ -555,18 +585,18 @@ public sealed class ProcessPaymentConsumer : IConsumer<ProcessPaymentCommand>
 
     public async Task Consume(ConsumeContext<ProcessPaymentCommand> context)
     {
-        var shouldExecute = await _inboxFilter.EvaluateAsync(
+        // Atomically executes handler only if this message has not been processed
+        await _inboxFilter.ExecuteIdempotentlyAsync(
             messageId: context.MessageId.ToString()!,
             consumerName: nameof(ProcessPaymentConsumer),
+            handler: async ct =>
+            {
+                await ProcessPaymentAsync(context.Message, ct);
+            },
             cancellationToken: context.CancellationToken);
-
-        if (!shouldExecute)
-        {
-            return; // Duplicate message delivery discarded safely
-        }
-
-        // Execute payment processing
     }
+
+    private static Task ProcessPaymentAsync(ProcessPaymentCommand command, CancellationToken ct) => Task.CompletedTask;
 }
 ```
 
@@ -579,9 +609,14 @@ public sealed class ProcessPaymentConsumer : IConsumer<ProcessPaymentCommand>
 ```csharp
 builder.Services.AddOutbox(options =>
 {
-    options.MaxPayloadSizeInBytes = 2 * 1024 * 1024; // 2 MB guard
-    options.MaxHeaderSizeInBytes = 64 * 1024;        // 64 KB guard
-    options.ThrowOnUnregisteredType = true;          // Fail-fast type safety
+    // Runtime behavior options are configured via ConfigureRuntimeOptions:
+    options.ConfigureRuntimeOptions(ro =>
+    {
+        ro.MaxPayloadSizeInBytes = 2 * 1024 * 1024; // 2 MB guard
+        ro.MaxHeaderSizeInBytes = 64 * 1024;        // 64 KB guard
+        ro.ThrowOnUnregisteredType = true;          // Fail-fast type safety
+        ro.DeleteOnDispatch = true;                 // Prevents table bloat
+    });
 });
 
 builder.Services.AddOutboxDispatcher(options =>
@@ -591,13 +626,31 @@ builder.Services.AddOutboxDispatcher(options =>
     options.UseAdaptivePolling = true;
     options.MaxDegreeOfParallelism = Environment.ProcessorCount;
     options.ChannelCapacity = 2000;
-    options.DeleteOnDispatch = true;
     options.MaxRetryCount = 5;
 });
 
 builder.Services.AddHealthChecks()
     .AddCheck<OutboxHealthCheck>("outbox_storage");
 ```
+
+#### `OutboxRuntimeOptions` — Complete Property Reference
+
+These properties are configured inside `options.ConfigureRuntimeOptions(ro => { ... })`:
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `SchemaName` | `string` | `"outbox"` | Database schema where outbox tables reside. |
+| `TableName` | `string` | `"messages"` | Base name of the outbox messages table. |
+| `MaxPayloadSizeInBytes` | `int` | `1,048,576` (1 MB) | Max serialized payload size. Throws `OutboxPayloadTooLargeException` if exceeded. |
+| `MaxHeaderSizeInBytes` | `int` | `65,536` (64 KB) | Max serialized headers size. Throws `OutboxHeadersTooLargeException` if exceeded. |
+| `ThrowOnUnregisteredType` | `bool` | `true` | Throws `OutboxTypeNotRegisteredException` if an unregistered type alias is encountered. |
+| `DeleteOnDispatch` | `bool` | `true` | Physically deletes dispatched messages. Set to `false` for soft-delete audit trails (use `PurgeDispatchedMessagesAsync` for cleanup). |
+| `MaxMessageAge` | `TimeSpan` | `30 days` | Maximum age before a message is eligible for cleanup or archival. |
+| `MaxBackoffSeconds` | `int` | `3600` | Maximum exponential backoff delay (seconds) for failed messages awaiting retry. |
+| `MaxStoreRatePerSecond` | `int` | `0` (unlimited) | Max messages stored per second via `IOutbox.StoreAsync`. Set to a positive value to rate-limit producers. `0` = no limit. |
+| `LargeTableThreshold` | `int` | `50,000` | Row count above which exact `COUNT(*)` is bypassed in favor of catalog estimates (PostgreSQL). |
+| `ReclaimBatchLimit` | `int` | `1000` | Max stale `InFlight` messages reclaimed per reclaim cycle. |
+| `IncludeMessageTypeTag` | `bool` | `true` | Includes `messaging.message.type` dimension tag on OpenTelemetry metrics instruments. Disable for high-cardinality scenarios. |
 
 ### OpenTelemetry & Diagnostics
 
@@ -677,26 +730,28 @@ Test command handlers and business services without spinning up real database co
 ```csharp
 using System;
 using System.Threading.Tasks;
+using EricksonLopez.Outbox;
+using EricksonLopez.Outbox.Persistence;
 using EricksonLopez.Outbox.Testing;
 using Xunit;
 
 public sealed class OrderServiceTests
 {
     [Fact]
-    public async Task PlaceOrder_StoresMessageInOutbox()
+    public async Task PlaceOrder_StoresMessageInOutbox_WithFluentAssertions()
     {
-        // Arrange
-        var fakeStore = new InMemoryOutboxStore();
-        var fakeTx = new FakeOutboxTransactionContext();
-        var service = new OrderService(fakeStore);
+        // Arrange: In-memory store completely isolates tests from physical databases
+        var store = new InMemoryOutboxStore();
+        var fakeTx = new OutboxTransactionContext(new object(), new object());
+        var service = new OrderService(store);
+        var orderId = Guid.NewGuid();
 
         // Act
-        await service.CreateOrderAsync(Guid.NewGuid(), "cust-1", 100m, fakeTx);
+        await service.CreateOrderAsync(orderId, "cust-1", 100m, fakeTx);
 
-        // Assert
-        var messages = fakeStore.GetStoredMessages();
-        Assert.Single(messages);
-        Assert.Equal("order.created.v1", messages[0].MessageType);
+        // Assert: Fluent assertions API provided by EricksonLopez.Outbox.Testing
+        store.ShouldHavePublishedOnce<OrderCreatedEvent>(e => e.OrderId == orderId && e.CustomerId == "cust-1");
+        store.ShouldNotHavePublished<OrderCancelledEvent>();
     }
 }
 ```
@@ -714,7 +769,7 @@ Code coverage alone is insufficient for mission-critical transactional infrastru
 
 ## ⚡ Performance Benchmarks
 
-> **Environment:** .NET 10.0.10 (10.0.1026.32716), X64 RyuJIT AVX-512F+CD+BW+DQ+VL+VBMI, BenchmarkDotNet v0.13.12, Windows 11.  
+> **Environment:** .NET 10.0.10 (10.0.1026.32716), X64 RyuJIT AVX-512F+CD+BW+DQ+VL+VBMI, BenchmarkDotNet v0.15.8, Windows 11.  
 > Storage: `InMemoryOutboxStore` (isolates framework CPU/GC overhead from network I/O).
 
 ### Competitor Comparison — `StoreAsync` (Single Message)
@@ -745,6 +800,15 @@ Code coverage alone is insufficient for mission-critical transactional infrastru
 | 16 | 4,474.8 ns | ±509.67 ns | 4,316.9 ns | 5,529.0 ns | 223,472 | 9,800 B |
 | 64 | 9,699.6 ns | ±131.66 ns | 9,702.9 ns | 9,879.6 ns | 103,097 | 38,601 B |
 
+### Batch Store Performance
+
+| Batch Size | Mean | P50 | P95 | Ops/sec | Allocated | ns/msg |
+|---:|---:|---:|---:|---:|---:|---:|
+| 1 | 248.6 ns | 248.2 ns | 250.6 ns | 4,022,794 | 344 B | **248.6 ns** |
+| 100 | 17.75 μs | 17.75 μs | 17.86 μs | 56,330 | 34.64 KB | **177.5 ns** |
+| 1,000 | 183.89 μs | 183.75 μs | 185.47 μs | 5,438 | 351.03 KB | **183.9 ns** |
+| 10,000 | 1.87 ms | 1.87 ms | 1.89 ms | 535 | 3.52 MB | **186.9 ns** |
+
 ### Type Resolution via `FrozenDictionary`
 
 | Method | Mean | Allocated |
@@ -756,6 +820,7 @@ Code coverage alone is insufficient for mission-critical transactional infrastru
 - **3.3× faster** and **73% less memory** than CAP in store operations.
 - **99× faster** and **92% less memory** than NServiceBus.
 - `IBufferWriter<byte>` pool serialization allocates a constant **32 bytes** regardless of payload size (up to **99.97% allocation reduction** vs traditional `byte[]` arrays).
+- Linear batching with constant per-message cost (**~177–249 ns/msg**) up to 10,000 messages.
 - Scales linearly to **64 concurrent threads** with zero lock contention.
 
 ---
@@ -818,6 +883,8 @@ This library supports only .NET frameworks with **active official support from M
 
 ---
 
+> 🛡️ **Target Framework & Lifecycle Policy**: First-class multi-targeting across `.NET 10` (Modern LTS), `.NET 9` (STS), and `.NET 8` (Enterprise LTS) — along with `.NET Standard 2.0` for Roslyn analyzers and source generators — is actively maintained. Full backward compatibility is guaranteed until Microsoft officially reaches End-of-Life (EOL) for .NET 8 and .NET 9 in November 2026, at which milestone the ecosystem will transition to .NET 10 and .NET 11.
+
 ## 🏛️ Architecture & Design Principles
 
 ### System Architecture & Data Flow
@@ -845,7 +912,7 @@ flowchart TD
 
     subgraph DispatcherLayer["Dispatcher & Processing Engine"]
         Poller["AdaptivePoller / BackgroundService"]
-        Channel["Channel<OutboxMessage> (Backpressure)"]
+        Channel["Channel[OutboxMessage] (Backpressure)"]
         Pipeline["OutboxPipeline (Middlewares)"]
         RateLimiter["RateLimiter / LeakyBucket"]
     end
@@ -888,8 +955,8 @@ stateDiagram-v2
     [*] --> Pending: StoreAsync() in DB Transaction
     Pending --> InFlight: AdaptivePoller FetchPendingAsync (SKIP LOCKED)
     InFlight --> Dispatched: BrokerPublisher returns DispatchResult.Ok()
-    InFlight --> Pending: Transient failure & retryCount < MaxRetryCount (Exponential Backoff)
-    InFlight --> DeadLettered: Fatal failure OR retryCount >= MaxRetryCount
+    InFlight --> Pending: Transient failure and retryCount under MaxRetryCount (Exponential Backoff)
+    InFlight --> DeadLettered: Fatal failure or retryCount reached MaxRetryCount
     InFlight --> Pending: Crash Recovery (ReclaimStaleMessagesAsync after ReclaimTimeout)
     Dispatched --> [*]: Purged by OutboxCleanupService (or DeleteOnDispatch)
     DeadLettered --> [*]: Manual inspection / Deleted via IDeadLetterRepository
@@ -909,7 +976,7 @@ sequenceDiagram
     participant DLQ as IDeadLetterRepository
 
     D->>R: FetchPendingAsync(batchSize) [SKIP LOCKED]
-    R-->>D: List<OutboxMessage>
+    R-->>D: List[OutboxMessage]
     loop For each message in batch
         D->>P: ExecuteAsync(message, context)
         P->>M: InvokeAsync(context, next)
@@ -986,11 +1053,11 @@ sequenceDiagram
 - **Root Cause:** Database schema migrations or initialization DDL scripts have not been executed.
 - **Remedy:** If using EF Core, call `modelBuilder.ApplyOutboxEntityConfigurations()` in `OnModelCreating()` and run `dotnet ef database update`. For raw ADO.NET, execute the schema DDL scripts provided in the respective storage package docs.
 
-### 4. `OutboxException: Type not found for alias 'X'`
+### 4. `OutboxTypeNotRegisteredException`: Type not registered for alias 'X'
 
-- **Symptom:** Dispatcher throws runtime exception when deserializing payload.
+- **Symptom:** Dispatcher throws `OutboxTypeNotRegisteredException` when deserializing payload.
 - **Root Cause:** The event class was not decorated with `[OutboxMessage("X")]` or was omitted from the `JsonSerializerContext`.
-- **Remedy:** Decorate the class with `[OutboxMessage("...")]` and add `[JsonSerializable(typeof(YourEvent))]` to your serializer context (`OUTBOX001`, `OUTBOX013`).
+- **Remedy:** Decorate the class with `[OutboxMessage("...")]` (from `EricksonLopez.Outbox.Contracts`) and add `[JsonSerializable(typeof(YourEvent))]` to your serializer context (`OUTBOX001`, `OUTBOX013`).
 
 ### 5. High Idle CPU Usage from Background Dispatcher
 
@@ -1043,7 +1110,7 @@ We welcome community contributions, bug reports, and optimizations!
    dotnet stryker -c stryker-config-unit.json
    ```
 
-Please review our [Contributing Guide](https://github.com/ericksonlopezf/dotnet-outbox/blob/main/contributing.md), [Code of Conduct](https://github.com/ericksonlopezf/dotnet-outbox/blob/main/CODE_OF_CONDUCT.md), and [Security Policy](https://github.com/ericksonlopezf/dotnet-outbox/blob/main/security.md) before submitting pull requests.
+Please review our [Contributing Guide](https://github.com/ericksonlopezf/dotnet-outbox/blob/main/CONTRIBUTING.md), [Code of Conduct](https://github.com/ericksonlopezf/dotnet-outbox/blob/main/CODE_OF_CONDUCT.md), and [Security Policy](https://github.com/ericksonlopezf/dotnet-outbox/blob/main/SECURITY.md) before submitting pull requests.
 
 ---
 

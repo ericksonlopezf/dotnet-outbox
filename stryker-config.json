@@ -28,8 +28,21 @@
       "*Log*",
       "*Trace*",
       "*Debug*",
-      "*Exception*",
-      "ThrowIf*",
+      "PollerError",
+      "BatchFetched",
+      "ReclaimedStaleMessages",
+      "PayloadTooLarge",
+      "HeadersTooLarge",
+      "HeadersDeserializeFailed",
+      "MessageDispatched",
+      "MessageDispatchFailed",
+      "StartupValidationFailed",
+      "StartupValidationPassed",
+      "ProducerOnlyMode",
+      "ThirdPartyDeadLetterRepositoryRegistered",
+      "ReturnArrayToPool",
+      "RecordMetrics",
+      "RecordMessageDispatched",
       "ConfigureAwait",
       "Dispose",
       "ToString",
@@ -39,6 +52,7 @@
     "ignore-mutations": [
       "Initializer",
       "String"
-    ]
+    ],
+    "concurrency": 2
   }
 }

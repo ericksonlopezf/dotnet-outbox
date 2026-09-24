@@ -383,11 +383,10 @@ public class MariaDbOutboxRepositoryTests : IAsyncLifetime
         var cts = new CancellationTokenSource();
         cts.Cancel();
 
-        await using var connection = new MySqlConnection(_fixture.Container.GetConnectionString());
-        await connection.OpenAsync();
-        await using var tx = connection.BeginTransaction();
+        var invalidTx = Substitute.For<IOutboxTransactionContext>();
+        invalidTx.Connection.Returns((System.Data.Common.DbConnection)null!);
 
-        Func<Task> act = async () => await sut.InsertBatchAsync(messages, new DbTransactionContext(tx), cts.Token);
+        Func<Task> act = async () => await sut.InsertBatchAsync(messages, invalidTx, cts.Token);
         await act.Should().ThrowAsync<OperationCanceledException>();
     }
 

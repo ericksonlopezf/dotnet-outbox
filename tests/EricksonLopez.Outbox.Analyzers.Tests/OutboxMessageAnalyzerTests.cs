@@ -404,6 +404,65 @@ namespace Test {
     }
 
     [Fact]
+    public async Task ReclaimTimeout_LessThan_30s_Should_Report_OUTBOX011()
+    {
+        var source = @"
+using System;
+namespace Test {
+    public class OutboxDispatcherOptions { public TimeSpan ReclaimTimeout { get; set; } }
+    public class Usage {
+        public void Configure() {
+            var opts = new OutboxDispatcherOptions();
+            opts.ReclaimTimeout = TimeSpan.FromSeconds(10);
+            opts.ReclaimTimeout = TimeSpan.FromMilliseconds(500);
+            opts.ReclaimTimeout = TimeSpan.FromMinutes(0.2);
+            opts.ReclaimTimeout = TimeSpan.FromHours(0.001);
+            opts.ReclaimTimeout = TimeSpan.FromDays(0.0001);
+            opts.ReclaimTimeout = TimeSpan.Zero;
+            opts.ReclaimTimeout = (TimeSpan)TimeSpan.FromSeconds(5);
+        }
+    }
+}";
+        var diags = await GetDiagnosticsAsync(source);
+        diags.Where(d => d.Id == "OUTBOX011").Should().HaveCount(7);
+    }
+
+    [Fact]
+    public async Task ReclaimTimeout_30s_Or_More_Should_Not_Report_OUTBOX011()
+    {
+        var source = @"
+using System;
+namespace Test {
+    public class OutboxDispatcherOptions { 
+        public TimeSpan ReclaimTimeout { get; set; }
+        public TimeSpan OtherProperty { get; set; }
+    }
+    public static class CustomTimer {
+        public static TimeSpan FromSeconds(double s) => TimeSpan.FromSeconds(s);
+        public static readonly TimeSpan Zero = TimeSpan.FromMinutes(1);
+    }
+    public class Usage {
+        public void Configure() {
+            var opts = new OutboxDispatcherOptions();
+            opts.ReclaimTimeout = TimeSpan.FromSeconds(30);
+            opts.ReclaimTimeout = TimeSpan.FromMinutes(5);
+            opts.ReclaimTimeout = TimeSpan.FromMilliseconds(35000);
+            opts.ReclaimTimeout = TimeSpan.FromHours(1);
+            opts.ReclaimTimeout = TimeSpan.FromDays(1);
+
+            // Negative cases: different property, non-TimeSpan containing type, non-constant
+            opts.OtherProperty = TimeSpan.FromSeconds(10);
+            opts.ReclaimTimeout = CustomTimer.FromSeconds(10);
+            opts.ReclaimTimeout = CustomTimer.Zero;
+            opts.ReclaimTimeout = TimeSpan.FromSeconds(DateTime.UtcNow.Second);
+        }
+    }
+}";
+        var diags = await GetDiagnosticsAsync(source);
+        diags.Where(d => d.Id == "OUTBOX011").Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task MissingIntegrationEventAlias_Should_Report_OUTBOX006()
     {
         var source = @"
@@ -843,11 +902,11 @@ namespace Test {
     public void SupportedDiagnostics_Should_Contain_All_Descriptors()
     {
         var analyzer = new OutboxMessageAnalyzer();
-        analyzer.SupportedDiagnostics.Should().HaveCount(11);
+        analyzer.SupportedDiagnostics.Should().HaveCount(12);
         var expectedIds = new[]
         {
             "OUTBOX001", "OUTBOX002", "OUTBOX003", "OUTBOX004", "OUTBOX005",
-            "OUTBOX006", "OUTBOX007", "OUTBOX008", "OUTBOX009", "OUTBOX012", "OUTBOX013"
+            "OUTBOX006", "OUTBOX007", "OUTBOX008", "OUTBOX009", "OUTBOX011", "OUTBOX012", "OUTBOX013"
         };
         foreach (var id in expectedIds)
         {

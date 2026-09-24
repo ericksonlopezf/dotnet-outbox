@@ -47,7 +47,7 @@ public sealed class SqlServerOutboxRepository : IOutboxRepository
     /// </summary>
     /// <param name="connectionFactory">The factory that creates SQL Server connections.</param>
     /// <param name="options">The runtime options containing thresholds and configurations.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="connectionFactory"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="connectionFactory"/> is <see langword="null"/></exception>
 
     public SqlServerOutboxRepository(Func<IDbConnection> connectionFactory, IOptions<OutboxRuntimeOptions>? options = null)
     {
@@ -56,7 +56,7 @@ public sealed class SqlServerOutboxRepository : IOutboxRepository
 
         var schema = _options.SchemaName;
         var table = _options.TableName;
-        
+
         if (!System.Text.RegularExpressions.Regex.IsMatch(schema, "^[a-zA-Z0-9_]+$", System.Text.RegularExpressions.RegexOptions.None, TimeSpan.FromSeconds(1)))
             throw new ArgumentException("Schema name contains invalid characters.", nameof(options));
         if (!System.Text.RegularExpressions.Regex.IsMatch(table, "^[a-zA-Z0-9_]+$", System.Text.RegularExpressions.RegexOptions.None, TimeSpan.FromSeconds(1)))
@@ -97,7 +97,7 @@ public sealed class SqlServerOutboxRepository : IOutboxRepository
                inserted.error         AS Error,
                inserted.retry_count   AS RetryCount
         FROM   {fullTableName} m
-        INNER JOIN batch b ON m.id = b.id;";
+        INNER JOIN batch b ON m.id = b.id AND m.created_at = b.created_at;";
 
         _markDispatchedSql = $@"
         DELETE FROM {fullTableName}
@@ -151,7 +151,7 @@ public sealed class SqlServerOutboxRepository : IOutboxRepository
     public async ValueTask InsertAsync(OutboxMessage record, EricksonLopez.Outbox.Persistence.IOutboxTransactionContext transaction, CancellationToken cancellationToken = default)
     {
 
-        var conn = transaction.Connection as Microsoft.Data.SqlClient.SqlConnection 
+        var conn = transaction.Connection as Microsoft.Data.SqlClient.SqlConnection
                    ?? throw new InvalidOperationException("Transaction connection is not a SqlConnection.");
         var sqlTx = transaction.Transaction as Microsoft.Data.SqlClient.SqlTransaction;
 
@@ -171,16 +171,16 @@ public sealed class SqlServerOutboxRepository : IOutboxRepository
     /// <inheritdoc/>
     public async ValueTask<IReadOnlyList<OutboxMessage>> FetchPendingAsync(int batchSize, CancellationToken cancellationToken = default)
     {
-        using var conn = _connectionFactory() as Microsoft.Data.SqlClient.SqlConnection 
+        using var conn = _connectionFactory() as Microsoft.Data.SqlClient.SqlConnection
                          ?? throw new InvalidOperationException("Connection is not SqlConnection.");
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
         using var cmd = new Microsoft.Data.SqlClient.SqlCommand(_fetchPendingSql, conn);
-        cmd.Parameters.AddWithValue("@BatchSize", batchSize);
-        cmd.Parameters.AddWithValue("@OwnerId", _instanceId);
+        cmd.Parameters.Add(new Microsoft.Data.SqlClient.SqlParameter("@BatchSize", System.Data.SqlDbType.Int) { Value = batchSize });
+        cmd.Parameters.Add(new Microsoft.Data.SqlClient.SqlParameter("@OwnerId", System.Data.SqlDbType.UniqueIdentifier) { Value = _instanceId });
 
         var result = new List<OutboxMessage>();
         using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-        
+
         var idOrd = reader.GetOrdinal("Id");
         var messageTypeOrd = reader.GetOrdinal("MessageType");
         var payloadOrd = reader.GetOrdinal("Payload");
@@ -221,13 +221,13 @@ public sealed class SqlServerOutboxRepository : IOutboxRepository
     {
         if (records.IsEmpty) return;
 
-        var conn = transaction.Connection as Microsoft.Data.SqlClient.SqlConnection 
+        var conn = transaction.Connection as Microsoft.Data.SqlClient.SqlConnection
                    ?? throw new InvalidOperationException("Transaction connection is not a SqlConnection.");
         var sqlTx = transaction.Transaction as Microsoft.Data.SqlClient.SqlTransaction;
 
         using var bulkCopy = new Microsoft.Data.SqlClient.SqlBulkCopy(conn, Microsoft.Data.SqlClient.SqlBulkCopyOptions.Default, sqlTx);
         bulkCopy.DestinationTableName = _destinationTableName;
-        
+
 
         // Stryker disable all 
         bulkCopy.ColumnMappings.Add("id", "id");
@@ -253,12 +253,12 @@ public sealed class SqlServerOutboxRepository : IOutboxRepository
         var records = CreateKeysRecords(messages).ToList();
         if (records.Count == 0) return;
 
-        using var conn = _connectionFactory() as Microsoft.Data.SqlClient.SqlConnection 
+        using var conn = _connectionFactory() as Microsoft.Data.SqlClient.SqlConnection
                          ?? throw new InvalidOperationException("Connection is not SqlConnection.");
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
         using var cmd = new Microsoft.Data.SqlClient.SqlCommand(_markDispatchedSql, conn);
-        cmd.Parameters.AddWithValue("@OwnerId", _instanceId);
-        
+        cmd.Parameters.Add(new Microsoft.Data.SqlClient.SqlParameter("@OwnerId", System.Data.SqlDbType.UniqueIdentifier) { Value = _instanceId });
+
         var keysParam = cmd.Parameters.AddWithValue("@Keys", records);
         keysParam.SqlDbType = System.Data.SqlDbType.Structured;
         keysParam.TypeName = "[outbox].[MessageKeysType]";
@@ -273,15 +273,15 @@ public sealed class SqlServerOutboxRepository : IOutboxRepository
         var records = CreateKeysRecords(messages).ToList();
         if (records.Count == 0) return;
 
-        using var conn = _connectionFactory() as Microsoft.Data.SqlClient.SqlConnection 
+        using var conn = _connectionFactory() as Microsoft.Data.SqlClient.SqlConnection
                          ?? throw new InvalidOperationException("Connection is not SqlConnection.");
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
         using var cmd = new Microsoft.Data.SqlClient.SqlCommand(_markFailedSql, conn);
         cmd.Parameters.AddWithValue("@State", isDeadLetter ? 4 : 3);
         cmd.Parameters.AddWithValue("@Error", (object?)error ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@MaxAgeDays", (int)_options.MaxMessageAge.TotalDays);
-        cmd.Parameters.AddWithValue("@OwnerId", _instanceId);
-        
+        cmd.Parameters.Add(new Microsoft.Data.SqlClient.SqlParameter("@OwnerId", System.Data.SqlDbType.UniqueIdentifier) { Value = _instanceId });
+
         var keysParam = cmd.Parameters.AddWithValue("@Keys", records);
         keysParam.SqlDbType = System.Data.SqlDbType.Structured;
         keysParam.TypeName = "[outbox].[MessageKeysType]";
@@ -298,13 +298,13 @@ public sealed class SqlServerOutboxRepository : IOutboxRepository
         // Consistent with PostgreSQL (make_interval(days => @MaxAgeDays)),
         // MySQL (DATE_SUB(UTC_TIMESTAMP(), INTERVAL @MaxAgeDays DAY)),
         // and Oracle (SYSTIMESTAMP - NUMTODSINTERVAL(@MaxAgeDays * 86400, 'SECOND')).
-        using var conn = _connectionFactory() as Microsoft.Data.SqlClient.SqlConnection 
+        using var conn = _connectionFactory() as Microsoft.Data.SqlClient.SqlConnection
                          ?? throw new InvalidOperationException("Connection is not SqlConnection.");
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
         using var cmd = new Microsoft.Data.SqlClient.SqlCommand(_reclaimSql, conn);
         cmd.Parameters.AddWithValue("@StaleSeconds", (int)staleTimeout.TotalSeconds);
         cmd.Parameters.AddWithValue("@MaxAgeDays", (int)_options.MaxMessageAge.TotalDays);
-        
+
         var result = await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
         return Convert.ToInt32(result, System.Globalization.CultureInfo.InvariantCulture);
     }
@@ -312,7 +312,7 @@ public sealed class SqlServerOutboxRepository : IOutboxRepository
     /// <inheritdoc/>
     public async ValueTask<long> GetPendingCountAsync(CancellationToken cancellationToken = default)
     {
-        using var conn = _connectionFactory() as Microsoft.Data.SqlClient.SqlConnection 
+        using var conn = _connectionFactory() as Microsoft.Data.SqlClient.SqlConnection
                          ?? throw new InvalidOperationException("Connection is not SqlConnection.");
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
         using var cmd = new Microsoft.Data.SqlClient.SqlCommand(_countSql, conn);
@@ -331,7 +331,7 @@ public sealed class SqlServerOutboxRepository : IOutboxRepository
         if (batchSize <= 0) return 0;
         // Stryker restore all
 
-        using var conn = _connectionFactory() as Microsoft.Data.SqlClient.SqlConnection 
+        using var conn = _connectionFactory() as Microsoft.Data.SqlClient.SqlConnection
                          ?? throw new InvalidOperationException("Connection is not SqlConnection.");
         // Stryker disable once all 
         if (conn.State != ConnectionState.Open)
@@ -362,7 +362,7 @@ public sealed class SqlServerOutboxRepository : IOutboxRepository
             record.SetDateTimeOffset(1, message.CreatedAt);
             yield return record;
         }
-}
+    }
 }
 
 

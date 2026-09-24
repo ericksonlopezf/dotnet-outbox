@@ -1,6 +1,10 @@
-<!-- Copyright © Erickson Lopez. MIT License. -->
-
 # ADR-005: Idempotency (Optimistic Inbox)
+
+## Status
+Accepted
+
+## Date
+2026-09-04
 
 ## 1. Title and Status
 **Optimistic Inbox Pattern with Database Deduplication**

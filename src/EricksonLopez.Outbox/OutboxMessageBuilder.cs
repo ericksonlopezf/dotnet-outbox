@@ -93,15 +93,10 @@ public sealed class OutboxMessageBuilder<TMessage> : IDisposable where TMessage 
     /// </summary>
     /// <remarks>
     /// The message will remain invisible to the dispatcher until the current UTC time is greater than or equal to the scheduled time.
+    /// If the resulting delivery timestamp reaches or exceeds the configured maximum message age, <c>StoreAsync</c> will throw an exception.
     /// </remarks>
     /// <param name="delay">The time interval to delay dispatching.</param>
     /// <returns>The current <see cref="OutboxMessageBuilder{TMessage}"/> instance for method chaining.</returns>
-    /// <exception cref="ArgumentOutOfRangeException">
-    /// Thrown by <see cref="StoreAsync"/> (not here) if the resulting <c>deliver_at</c> timestamp reaches
-    /// or exceeds <c>now + OutboxRuntimeOptions.MaxMessageAge</c>, which would cause the message to be
-    /// silently excluded from polling and never delivered. Increase <c>MaxMessageAge</c> to support
-    /// longer scheduling horizons.
-    /// </exception>
     public OutboxMessageBuilder<TMessage> WithDelay(TimeSpan delay)
     {
         _deliverAt = DateTimeOffset.UtcNow.Add(delay);
@@ -113,15 +108,10 @@ public sealed class OutboxMessageBuilder<TMessage> : IDisposable where TMessage 
     /// </summary>
     /// <remarks>
     /// The message will remain invisible to the dispatcher until the current UTC time is greater than or equal to the specified timestamp.
+    /// If <paramref name="deliverAt"/> reaches or exceeds the configured maximum message age, <c>StoreAsync</c> will throw an exception.
     /// </remarks>
     /// <param name="deliverAt">The absolute UTC timestamp indicating when the message should become visible.</param>
     /// <returns>The current <see cref="OutboxMessageBuilder{TMessage}"/> instance for method chaining.</returns>
-    /// <exception cref="ArgumentOutOfRangeException">
-    /// Thrown by <see cref="StoreAsync"/> (not here) if <paramref name="deliverAt"/> is at or beyond
-    /// <c>now + OutboxRuntimeOptions.MaxMessageAge</c>, which would cause the message to be silently
-    /// excluded from polling and never delivered. Increase <c>MaxMessageAge</c> to support longer
-    /// scheduling horizons.
-    /// </exception>
     public OutboxMessageBuilder<TMessage> WithDeliverAt(DateTimeOffset deliverAt)
     {
         _deliverAt = deliverAt;
@@ -232,8 +222,9 @@ public sealed class OutboxMessageBuilder<TMessage> : IDisposable where TMessage 
     /// Persists the enriched message atomically within the configured transaction context.
     /// </summary>
     /// <param name="cancellationToken">A token that can be used to cancel the asynchronous operation.</param>
-    /// <returns>A task representing the asynchronous storage operation.</returns>
-    /// <exception cref="InvalidOperationException">A transaction was not configured via <see cref="WithTransaction"/> prior to calling.</exception>
+    /// <returns>A <see cref="ValueTask"/> representing the asynchronous storage operation.</returns>
+    /// <exception cref="ObjectDisposedException">Thrown if the builder has already been disposed (e.g., by a previous call to <see cref="StoreAsync"/> or an early <see cref="Dispose"/>).</exception>
+    /// <exception cref="InvalidOperationException">Thrown if a transaction context was not bound via <see cref="WithTransaction"/> prior to calling <see cref="StoreAsync"/>.</exception>
     public ValueTask StoreAsync(CancellationToken cancellationToken = default)
     {
 #if NET7_0_OR_GREATER

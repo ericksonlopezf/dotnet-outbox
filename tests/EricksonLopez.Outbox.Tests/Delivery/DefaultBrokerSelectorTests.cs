@@ -17,12 +17,12 @@ public class DefaultBrokerSelectorTests
         var defaultPublisher = Substitute.For<IBrokerPublisher>();
         var routedPublisher = Substitute.For<IBrokerPublisher>();
         var routes = new Dictionary<string, IBrokerPublisher> { { "TestMessage", routedPublisher } };
-        
+
         var sut = new DefaultBrokerSelector(defaultPublisher, routes);
         var message = new OutboxMessage(Guid.NewGuid(), "TestMessage", ReadOnlyMemory<byte>.Empty, null, null, ReadOnlyMemory<byte>.Empty, DateTimeOffset.UtcNow, null, null, OutboxMessageStatus.Pending, 0, null);
-        
+
         var result = sut.GetPublisher(message);
-        
+
         result.Should().BeSameAs(routedPublisher);
     }
 
@@ -31,12 +31,12 @@ public class DefaultBrokerSelectorTests
     {
         var defaultPublisher = Substitute.For<IBrokerPublisher>();
         var routes = new Dictionary<string, IBrokerPublisher>();
-        
+
         var sut = new DefaultBrokerSelector(defaultPublisher, routes);
         var message = new OutboxMessage(Guid.NewGuid(), "UnknownMessage", ReadOnlyMemory<byte>.Empty, null, null, ReadOnlyMemory<byte>.Empty, DateTimeOffset.UtcNow, null, null, OutboxMessageStatus.Pending, 0, null);
-        
+
         var result = sut.GetPublisher(message);
-        
+
         result.Should().BeSameAs(defaultPublisher);
     }
 
@@ -45,9 +45,9 @@ public class DefaultBrokerSelectorTests
     {
         var sut = new DefaultBrokerSelector(null);
         var message = new OutboxMessage(Guid.NewGuid(), "UnknownMessage", ReadOnlyMemory<byte>.Empty, null, null, ReadOnlyMemory<byte>.Empty, DateTimeOffset.UtcNow, null, null, OutboxMessageStatus.Pending, 0, null);
-        
+
         Action act = () => sut.GetPublisher(message);
-        
+
         act.Should().Throw<InvalidOperationException>()
             .WithMessage("*No broker publisher configured for message type 'UnknownMessage'*");
     }
@@ -57,9 +57,9 @@ public class DefaultBrokerSelectorTests
     {
         var sut = new DefaultBrokerSelector(null, null);
         var message = new OutboxMessage(Guid.NewGuid(), "UnknownMessage", ReadOnlyMemory<byte>.Empty, null, null, ReadOnlyMemory<byte>.Empty, DateTimeOffset.UtcNow, null, null, OutboxMessageStatus.Pending, 0, null);
-        
+
         Action act = () => sut.GetPublisher(message);
-        
+
         act.Should().Throw<InvalidOperationException>();
     }
 }

@@ -23,7 +23,7 @@ public sealed class MassTransitBrokerPublisher : IBrokerPublisher
     /// Initializes a new instance of the <see cref="MassTransitBrokerPublisher"/> class.
     /// </summary>
     /// <param name="publishEndpoint">The MassTransit endpoint that publishes messages.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="publishEndpoint"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="publishEndpoint"/> is <see langword="null"/></exception>
     public MassTransitBrokerPublisher(IPublishEndpoint publishEndpoint)
     {
         _publishEndpoint = publishEndpoint ?? throw new ArgumentNullException(nameof(publishEndpoint));
@@ -40,7 +40,7 @@ public sealed class MassTransitBrokerPublisher : IBrokerPublisher
             {
                 p.CorrelationId = correlationId;
             }
-            
+
             foreach (var header in _message.Metadata.Entries.Span)
             {
                 p.Headers.Set(header.Key, header.Value);

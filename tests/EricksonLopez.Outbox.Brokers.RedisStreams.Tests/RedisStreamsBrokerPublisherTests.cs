@@ -97,15 +97,15 @@ public class RedisStreamsBrokerPublisherTests
         var redis = Substitute.For<IConnectionMultiplexer>();
         var db = Substitute.For<IDatabase>();
         redis.GetDatabase(Arg.Any<int>(), Arg.Any<object>()).Returns(db);
-        
+
         var publisher = new RedisStreamsBrokerPublisher(redis);
 
         var msg = new MessageEnvelope<string>("data", new OutboxMessageMetadata("corr", "caus", "type1", new[] { new MetadataEntry("k", "v") }));
         var result = await publisher.PublishAsync(msg, new DispatchContext(CancellationToken.None, 1));
 
         result.Success.Should().BeTrue();
-        await db.Received(1).StreamAddAsync("outbox:type1", Arg.Is<NameValueEntry[]>(e => 
-            e.Length > 0 && 
+        await db.Received(1).StreamAddAsync("outbox:type1", Arg.Is<NameValueEntry[]>(e =>
+            e.Length > 0 &&
             Enumerable.Any(e, x => x.Name == "correlation_id" && x.Value == "corr") &&
             Enumerable.Any(e, x => x.Name == "causation_id" && x.Value == "caus") &&
             Enumerable.Any(e, x => x.Name == "message_type" && x.Value == "type1") &&
@@ -119,8 +119,8 @@ public class RedisStreamsBrokerPublisherTests
         var redis = Substitute.For<IConnectionMultiplexer>();
         var db = Substitute.For<IDatabase>();
         redis.GetDatabase(Arg.Any<int>(), Arg.Any<object>()).Returns(db);
-        var expectedEx = new RedisConnectionException(ConnectionFailureType.UnableToConnect, "Redis offline");
-        db.StreamAddAsync(Arg.Any<RedisKey>(), Arg.Any<NameValueEntry[]>(), Arg.Any<RedisValue?>(), Arg.Any<int?>(), Arg.Any<bool>(), Arg.Any<CommandFlags>()).ThrowsAsync(expectedEx);
+        var expectedEx = new RedisConnectionException(ConnectionFailureType.UnableToConnect, CommandFlags.None, "Redis offline", null!, CommandStatus.Unknown);
+        db.StreamAddAsync(Arg.Any<RedisKey>(), Arg.Any<NameValueEntry[]>(), null, 10000, true).ThrowsAsync(expectedEx);
 
         var publisher = new RedisStreamsBrokerPublisher(redis);
 
@@ -138,7 +138,7 @@ public class RedisStreamsBrokerPublisherTests
         var redis = Substitute.For<IConnectionMultiplexer>();
         var db = Substitute.For<IDatabase>();
         redis.GetDatabase(Arg.Any<int>(), Arg.Any<object>()).Returns(db);
-        
+
         var publisher = new RedisStreamsBrokerPublisher(redis);
 
         var msg1 = new MessageEnvelope<string>("data1", new OutboxMessageMetadata("c1", null, "t1"));
@@ -159,7 +159,7 @@ public class RedisStreamsBrokerPublisherTests
         var redis = Substitute.For<IConnectionMultiplexer>();
         var db = Substitute.For<IDatabase>();
         redis.GetDatabase(Arg.Any<int>(), Arg.Any<object>()).Returns(db);
-        
+
         var publisher = new RedisStreamsBrokerPublisher(redis);
 
         var msg = new OutboxMessage(Guid.NewGuid(), "alias", Array.Empty<byte>(), null, null, System.Text.Encoding.UTF8.GetBytes("{}"), DateTimeOffset.UtcNow, null, null, 0, 0, null);
@@ -167,8 +167,8 @@ public class RedisStreamsBrokerPublisherTests
         var result = await publisher.PublishRawAsync(msg, meta, new DispatchContext(CancellationToken.None, 1));
 
         result.Success.Should().BeTrue();
-        await db.Received(1).StreamAddAsync("outbox:alias", Arg.Is<NameValueEntry[]>(e => 
-            e.Length > 0 && 
+        await db.Received(1).StreamAddAsync("outbox:alias", Arg.Is<NameValueEntry[]>(e =>
+            e.Length > 0 &&
             Enumerable.Any(e, x => x.Name == "correlation_id" && x.Value == "corr") &&
             Enumerable.Any(e, x => x.Name == "causation_id" && x.Value == "caus") &&
             Enumerable.Any(e, x => x.Name == "message_type" && x.Value == "type1") &&
@@ -182,9 +182,9 @@ public class RedisStreamsBrokerPublisherTests
         var redis = Substitute.For<IConnectionMultiplexer>();
         var db = Substitute.For<IDatabase>();
         redis.GetDatabase(Arg.Any<int>(), Arg.Any<object>()).Returns(db);
-        var expectedEx = new RedisConnectionException(ConnectionFailureType.UnableToConnect, "Redis offline");
-        db.StreamAddAsync(Arg.Any<RedisKey>(), Arg.Any<NameValueEntry[]>(), Arg.Any<RedisValue?>(), Arg.Any<int?>(), Arg.Any<bool>(), Arg.Any<CommandFlags>()).ThrowsAsync(expectedEx);
-        
+        var expectedEx = new RedisConnectionException(ConnectionFailureType.UnableToConnect, CommandFlags.None, "Redis offline", null!, CommandStatus.Unknown);
+        db.StreamAddAsync(Arg.Any<RedisKey>(), Arg.Any<NameValueEntry[]>(), null, 10000, true).ThrowsAsync(expectedEx);
+
         var publisher = new RedisStreamsBrokerPublisher(redis);
 
         var msg = new OutboxMessage(Guid.NewGuid(), "alias", Array.Empty<byte>(), null, null, System.Text.Encoding.UTF8.GetBytes("{}"), DateTimeOffset.UtcNow, null, null, 0, 0, null);

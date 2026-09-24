@@ -16,7 +16,7 @@ public static class MessagePackOutboxSerializationExtensions
     /// <param name="options">The outbox options builder.</param>
     /// <param name="messagePackOptions">Optional custom MessagePack serialization options.</param>
     /// <returns>The outbox options builder for method chaining.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="options"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="options"/> is <see langword="null"/></exception>
     public static OutboxOptions UseMessagePackSerializer(
         this OutboxOptions options,
         MessagePackSerializerOptions? messagePackOptions = null)

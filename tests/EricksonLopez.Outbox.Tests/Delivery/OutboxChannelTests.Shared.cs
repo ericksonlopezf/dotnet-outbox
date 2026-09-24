@@ -4,22 +4,22 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 using System.Threading;
-using AwesomeAssertions;
 using System.Threading.Channels;
+using System.Threading.Tasks;
+using AwesomeAssertions;
 using EricksonLopez.Outbox;
 using EricksonLopez.Outbox.Diagnostics;
 using EricksonLopez.Outbox.Dispatcher;
 using EricksonLopez.Outbox.Persistence;
 using EricksonLopez.Outbox.Pipeline;
 using EricksonLopez.Outbox.Serialization;
+using EricksonLopez.Outbox.Tests.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
-using System.Threading.Tasks;
-using EricksonLopez.Outbox.Tests.Infrastructure;
 using Xunit;
 
 #pragma warning disable CA2012, CS8600, CS8602
@@ -29,73 +29,73 @@ namespace EricksonLopez.Outbox.Tests.Delivery;
 public partial class OutboxChannelTests
 {
 
-/// <summary>
-/// Completes the channel writer via reflection so ProcessMessagesAsync exits naturally
-/// instead of waiting for a CancellationToken timeout. This makes tests deterministic
-/// and avoids timing flakiness under parallel test execution.
-/// </summary>
-private static Microsoft.Extensions.DependencyInjection.IServiceScopeFactory FakeScopeFactory(IServiceProvider provider)
-{
-    var scope = Substitute.For<Microsoft.Extensions.DependencyInjection.IServiceScope>();
-    scope.ServiceProvider.Returns(provider);
-    var factory = Substitute.For<Microsoft.Extensions.DependencyInjection.IServiceScopeFactory>();
-    factory.CreateScope().Returns(scope);
-    return factory;
-}
-
-private static EricksonLopez.Outbox.Diagnostics.IErrorSanitizer FakeErrorSanitizer()
-{
-    var s = NSubstitute.Substitute.For<EricksonLopez.Outbox.Diagnostics.IErrorSanitizer>();
-    s.Sanitize(Arg.Any<Exception>()).Returns(x => x.Arg<Exception>().Message);
-    return s;
-}
-
-private static void CompleteWriter(OutboxChannel channel)
-{
-    channel.Complete();
-}
-
-private static OutboxChannel CreateTestChannel(
-    IBrokerPublisher publisher,
-    IOutboxRepository repo,
-    IDeadLetterRepository? dlqRepo = null,
-    ILogger<OutboxChannel>? logger = null,
-    OutboxDispatcherOptions? dispatcherOptions = null,
-    OutboxRuntimeOptions? runtimeOptions = null)
-{
-    var sc = new ServiceCollection();
-    sc.AddScoped(_ => repo);
-    if (dlqRepo != null)
+    /// <summary>
+    /// Completes the channel writer via reflection so ProcessMessagesAsync exits naturally
+    /// instead of waiting for a CancellationToken timeout. This makes tests deterministic
+    /// and avoids timing flakiness under parallel test execution.
+    /// </summary>
+    private static Microsoft.Extensions.DependencyInjection.IServiceScopeFactory FakeScopeFactory(IServiceProvider provider)
     {
-        sc.AddScoped<IDeadLetterRepository>(_ => dlqRepo);
+        var scope = Substitute.For<Microsoft.Extensions.DependencyInjection.IServiceScope>();
+        scope.ServiceProvider.Returns(provider);
+        var factory = Substitute.For<Microsoft.Extensions.DependencyInjection.IServiceScopeFactory>();
+        factory.CreateScope().Returns(scope);
+        return factory;
     }
-    var services = sc.BuildServiceProvider();
 
-    return new OutboxChannel(
-        logger ?? NullLogger<OutboxChannel>.Instance,
-        publisher,
-        Options.Create(dispatcherOptions ?? new OutboxDispatcherOptions { ChannelCapacity = 10 }),
-        Options.Create(runtimeOptions ?? new OutboxRuntimeOptions()),
-        new OutboxMetrics(),
-        FakeScopeFactory(services),
-        FakeErrorSanitizer(),
-        TimeProvider.System);
-}
-
-private sealed class FakeChannelLogger : Microsoft.Extensions.Logging.ILogger<OutboxChannel>
-{
-
-    public readonly List<Microsoft.Extensions.Logging.EventId> LoggedEvents = new();
-    public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
-    public bool IsEnabled(Microsoft.Extensions.Logging.LogLevel logLevel) => true;
-    public void Log<TState>(Microsoft.Extensions.Logging.LogLevel logLevel, Microsoft.Extensions.Logging.EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+    private static EricksonLopez.Outbox.Diagnostics.IErrorSanitizer FakeErrorSanitizer()
     {
-        var msg = formatter(state, exception);
-        if (exception != null) msg += " | Exception: " + exception.Message;
-
-        LoggedEvents.Add(eventId);
+        var s = NSubstitute.Substitute.For<EricksonLopez.Outbox.Diagnostics.IErrorSanitizer>();
+        s.Sanitize(Arg.Any<Exception>()).Returns(x => x.Arg<Exception>().Message);
+        return s;
     }
-}
+
+    private static void CompleteWriter(OutboxChannel channel)
+    {
+        channel.Complete();
+    }
+
+    private static OutboxChannel CreateTestChannel(
+        IBrokerPublisher publisher,
+        IOutboxRepository repo,
+        IDeadLetterRepository? dlqRepo = null,
+        ILogger<OutboxChannel>? logger = null,
+        OutboxDispatcherOptions? dispatcherOptions = null,
+        OutboxRuntimeOptions? runtimeOptions = null)
+    {
+        var sc = new ServiceCollection();
+        sc.AddScoped(_ => repo);
+        if (dlqRepo != null)
+        {
+            sc.AddScoped<IDeadLetterRepository>(_ => dlqRepo);
+        }
+        var services = sc.BuildServiceProvider();
+
+        return new OutboxChannel(
+            logger ?? NullLogger<OutboxChannel>.Instance,
+            publisher,
+            Options.Create(dispatcherOptions ?? new OutboxDispatcherOptions { ChannelCapacity = 10 }),
+            Options.Create(runtimeOptions ?? new OutboxRuntimeOptions()),
+            new OutboxMetrics(),
+            FakeScopeFactory(services),
+            FakeErrorSanitizer(),
+            TimeProvider.System);
+    }
+
+    private sealed class FakeChannelLogger : Microsoft.Extensions.Logging.ILogger<OutboxChannel>
+    {
+
+        public readonly List<Microsoft.Extensions.Logging.EventId> LoggedEvents = new();
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+        public bool IsEnabled(Microsoft.Extensions.Logging.LogLevel logLevel) => true;
+        public void Log<TState>(Microsoft.Extensions.Logging.LogLevel logLevel, Microsoft.Extensions.Logging.EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+        {
+            var msg = formatter(state, exception);
+            if (exception != null) msg += " | Exception: " + exception.Message;
+
+            LoggedEvents.Add(eventId);
+        }
+    }
 
     [Theory]
     [InlineData(1, 10, true)]

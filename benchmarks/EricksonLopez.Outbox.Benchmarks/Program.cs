@@ -33,6 +33,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Columns;
 using BenchmarkDotNet.Configs;
@@ -42,22 +43,21 @@ using BenchmarkDotNet.Running;
 using BenchmarkDotNet.Toolchains.InProcess.Emit;
 using EricksonLopez.Outbox;
 using EricksonLopez.Outbox.Testing;
-using System.Threading.Tasks;
 
 BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(args, DefaultConfig.Instance
     .AddJob(Job.Default.WithToolchain(InProcessEmitToolchain.Instance))
     .AddDiagnoser(MemoryDiagnoser.Default) // Default includes Gen0, Gen1, Gen2, Allocated
-    // B-02 AUDIT FIX: BenchmarkDotNet natively records the complete hardware and runtime
-    // environment (OS, .NET SDK, CPU model/frequency, JIT mode) in every results file
-    // exported to BenchmarkDotNet.Artifacts/results/. No additional diagnoser is needed
-    // for hardware context; the environment table is always emitted.
-    //
-    // RULE: When publishing results externally (README, blog posts, GitHub Discussions),
-    // ALWAYS include the full "BenchmarkDotNet=..." environment header from the report file.
-    // Results without hardware context are meaningless for cross-machine comparisons.
-    //
-    // AUDIT-FIX P2-C: Added RankColumn and percentile columns for competitive benchmark analysis.
-    // RankColumn automatically ranks methods from fastest (1) to slowest.
+                                           // B-02 AUDIT FIX: BenchmarkDotNet natively records the complete hardware and runtime
+                                           // environment (OS, .NET SDK, CPU model/frequency, JIT mode) in every results file
+                                           // exported to BenchmarkDotNet.Artifacts/results/. No additional diagnoser is needed
+                                           // for hardware context; the environment table is always emitted.
+                                           //
+                                           // RULE: When publishing results externally (README, blog posts, GitHub Discussions),
+                                           // ALWAYS include the full "BenchmarkDotNet=..." environment header from the report file.
+                                           // Results without hardware context are meaningless for cross-machine comparisons.
+                                           //
+                                           // AUDIT-FIX P2-C: Added RankColumn and percentile columns for competitive benchmark analysis.
+                                           // RankColumn automatically ranks methods from fastest (1) to slowest.
     .AddColumn(RankColumn.Arabic)
     .AddColumn(StatisticColumn.OperationsPerSecond)
     .AddColumn(StatisticColumn.P50) // Median

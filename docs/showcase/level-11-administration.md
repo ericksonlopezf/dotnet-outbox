@@ -238,6 +238,126 @@ var purgedCount = await repository.PurgeDispatchedMessagesAsync(
 
 ---
 
+## 4.1. `IOutboxRepository.ReclaimStaleMessagesAsync` — Crash Recovery
+
+When the dispatcher claims messages (`InFlight` state = 1) and then crashes before calling `MarkAsDispatchedAsync`, those messages become permanently stuck in state 1. The reclaim mechanism resets them back to `Pending (0)` so they can be retried.
+
+```csharp
+using EricksonLopez.Outbox.Persistence;
+
+// Resets any InFlight message whose updated_at < (UtcNow - staleTimeout) back to Pending(0).
+// Returns the count of messages reclaimed.
+int reclaimedCount = await outboxRepository.ReclaimStaleMessagesAsync(
+    staleTimeout: TimeSpan.FromMinutes(5),  // Matches OutboxDispatcherOptions.ReclaimTimeout default
+    cancellationToken: ct);
+```
+
+> [!NOTE]
+> The `OutboxDispatcherBackgroundService` calls `ReclaimStaleMessagesAsync` automatically every `OutboxDispatcherOptions.ReclaimInterval` (default: 1 minute). You only need to call it directly for administrative tooling or in integration tests. See Showcase endpoint `POST /api/level11/outbox/reclaim-stale`.
+
+**How crash recovery works:**
+
+1. Dispatcher calls `FetchPendingAsync()` → atomically sets `status=1` (InFlight)
+2. **Crash** — dispatcher dies before calling `MarkAsDispatchedAsync`
+3. Messages remain stuck in `InFlight (1)` indefinitely
+4. `ReclaimStaleMessagesAsync(staleTimeout)` resets them: `UPDATE status=0 WHERE status=1 AND updated_at < (NOW() - staleTimeout)`
+5. Next `FetchPendingAsync` cycle re-claims and re-dispatches them
+
+> [!WARNING]
+> Set `staleTimeout` **greater** than the maximum time a single dispatch attempt can take (including broker connection setup and retry loops). Too short a timeout causes false-positive reclaims: reclaiming messages that are still legitimately being processed, resulting in duplicate deliveries.
+
+---
+
+## 4.2. `IDeadLetterRepository` — Complete Contract Reference
+
+The `IDeadLetterRepository` interface has four methods. Sections 3 above covers `GetAsync` and `DeleteAsync`. This section documents `PurgeAsync`, `InsertAsync`, and `IsFirstPartyImplementation`:
+
+```csharp
+using EricksonLopez.Outbox;
+using EricksonLopez.Outbox.Persistence;
+
+// PurgeAsync — Bulk delete all DLQ entries older than the given timestamp.
+// Unlike PurgeDispatchedMessagesAsync (which is batched), this issues a single DELETE.
+// DLQ tables are typically small (only messages that exhausted all retries) so this is safe.
+await dlqRepository.PurgeAsync(
+    olderThan: DateTimeOffset.UtcNow.AddDays(-30),
+    cancellationToken: ct);
+
+// InsertAsync — Called by the dispatcher to persist a dead-lettered message.
+// transaction: if null, the repository auto-commits on its own connection.
+// This is the auto-commit requirement: the dispatcher calls InsertAsync without a transaction.
+var dlq = new DeadLetterMessage(
+    Id: Guid.NewGuid(),
+    OriginalMessageId: originalMessage.Id,
+    MessageType: originalMessage.MessageType,
+    Payload: originalMessage.Payload,
+    CorrelationId: originalMessage.CorrelationId,
+    CausationId: originalMessage.CausationId,
+    Headers: originalMessage.Headers,
+    CreatedAt: originalMessage.CreatedAt,
+    DeadLetteredAt: DateTimeOffset.UtcNow,
+    RetryCount: originalMessage.RetryCount,
+    Reason: "MaxRetryCount exceeded",
+    LastError: "Connection refused after 5 attempts");
+
+await dlqRepository.InsertAsync(dlq, transaction: null, ct);  // null = auto-commit
+
+// IsFirstPartyImplementation — Default Interface Method (DIM), returns false by default.
+// Used by OutboxStartupValidator to emit an advisory warning for third-party implementations.
+bool isBuiltIn = dlqRepository.IsFirstPartyImplementation; // false if custom, true for built-in
+```
+
+### `DeadLetterMessage.FromOutboxMessage` — Factory Method
+
+The dispatcher uses this factory to construct a `DeadLetterMessage` from a failed `OutboxMessage`:
+
+```csharp
+using EricksonLopez.Outbox;
+
+// Factory: builds a DeadLetterMessage from a failed OutboxMessage.
+// On .NET 9+, Id uses Guid.CreateVersion7() for monotonic ordering.
+// On .NET 8, Id uses Guid.NewGuid().
+var deadLetter = DeadLetterMessage.FromOutboxMessage(
+    original: failedOutboxMessage,
+    retryCount: 7,
+    reason: "Broker rejected: payload schema v3 is incompatible",
+    lastError: exception.ToString());  // sanitized by IErrorSanitizer before storage
+```
+
+> [!IMPORTANT]
+> **Third-party `IDeadLetterRepository` implementations must handle `transaction = null`** (auto-commit mode). The dispatcher frequently calls `InsertAsync` without an active transaction (after a failed dispatch outside a user transaction boundary). Failing to handle this causes dead letters to be silently lost. The `OutboxStartupValidator` emits an advisory at startup when `IsFirstPartyImplementation` returns `false` to remind you of this requirement.
+
+---
+
+## 4.3. `OutboxMessage` — Optional Fields Reference
+
+`OutboxMessage` has two optional fields that are relevant for multi-tenancy and future extensibility:
+
+```csharp
+using EricksonLopez.Outbox;
+
+// TenantId: set via OutboxMessageBuilder.WithTenantId(tenantId)
+// Stored as a dedicated indexed column — not just a header.
+// The broker publisher reads it to route to a tenant-specific topic/queue.
+await outbox.Publish(new OrderCreatedEvent(...))
+    .WithTenantId("acme")               // → sets x-tenant-id header AND TenantId column
+    .WithTransaction(tx.ToOutboxContext())
+    .StoreAsync(ct);
+
+// Extensions: IReadOnlyDictionary<string, string>?
+// Currently not settable via OutboxMessageBuilder (raw constructor only).
+// Reserved for future v2.0 typed routing metadata (Kafka offsets, CDC/WAL metadata).
+// In v1.0: string-only values. Sufficient for string headers but precludes typed metadata.
+//
+// ROADMAP v2.0: Extensions will be upgraded to IReadOnlyDictionary<string, object?>
+// to support non-string values. This is a binary-breaking change deferred from v1.0.
+```
+
+> [!NOTE]
+> `TenantId` is documented in the multi-tenancy context in [Level 8](level-08-customization.md) and demonstrated in Showcase endpoint `GET /api/level11/outbox/message-optional-fields`. For the full multi-tenancy pattern with `ITenantBrokerRouter`, see [Level 8](level-08-customization.md) section 8i.
+
+---
+
 ## 5. `OutboxConstants` — Reserved Identifiers
 
 ```csharp

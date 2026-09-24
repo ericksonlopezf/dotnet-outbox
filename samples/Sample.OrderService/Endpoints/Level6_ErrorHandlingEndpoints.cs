@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using EricksonLopez.Outbox;
 using EricksonLopez.Outbox.Persistence;
 using EricksonLopez.Outbox.Retry;
@@ -11,7 +12,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Sample.OrderService.Infrastructure.Customization;
-using System.Threading.Tasks;
 
 #pragma warning disable CA1861
 namespace Sample.OrderService.Endpoints;
@@ -303,7 +303,7 @@ services.AddOutbox(options =>
                 await outbox.Publish(@event)
                     .WithTransaction(tx.ToOutboxContext())
                     .StoreAsync(ct);
-                    
+
                 await tx.CommitAsync(ct);
                 return Results.Ok("Message stored successfully (this shouldn't happen if max payload is 1MB).");
             }
@@ -325,6 +325,168 @@ services.AddOutbox(options =>
             }
         })
         .WithSummary("Level 6e - OutboxPayloadTooLargeException simulation")
+        .WithTags("Level 6 — Error Handling");
+
+        // ─── Endpoint 6f: DispatchResult.FailFatal — complete overload reference ─
+        // DispatchResult has 5 factory methods. Endpoints 6a covered 4 of them.
+        // This endpoint documents the remaining overload:
+        //   DispatchResult.FailFatal(Guid messageId, int retryCount, string reason)
+        //
+        // This overload creates an OutboxDispatchException internally and is primarily
+        // used by the dispatcher infrastructure when it needs to dead-letter a message
+        // without an original Exception object (e.g., circuit breaker open, type unknown).
+        app.MapGet("/api/level6/dispatch-result-fatal-overloads", () =>
+        {
+            // Overload 1 (Level 6a): FailFatal(Exception ex) — wraps an existing exception
+            var fatalFromException = DispatchResult.FailFatal(new ArgumentException("Schema mismatch"));
+
+            // Overload 2 (Level 6a): FailFatal(string reason) — no original exception available
+            var fatalFromString = DispatchResult.FailFatal("Message exceeds broker size limit");
+
+            // Overload 3 (NEW): FailFatal(Guid messageId, int retryCount, string reason)
+            // — Creates an OutboxDispatchException with message context embedded.
+            // Used internally by the dispatcher for structured dead-lettering.
+            var messageId = Guid.NewGuid();
+            var fatalWithContext = DispatchResult.FailFatal(
+                messageId: messageId,
+                retryCount: 7,
+                reason: "Type resolver returned null — message type not registered");
+
+            return Results.Ok(new
+            {
+                description = "Complete reference: all 5 DispatchResult factory methods including the context overload of FailFatal.",
+                allFactoryMethods = new object[]
+                {
+                    new
+                    {
+                        method = "DispatchResult.Ok()",
+                        signature = "static DispatchResult Ok()",
+                        use = "Successful dispatch. Message is removed from outbox.",
+                        success = true, shouldRetry = false, incrementRetryCount = false
+                    },
+                    new
+                    {
+                        method = "DispatchResult.FailAndRetry(Exception)",
+                        signature = "static DispatchResult FailAndRetry(Exception ex)",
+                        use = "Transient failure. Retries with backoff. Increments RetryCount.",
+                        success = false, shouldRetry = true, incrementRetryCount = true
+                    },
+                    new
+                    {
+                        method = "DispatchResult.FailAndRetry(Exception, bool)",
+                        signature = "static DispatchResult FailAndRetry(Exception ex, bool incrementRetryCount)",
+                        use = "Transient failure (e.g., rate-limit). Retries WITHOUT incrementing RetryCount when false.",
+                        success = false, shouldRetry = true, incrementRetryCount = "controlled by param"
+                    },
+                    new
+                    {
+                        method = "DispatchResult.FailFatal(Exception)",
+                        signature = "static DispatchResult FailFatal(Exception ex)",
+                        use = "Permanent failure. Dead-letters the message immediately, no retry.",
+                        success = false, shouldRetry = false, incrementRetryCount = false,
+                        exampleError = fatalFromException.Error?.Message
+                    },
+                    new
+                    {
+                        method = "DispatchResult.FailFatal(string)",
+                        signature = "static DispatchResult FailFatal(string reason)",
+                        use = "Permanent failure without an original exception. Wraps reason into OutboxDispatchException.",
+                        success = false, shouldRetry = false, incrementRetryCount = false,
+                        exampleError = fatalFromString.Error?.Message
+                    },
+                    new
+                    {
+                        method = "DispatchResult.FailFatal(Guid, int, string)",
+                        signature = "static DispatchResult FailFatal(Guid messageId, int retryCount, string reason)",
+                        use = "Permanent failure with full message context embedded. Used by dispatcher infrastructure " +
+                              "when dead-lettering with known message ID and retry count (e.g., type resolver failure, circuit breaker open).",
+                        success = false, shouldRetry = false, incrementRetryCount = false,
+                        exampleMessageId = messageId,
+                        exampleRetryCount = 7,
+                        exampleReason = "Type resolver returned null — message type not registered",
+                        exampleError = fatalWithContext.Error?.Message
+                    },
+                },
+                implementationContract = @"
+// IBrokerPublisher.PublishRawAsync contract:
+// ALWAYS return one of these factory methods — NEVER throw, NEVER return default(DispatchResult).
+// The dispatcher maps the result to:
+//   Ok()            → MarkAsDispatchedAsync()
+//   FailAndRetry()  → schedule retry via RetryPolicy → MarkAsFailedAsync()
+//   FailFatal()     → IDeadLetterRepository.InsertAsync() → MarkAsFailedAsync(isDeadLetter:true)"
+            });
+        })
+        .WithSummary("Level 6f - DispatchResult: complete factory method reference including FailFatal(Guid, int, string)")
+        .WithTags("Level 6 — Error Handling");
+
+        // ─── Endpoint 6g: IRetryPolicy — custom retry policy implementation ──
+        // IRetryPolicy is the extensibility contract for retry behavior.
+        // The library ships 4 concrete policies (RetryPolicy.Default, FixedDelayRetryPolicy,
+        // ExponentialBackoffRetryPolicy, JitterRetryPolicy — all covered in 6b).
+        //
+        // For advanced scenarios (e.g., different delays per exception type, circuit-breaker
+        // integrated delays, or SLA-driven policies), implement IRetryPolicy directly.
+        app.MapGet("/api/level6/custom-retry-policy", () =>
+        {
+            return Results.Ok(new
+            {
+                description = "IRetryPolicy — extensibility contract for custom retry behavior.",
+                @namespace = "EricksonLopez.Outbox.Retry",
+                interface_definition = new[]
+                {
+                    "TimeSpan GetNextDelay(int currentAttempt) — returns the delay before the next retry. Called by RetryDispatcherInterceptor.",
+                    "bool ShouldRetry(int currentAttempt, Exception exception) — returns true if a retry should be attempted. Called first to check eligibility.",
+                },
+                note = "RetryPolicy (abstract record) implements IRetryPolicy. All built-in policies inherit from it. " +
+                       "For new policies that don't fit the record pattern, implement IRetryPolicy directly.",
+                customImplementationExample = @"
+// Custom policy: retry only on specific exception types, with per-exception delays
+public sealed class ExceptionAwareRetryPolicy : IRetryPolicy
+{
+    private readonly int _maxAttempts;
+
+    public ExceptionAwareRetryPolicy(int maxAttempts = 5)
+        => _maxAttempts = maxAttempts;
+
+    public bool ShouldRetry(int currentAttempt, Exception exception)
+    {
+        if (currentAttempt >= _maxAttempts) return false;
+        // Only retry transient failures, not schema or authorization errors
+        return exception is TimeoutException
+            || exception is HttpRequestException
+            || exception?.Message.Contains(""connection refused"", StringComparison.OrdinalIgnoreCase) == true;
+    }
+
+    public TimeSpan GetNextDelay(int currentAttempt)
+        => currentAttempt switch
+        {
+            1 => TimeSpan.FromSeconds(1),
+            2 => TimeSpan.FromSeconds(5),
+            3 => TimeSpan.FromSeconds(15),
+            _ => TimeSpan.FromSeconds(30),
+        };
+}
+
+// Registration in AddOutbox():
+services.AddOutbox(options =>
+{
+    options.UseBroker<MyBrokerPublisher>(new ExceptionAwareRetryPolicy(maxAttempts: 4));
+});",
+                differenceFromRetryPolicy = new
+                {
+                    RetryPolicy = "Abstract record. 4 built-in implementations. Extend with 'public sealed record MyPolicy : RetryPolicy { ... }'.",
+                    IRetryPolicy = "Interface. More flexible. Implement when you need ShouldRetry(exception) logic or the record model doesn't fit.",
+                },
+                builtInPolicies = new[]
+                {
+                    "RetryPolicy.Default — ExponentialBackoff(1s, x2, max30s, 5 attempts)",
+                    "FixedDelayRetryPolicy(delay, maxAttempts)",
+                    "ExponentialBackoffRetryPolicy(initialDelay, maxAttempts, factor, maxDelay)",
+                    "JitterRetryPolicy(initialDelay, maxAttempts, factor, maxDelay, jitterFactor)",
+                }
+            });
+        })
+        .WithSummary("Level 6g - IRetryPolicy: extensibility contract for custom retry policies")
         .WithTags("Level 6 — Error Handling");
     }
 }

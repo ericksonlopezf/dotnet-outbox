@@ -21,7 +21,7 @@ public class LeaseTests
         // Assert
         Assert.True(result);
     }
-    
+
     [Fact]
     public void IsExpired_WhenNowIsBeforeExpiresAt_ReturnsFalse()
     {

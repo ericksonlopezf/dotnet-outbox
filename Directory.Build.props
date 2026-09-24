@@ -1,8 +1,9 @@
 <!-- Copyright © Erickson Lopez. MIT License. -->
 <Project>
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" Condition="Exists($([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../')))" />
 
   <PropertyGroup>
-    <VersionPrefix>2.0.0</VersionPrefix>
+    <VersionPrefix>3.0.0</VersionPrefix>
     <VersionSuffix></VersionSuffix>
 
     <!-- NuGet package metadata -->
@@ -15,7 +16,7 @@
     <RepositoryType>git</RepositoryType>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>icon.png</PackageIcon>
-    <CommonPackageTags>dotnet;csharp;outbox;transactional-outbox</CommonPackageTags>
+    <CommonPackageTags>dotnet;.net;csharp;open-source</CommonPackageTags>
     <PackageTags>$(CommonPackageTags)</PackageTags>
     <Description>High-performance, Zero-Reflection, NativeAOT-ready Transactional Outbox pattern implementation for .NET.</Description>
     <PackageReleaseNotes>https://github.com/ericksonlopezf/dotnet-outbox/releases</PackageReleaseNotes>
@@ -74,12 +75,12 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="All" />
-  </ItemGroup>
 
-  <ItemGroup>
-    <!-- Project-specific readme takes precedence if present, otherwise root readme.md mapped to README.md in package -->
-    <None Include="$(MSBuildProjectDirectory)/readme.md" Pack="true" PackagePath="README.md" Condition="Exists('$(MSBuildProjectDirectory)/readme.md')" />
-    <None Include="$(MSBuildThisFileDirectory)readme.md" Pack="true" PackagePath="README.md" Condition="!Exists('$(MSBuildProjectDirectory)/readme.md') and Exists('$(MSBuildThisFileDirectory)readme.md')" />
+    <!-- Project-specific readme takes precedence if present, otherwise root README.md mapped to README.md in package -->
+    <None Include="$(MSBuildProjectDirectory)/README.md" Pack="true" PackagePath="README.md" Condition="Exists('$(MSBuildProjectDirectory)/README.md')" />
+    <None Include="$(MSBuildProjectDirectory)/readme.md" Pack="true" PackagePath="README.md" Condition="!Exists('$(MSBuildProjectDirectory)/README.md') and Exists('$(MSBuildProjectDirectory)/readme.md')" />
+    <None Include="$(MSBuildThisFileDirectory)README.md" Pack="true" PackagePath="README.md" Condition="!Exists('$(MSBuildProjectDirectory)/README.md') and !Exists('$(MSBuildProjectDirectory)/readme.md') and Exists('$(MSBuildThisFileDirectory)README.md')" />
+    <None Include="$(MSBuildThisFileDirectory)readme.md" Pack="true" PackagePath="README.md" Condition="!Exists('$(MSBuildProjectDirectory)/README.md') and !Exists('$(MSBuildProjectDirectory)/readme.md') and !Exists('$(MSBuildThisFileDirectory)README.md') and Exists('$(MSBuildThisFileDirectory)readme.md')" />
 
     <!-- Project-specific icon.png takes precedence if present, otherwise fallback to root or docs icon -->
     <None Include="$(MSBuildProjectDirectory)/icon.png" Pack="true" PackagePath="icon.png" Condition="Exists('$(MSBuildProjectDirectory)/icon.png')" />

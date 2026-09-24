@@ -17,7 +17,7 @@ public static class MariaDbOutboxSetup
     /// <param name="options">The outbox options being configured.</param>
     /// <param name="connectionFactory">A factory delegate to provide a <see cref="MySqlConnection"/> based on the <see cref="IServiceProvider"/>.</param>
     /// <returns>The original <see cref="OutboxOptions"/> for method chaining.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="options"/> or <paramref name="connectionFactory"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="options"/> or <paramref name="connectionFactory"/> is <see langword="null"/></exception>
     public static OutboxOptions UseMariaDb(this OutboxOptions options, Func<IServiceProvider, MySqlConnection> connectionFactory)
     {
         ArgumentNullException.ThrowIfNull(options);

@@ -28,7 +28,7 @@ public class EntityFrameworkCoreOutboxRepository<TDbContext> : IOutboxRepository
     /// </summary>
     /// <param name="serviceProvider">The service provider to resolve scoped DbContext instances.</param>
     /// <param name="timeProvider">The time provider for time-based queries.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="serviceProvider"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="serviceProvider"/> is <see langword="null"/></exception>
     public EntityFrameworkCoreOutboxRepository(IServiceProvider serviceProvider, TimeProvider? timeProvider = null)
     {
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
@@ -94,8 +94,17 @@ public class EntityFrameworkCoreOutboxRepository<TDbContext> : IOutboxRepository
             claimedList.Add(msg.ToModel());
         }
 
-        await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        return claimedList;
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            return claimedList;
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // Another competing worker claimed one or more messages concurrently.
+            // Return empty to avoid double-dispatching contested messages.
+            return Array.Empty<OutboxMessage>();
+        }
     }
 
     /// <inheritdoc/>

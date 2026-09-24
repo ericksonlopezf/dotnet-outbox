@@ -26,7 +26,7 @@ public sealed class KafkaBrokerPublisher : IBrokerPublisher
     /// <param name="producer">The Kafka producer instance that sends messages.</param>
     /// <param name="serializer">The serializer that encodes the message payload.</param>
     /// <param name="defaultTopic">The default Kafka topic to which messages are published if not overridden by metadata.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="producer"/> or <paramref name="serializer"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="producer"/> or <paramref name="serializer"/> is <see langword="null"/></exception>
     public KafkaBrokerPublisher(IProducer<byte[], byte[]> producer, IOutboxSerializer serializer, string defaultTopic)
     {
         _producer = producer ?? throw new ArgumentNullException(nameof(producer));
@@ -40,7 +40,7 @@ public sealed class KafkaBrokerPublisher : IBrokerPublisher
         try
         {
             var headers = new Headers();
-            
+
             if (!string.IsNullOrEmpty(message.Metadata.CorrelationId))
             {
                 headers.Add("CorrelationId", Encoding.UTF8.GetBytes(message.Metadata.CorrelationId));
@@ -62,7 +62,7 @@ public sealed class KafkaBrokerPublisher : IBrokerPublisher
             // Derivar Partition Key
             byte[]? partitionKey = null;
             var partitionKeyString = message.Metadata.GetValue("Kafka-Partition-Key") ?? message.Metadata.CorrelationId;
-            
+
             if (!string.IsNullOrEmpty(partitionKeyString))
             {
                 partitionKey = Encoding.UTF8.GetBytes(partitionKeyString);

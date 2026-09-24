@@ -52,7 +52,7 @@ public sealed class TelemetryOutboxMiddleware : IOutboxMiddleware
                 "Message {MessageId} failed unexpectedly during dispatch after {ElapsedMs}ms.",
                 message.Id,
                 sw.ElapsedMilliseconds);
-            
+
             throw;
         }
     }

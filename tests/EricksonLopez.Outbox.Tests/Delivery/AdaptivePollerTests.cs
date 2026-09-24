@@ -45,7 +45,7 @@ public partial class AdaptivePollerTests
             cts.Cancel();
             try { await pollingTask; } catch (OperationCanceledException) { }
         };
-        
+
         await act.Should().NotThrowAsync();
     }
 
@@ -55,14 +55,14 @@ public partial class AdaptivePollerTests
         var services = new ServiceCollection();
         var repo = Substitute.For<IOutboxRepository>();
         using var cts = new CancellationTokenSource();
-        
+
         repo.FetchPendingAsync(Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns<ValueTask<IReadOnlyList<OutboxMessage>>>(x =>
             {
                 cts.Cancel();
                 throw new InvalidOperationException("Test Error");
             });
-            
+
         services.AddScoped(_ => repo);
         var provider = services.BuildServiceProvider();
 
@@ -108,14 +108,14 @@ public partial class AdaptivePollerTests
         var services = new ServiceCollection();
         var repo = Substitute.For<IOutboxRepository>();
         using var cts = new CancellationTokenSource();
-        
+
         repo.FetchPendingAsync(Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns<ValueTask<IReadOnlyList<OutboxMessage>>>(x =>
             {
                 cts.Cancel();
                 throw new InvalidOperationException("Simulated Database Error");
             });
-            
+
         services.AddScoped(_ => repo);
         var provider = services.BuildServiceProvider();
 

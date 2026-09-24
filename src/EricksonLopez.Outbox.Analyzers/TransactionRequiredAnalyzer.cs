@@ -16,7 +16,7 @@ namespace EricksonLopez.Outbox.Analyzers;
 public class TransactionRequiredAnalyzer : DiagnosticAnalyzer
 {
     /// <summary>
-    /// The diagnostic identifier for missing transaction calls in builder chains.
+    /// Defines the diagnostic identifier for missing transaction calls in builder chains.
     /// </summary>
     public const string DiagnosticId = "OUTBOX010";
 

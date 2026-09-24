@@ -88,12 +88,14 @@ public class MariaDbDeadLetterRepositoryTests : IAsyncLifetime
         MySqlConnection? createdConn = null;
         var mockedOptions = Substitute.For<IOptionsMonitor<OutboxRuntimeOptions>>();
         mockedOptions.CurrentValue.Returns(_options);
-        var sut = new MariaDbDeadLetterRepository(() => {
+        var sut = new MariaDbDeadLetterRepository(() =>
+        {
             createdConn = new MySqlConnection(_fixture.Container.GetConnectionString());
             return createdConn;
         }, mockedOptions);
 
-        var msg = _autoFixture.Create<DeadLetterMessage>() with {
+        var msg = _autoFixture.Create<DeadLetterMessage>() with
+        {
             Payload = "{}"u8.ToArray(),
             Headers = "{}"u8.ToArray(),
             CreatedAt = DateTimeOffset.UtcNow,
@@ -129,7 +131,8 @@ public class MariaDbDeadLetterRepositoryTests : IAsyncLifetime
     public async Task InsertAsync_WithNullReason_DefaultsToUnknown()
     {
         var sut = CreateSut();
-        var msg = _autoFixture.Create<DeadLetterMessage>() with { 
+        var msg = _autoFixture.Create<DeadLetterMessage>() with
+        {
             Payload = "{}"u8.ToArray(),
             Headers = "{}"u8.ToArray(),
             Reason = null!,

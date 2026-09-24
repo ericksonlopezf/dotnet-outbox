@@ -24,7 +24,7 @@ public class FakeInboxIdempotencyCheckerTests
     public async Task ShouldProcessAsync_WhenNotProcessed_ReturnsTrueAndRecords()
     {
         var tx = Substitute.For<IOutboxTransactionContext>();
-        
+
         var result1 = await _checker.ShouldProcessAsync("msg1", "cons1", tx, CancellationToken.None);
         result1.Should().BeTrue();
 

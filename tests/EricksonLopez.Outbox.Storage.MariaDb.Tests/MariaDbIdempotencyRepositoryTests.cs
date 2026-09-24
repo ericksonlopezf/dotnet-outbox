@@ -81,7 +81,8 @@ public class MariaDbIdempotencyRepositoryTests : IAsyncLifetime
         MySqlConnection? createdConn = null;
         var mockedOptions = Substitute.For<IOptionsMonitor<OutboxRuntimeOptions>>();
         mockedOptions.CurrentValue.Returns(_options);
-        var sut = new MariaDbIdempotencyRepository(() => {
+        var sut = new MariaDbIdempotencyRepository(() =>
+        {
             createdConn = new MySqlConnection(_fixture.Container.GetConnectionString());
             return createdConn;
         }, mockedOptions);

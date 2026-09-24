@@ -120,9 +120,12 @@ jobs:
             output-dir: StrykerOutput/rabbitmq
             artifact-name: stryker-report-rabbitmq
           - name: RedisStreams
-            config: stryker-redisstreams-config.json
-            output-dir: StrykerOutput/redisstreams
+            config: ../../stryker-redisstreams-config.json
+            output-dir: ../../StrykerOutput/redisstreams
             artifact-name: stryker-report-redisstreams
+            working-dir: tests/EricksonLopez.Outbox.Brokers.RedisStreams.Tests
+            root-output-dir: StrykerOutput/redisstreams
+            root-config: stryker-redisstreams-config.json
           - name: Dapr
             config: stryker-dapr-config.json
             output-dir: StrykerOutput/dapr
@@ -218,10 +221,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
         with:
           dotnet-version: |
             8.0.x
@@ -254,7 +257,7 @@ jobs:
 
       - name: Upload Stryker report (${{ matrix.name }})
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ matrix.artifact-name }}-${{ github.run_id }}
           path: ${{ matrix.root-output-dir || matrix.output-dir }}/
@@ -269,7 +272,7 @@ jobs:
 
       - name: Upload summary JSON (${{ matrix.name }})
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: stryker-summary-${{ matrix.name }}
           path: StrykerOutput/summary-${{ matrix.name }}.json
@@ -289,13 +292,13 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
 
       - name: Download all summary artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           pattern: stryker-summary-*
           path: ./all-summaries
@@ -303,17 +306,28 @@ jobs:
 
       - name: Evaluate Consolidated Mutation Quality Gate
         id: eval-gate
-        uses: actions/github-script@v7
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
         with:
           script: |
             const fs = require('fs');
             const path = require('path');
 
             const summariesDir = path.join(process.cwd(), 'all-summaries');
-            let summaryFiles = [];
-            if (fs.existsSync(summariesDir)) {
-              summaryFiles = fs.readdirSync(summariesDir).filter(f => f.startsWith('summary-') && f.endsWith('.json'));
+            function findSummaryFiles(dir) {
+              let results = [];
+              if (!fs.existsSync(dir)) return results;
+              for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+                const fullPath = path.join(dir, entry.name);
+                if (entry.isDirectory()) {
+                  results = results.concat(findSummaryFiles(fullPath));
+                } else if (entry.isFile() && entry.name.startsWith('summary-') && entry.name.endsWith('.json')) {
+                  results.push(fullPath);
+                }
+              }
+              return results;
             }
+
+            const summaryFiles = findSummaryFiles(summariesDir);
 
             console.log(`Found ${summaryFiles.length} summary files in ${summariesDir}`);
 
@@ -335,7 +349,7 @@ jobs:
 
             for (const file of summaryFiles) {
               try {
-                const data = JSON.parse(fs.readFileSync(path.join(summariesDir, file), 'utf8'));
+                const data = JSON.parse(fs.readFileSync(file, 'utf8'));
                 packages.push(data);
                 totalKilled += data.mutants_killed || data.killed || 0;
                 totalMutants += data.total_mutants || data.total || 0;
@@ -383,8 +397,8 @@ jobs:
             core.setOutput('status_label', statusLabel);
             core.setOutput('all_passed', String(allPassed));
 
-            // Update Mutation Score badge in readme.md
-            const readmePath = path.join(process.cwd(), 'readme.md');
+            // Update Mutation Score badge in README.md
+            const readmePath = path.join(process.cwd(), 'README.md');
             if (fs.existsSync(readmePath)) {
               let readmeContent = fs.readFileSync(readmePath, 'utf8');
               let badgeColor = 'brightgreen';
@@ -402,7 +416,7 @@ jobs:
                   return `[![Mutation Score](https://img.shields.io/badge/Mutation_Score-${scoreBadgeText}-${badgeColor}?style=for-the-badge&logo=stryker&logoColor=white)](${targetUrl})`;
                 });
                 fs.writeFileSync(readmePath, readmeContent, 'utf8');
-                console.log(`✅ Updated Mutation Score badge in readme.md to ${overallScore}% (${badgeColor})`);
+                console.log(`✅ Updated Mutation Score badge in README.md to ${overallScore}% (${badgeColor})`);
               }
             }
 
@@ -452,11 +466,11 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add readme.md
+          git add README.md
           if git diff --staged --quiet; then
             echo "No README changes to commit."
           else
-            git commit -m "chore(docs): update Stryker mutation score badge in readme.md [skip ci]
+            git commit -m "chore(docs): update Stryker mutation score badge in README.md [skip ci]
 
           Run: ${{ github.run_id }}
           Mutation Score: ${{ steps.eval-gate.outputs.overall_score }}%

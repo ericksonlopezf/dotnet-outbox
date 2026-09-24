@@ -1,11 +1,11 @@
 // Copyright © Erickson Lopez. MIT License.
 using System;
 using System.Threading;
+using System.Threading.Tasks;
 using AwesomeAssertions;
 using EricksonLopez.Outbox.Retry;
 using FsCheck;
 using FsCheck.Xunit;
-using System.Threading.Tasks;
 using Xunit;
 
 namespace EricksonLopez.Outbox.Tests.Resilience;

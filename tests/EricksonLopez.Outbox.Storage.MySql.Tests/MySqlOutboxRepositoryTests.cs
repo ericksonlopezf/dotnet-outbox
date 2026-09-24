@@ -53,10 +53,10 @@ public class MySqlOutboxRepositoryTests : IAsyncLifetime
     private OutboxMessage CreateMessage(int state = 0, DateTimeOffset? deliverAt = null, DateTimeOffset? createdAt = null, int retryCount = 0, string? correlationId = null, string? causationId = null)
     {
         var msg = _autoFixture.Create<OutboxMessage>();
-        return msg with 
-        { 
-            Status = (OutboxMessageStatus)state, 
-            DeliverAt = deliverAt, 
+        return msg with
+        {
+            Status = (OutboxMessageStatus)state,
+            DeliverAt = deliverAt,
             CreatedAt = createdAt ?? DateTimeOffset.UtcNow,
             RetryCount = retryCount,
             CorrelationId = correlationId ?? msg.CorrelationId,
@@ -141,14 +141,14 @@ public class MySqlOutboxRepositoryTests : IAsyncLifetime
         await using var connection = new MySqlConnection(_fixture.Container.GetConnectionString() + ";AllowLoadLocalInfile=true");
         await connection.OpenAsync();
         await using var tx = await connection.BeginTransactionAsync();
-        
+
         await sut.InsertAsync(msg, new DbTransactionContext(tx));
         await tx.CommitAsync();
 
         var row = await connection.QuerySingleAsync(
-            "SELECT correlation_id as CorrelationId, causation_id as CausationId, deliver_at as DeliverAt FROM outbox_messages WHERE id = @Id", 
+            "SELECT correlation_id as CorrelationId, causation_id as CausationId, deliver_at as DeliverAt FROM outbox_messages WHERE id = @Id",
             new { Id = msg.Id.ToString() });
-            
+
         ((string?)row.CorrelationId).Should().Be(msg.CorrelationId);
         ((string?)row.CausationId).Should().Be(msg.CausationId);
         if (msg.DeliverAt.HasValue)
@@ -166,14 +166,14 @@ public class MySqlOutboxRepositoryTests : IAsyncLifetime
         await using var connection = new MySqlConnection(_fixture.Container.GetConnectionString() + ";AllowLoadLocalInfile=true");
         await connection.OpenAsync();
         await using var tx = await connection.BeginTransactionAsync();
-        
+
         await sut.InsertAsync(msg, new DbTransactionContext(tx));
         await tx.CommitAsync();
 
         var row = await connection.QuerySingleAsync(
-            "SELECT correlation_id as CorrelationId, causation_id as CausationId, deliver_at as DeliverAt FROM outbox_messages WHERE id = @Id", 
+            "SELECT correlation_id as CorrelationId, causation_id as CausationId, deliver_at as DeliverAt FROM outbox_messages WHERE id = @Id",
             new { Id = msg.Id.ToString() });
-            
+
         ((string?)row.CorrelationId).Should().BeNull();
         ((string?)row.CausationId).Should().BeNull();
         ((DateTime?)row.DeliverAt).Should().BeNull();
@@ -190,7 +190,7 @@ public class MySqlOutboxRepositoryTests : IAsyncLifetime
         var ex = await act.Should().ThrowAsync<InvalidOperationException>();
         ex.WithMessage("Transaction connection is not a MySqlConnection.");
     }
-    
+
     [Fact]
     public async Task FetchPendingAsync_Should_Return_Only_Pending_Messages_Ready_To_Deliver()
     {
@@ -206,11 +206,11 @@ public class MySqlOutboxRepositoryTests : IAsyncLifetime
 
         await using var connection = new MySqlConnection(_fixture.Container.GetConnectionString() + ";AllowLoadLocalInfile=true");
         await connection.OpenAsync();
-        
-        foreach(var m in new[] { pendingReady, pendingNotReady, dispatched, retryingReady })
+
+        foreach (var m in new[] { pendingReady, pendingNotReady, dispatched, retryingReady })
         {
             await connection.ExecuteAsync(
-            "INSERT INTO outbox_messages (id, type, correlation_id, causation_id, payload, headers_json, created_at, updated_at, deliver_at, state, owner_id) VALUES (@Id, @MessageType, @CorrelationId, @CausationId, @PayloadBytes, @HeadersBytes, @CreatedAt, UTC_TIMESTAMP(6), @DeliverAt, @State, @OwnerId)", 
+            "INSERT INTO outbox_messages (id, type, correlation_id, causation_id, payload, headers_json, created_at, updated_at, deliver_at, state, owner_id) VALUES (@Id, @MessageType, @CorrelationId, @CausationId, @PayloadBytes, @HeadersBytes, @CreatedAt, UTC_TIMESTAMP(6), @DeliverAt, @State, @OwnerId)",
             new { Id = m.Id.ToString(), m.MessageType, m.CorrelationId, m.CausationId, PayloadBytes = m.Payload.ToArray(), HeadersBytes = m.Headers.ToArray(), CreatedAt = m.CreatedAt.UtcDateTime, DeliverAt = m.DeliverAt?.UtcDateTime, State = m.Status, OwnerId = InstanceId });
         }
 
@@ -222,7 +222,7 @@ public class MySqlOutboxRepositoryTests : IAsyncLifetime
         stateReady.state.Should().Be(1);
         stateReady.owner.Should().Be(InstanceId);
     }
-    
+
     [Fact]
     public async Task FetchPendingAsync_Should_Return_Empty_If_No_Messages()
     {
@@ -230,7 +230,7 @@ public class MySqlOutboxRepositoryTests : IAsyncLifetime
         var fetched = await sut.FetchPendingAsync(10);
         fetched.Should().BeEmpty();
     }
-    
+
     [Fact]
     public async Task Empty_Collections_Should_Return_Immediately()
     {
@@ -250,7 +250,7 @@ public class MySqlOutboxRepositoryTests : IAsyncLifetime
 
         await using var connection = new MySqlConnection(_fixture.Container.GetConnectionString() + ";AllowLoadLocalInfile=true");
         await connection.OpenAsync();
-        
+
         // Insert stale
         await connection.ExecuteAsync("INSERT INTO outbox_messages (id, type, payload, headers_json, created_at, updated_at, state, owner_id) VALUES (@Id, @MessageType, '{}', '{}', @CreatedAt, DATE_SUB(UTC_TIMESTAMP(6), INTERVAL 7200 SECOND), @State, @OwnerId)", new { Id = staleMsg.Id.ToString(), staleMsg.MessageType, staleMsg.CreatedAt, State = staleMsg.Status, OwnerId = InstanceId });
         // Insert fresh
@@ -323,7 +323,7 @@ public class MySqlOutboxRepositoryTests : IAsyncLifetime
         await using var connection = new MySqlConnection(_fixture.Container.GetConnectionString() + ";AllowLoadLocalInfile=true");
         await connection.OpenAsync();
         await using var tx = connection.BeginTransaction();
-        
+
         await sut.InsertBatchAsync(messages, new DbTransactionContext(tx));
         await tx.CommitAsync();
 
@@ -375,7 +375,7 @@ public class MySqlOutboxRepositoryTests : IAsyncLifetime
         var ex = await act.Should().ThrowAsync<MySqlException>();
         ex.Which.Message.Should().Contain("custom_nonexistent_schema");
     }
-    
+
     [Fact]
     public async Task InsertBatchAsync_Should_Check_Cancellation_Token()
     {
@@ -412,11 +412,11 @@ public class MySqlOutboxRepositoryTests : IAsyncLifetime
         await using var connection = new MySqlConnection(_fixture.Container.GetConnectionString() + ";AllowLoadLocalInfile=true");
         await connection.OpenAsync();
         await connection.ExecuteAsync(
-            "INSERT INTO outbox_messages (id, type, correlation_id, causation_id, payload, headers_json, created_at, updated_at, processed_at, deliver_at, state, owner_id) VALUES (@Id, @MessageType, NULL, NULL, @PayloadBytes, @HeadersBytes, @CreatedAt, UTC_TIMESTAMP(6), NULL, NULL, @State, NULL)", 
+            "INSERT INTO outbox_messages (id, type, correlation_id, causation_id, payload, headers_json, created_at, updated_at, processed_at, deliver_at, state, owner_id) VALUES (@Id, @MessageType, NULL, NULL, @PayloadBytes, @HeadersBytes, @CreatedAt, UTC_TIMESTAMP(6), NULL, NULL, @State, NULL)",
             new { Id = msg.Id.ToString(), msg.MessageType, PayloadBytes = msg.Payload.ToArray(), HeadersBytes = msg.Headers.ToArray(), CreatedAt = msg.CreatedAt.UtcDateTime, State = msg.Status });
 
         var fetched = await sut.FetchPendingAsync(10);
-        
+
         fetched.Should().HaveCount(1);
         var f = fetched[0];
         f.CorrelationId.Should().BeNull();
@@ -425,14 +425,15 @@ public class MySqlOutboxRepositoryTests : IAsyncLifetime
         f.ProcessedAt.Should().BeNull();
         f.Error.Should().BeNull();
     }
-    
+
     [Fact]
     public async Task FetchPendingAsync_Should_Map_NonNull_Fields_Correctly()
     {
         var sut = CreateSut();
         var pBytes = System.Text.Encoding.UTF8.GetBytes("{\"mysql_custom\":\"payload_value\"}");
         var hBytes = System.Text.Encoding.UTF8.GetBytes("{\"mysql_custom\":\"header_value\"}");
-        var msg = CreateMessage(state: 0, deliverAt: DateTimeOffset.UtcNow.AddMinutes(-10), correlationId: "c1", causationId: "c2") with {
+        var msg = CreateMessage(state: 0, deliverAt: DateTimeOffset.UtcNow.AddMinutes(-10), correlationId: "c1", causationId: "c2") with
+        {
             Payload = pBytes,
             Headers = hBytes
         };
@@ -440,11 +441,11 @@ public class MySqlOutboxRepositoryTests : IAsyncLifetime
         await using var connection = new MySqlConnection(_fixture.Container.GetConnectionString() + ";AllowLoadLocalInfile=true");
         await connection.OpenAsync();
         await connection.ExecuteAsync(
-            "INSERT INTO outbox_messages (id, type, correlation_id, causation_id, payload, headers_json, created_at, updated_at, processed_at, deliver_at, state, owner_id, error) VALUES (@Id, @MessageType, @CorrelationId, @CausationId, @PayloadBytes, @HeadersBytes, @CreatedAt, UTC_TIMESTAMP(6), @ProcessedAt, @DeliverAt, @State, @OwnerId, 'some err')", 
+            "INSERT INTO outbox_messages (id, type, correlation_id, causation_id, payload, headers_json, created_at, updated_at, processed_at, deliver_at, state, owner_id, error) VALUES (@Id, @MessageType, @CorrelationId, @CausationId, @PayloadBytes, @HeadersBytes, @CreatedAt, UTC_TIMESTAMP(6), @ProcessedAt, @DeliverAt, @State, @OwnerId, 'some err')",
             new { Id = msg.Id.ToString(), msg.MessageType, msg.CorrelationId, msg.CausationId, PayloadBytes = pBytes, HeadersBytes = hBytes, CreatedAt = msg.CreatedAt.UtcDateTime, ProcessedAt = DateTime.UtcNow, DeliverAt = msg.DeliverAt!.Value.UtcDateTime, State = msg.Status, OwnerId = "owner1" });
 
         var fetched = await sut.FetchPendingAsync(10);
-        
+
         fetched.Should().HaveCount(1);
         var f = fetched[0];
         f.CorrelationId.Should().Be("c1");
@@ -478,15 +479,15 @@ public class MySqlOutboxRepositoryTests : IAsyncLifetime
 
         await using var connection = new MySqlConnection(_fixture.Container.GetConnectionString() + ";AllowLoadLocalInfile=true");
         await connection.OpenAsync();
-        
+
         // Old dispatched
         await connection.ExecuteAsync(
-            "INSERT INTO outbox_messages (id, type, payload, headers_json, created_at, updated_at, processed_at, state) VALUES (@Id, 'type', '{}', '{}', @OldDate, @OldDate, @OldDate, 2)", 
+            "INSERT INTO outbox_messages (id, type, payload, headers_json, created_at, updated_at, processed_at, state) VALUES (@Id, 'type', '{}', '{}', @OldDate, @OldDate, @OldDate, 2)",
             new { Id = id1.ToString(), OldDate = oldDate });
 
         // Fresh dispatched
         await connection.ExecuteAsync(
-            "INSERT INTO outbox_messages (id, type, payload, headers_json, created_at, updated_at, processed_at, state) VALUES (@Id, 'type', '{}', '{}', @FreshDate, @FreshDate, @FreshDate, 2)", 
+            "INSERT INTO outbox_messages (id, type, payload, headers_json, created_at, updated_at, processed_at, state) VALUES (@Id, 'type', '{}', '{}', @FreshDate, @FreshDate, @FreshDate, 2)",
             new { Id = id2.ToString(), FreshDate = freshDate });
 
         var purged = await sut.PurgeDispatchedMessagesAsync(DateTimeOffset.UtcNow.AddDays(-1), 100);

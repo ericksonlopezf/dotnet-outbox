@@ -26,7 +26,7 @@ public sealed class NatsBrokerPublisher : IBrokerPublisher
     /// Initializes a new instance of the <see cref="NatsBrokerPublisher"/> class.
     /// </summary>
     /// <param name="connection">The NATS connection client.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="connection"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="connection"/> is <see langword="null"/></exception>
     public NatsBrokerPublisher(INatsConnection connection)
     {
         _connection = connection ?? throw new ArgumentNullException(nameof(connection));

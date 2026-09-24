@@ -18,7 +18,7 @@ public static class MongoDbOutboxExtensions
     /// <param name="services">The service collection.</param>
     /// <param name="databaseFactory">Factory to resolve <see cref="IMongoDatabase"/>.</param>
     /// <returns>The service collection for chaining.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="services"/> or <paramref name="databaseFactory"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="services"/> or <paramref name="databaseFactory"/> is <see langword="null"/></exception>
     public static IServiceCollection AddMongoDbOutbox(
         this IServiceCollection services,
         Func<IServiceProvider, IMongoDatabase> databaseFactory)

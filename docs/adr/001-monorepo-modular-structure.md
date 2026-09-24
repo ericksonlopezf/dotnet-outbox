@@ -1,6 +1,10 @@
-<!-- Copyright © Erickson Lopez. MIT License. -->
-
 # ADR-001: Monorepo Modular Structure
+
+## Status
+Accepted
+
+## Date
+2026-09-04
 
 ## 1. Title and Status
 **Self-Contained Modular Structure (Monorepo with 6 Projects)**
