@@ -53,8 +53,8 @@ public class DefaultOutboxTests
         await _outbox.StoreAsync(msg, _transaction);
 
         await _repo.Received(1).InsertAsync(
-            Arg.Is<OutboxMessage>(m => 
-                m.MessageType == "TestAlias" && 
+            Arg.Is<OutboxMessage>(m =>
+                m.MessageType == "TestAlias" &&
                 m.Payload.Length == 3 &&
                 m.Headers.Length == 2 &&
                 m.Status == 0),
@@ -168,7 +168,7 @@ public class DefaultOutboxTests
     {
         var builder = _outbox.Publish(new TestMessage { Data = "Hello" });
         await builder.WithTransaction(_transaction).StoreAsync();
-        
+
         await _repo.Received(1).InsertAsync(Arg.Any<OutboxMessage>(), _transaction, Arg.Any<CancellationToken>());
     }
 
@@ -176,9 +176,9 @@ public class DefaultOutboxTests
     public async Task StoreAsync_Should_Generate_Valid_Id()
     {
         var ev = new TestIntegrationEvent { EventId = Guid.NewGuid() };
-        
+
         await _outbox.StoreAsync(ev, _transaction);
-        
+
         await _repo.Received(1).InsertAsync(
             Arg.Is<OutboxMessage>(m => m.Id != Guid.Empty),
             _transaction,
@@ -189,13 +189,13 @@ public class DefaultOutboxTests
     public async Task StoreAsync_With_Metadata_Should_Map_Properly()
     {
         var metadata = new OutboxMessageMetadata("corr-1", "caus-1", "CustomType", new[] { new MetadataEntry("key", "val") });
-        
+
         await _outbox.StoreAsync(new TestMessage(), _transaction, metadata, DateTimeOffset.UtcNow);
-        
+
         await _repo.Received(1).InsertAsync(
-            Arg.Is<OutboxMessage>(m => 
-                m.MessageType == "CustomType" && 
-                m.CorrelationId == "corr-1" && 
+            Arg.Is<OutboxMessage>(m =>
+                m.MessageType == "CustomType" &&
+                m.CorrelationId == "corr-1" &&
                 m.CausationId == "caus-1" &&
                 m.DeliverAt.HasValue &&
                 System.Text.Encoding.UTF8.GetString(m.Headers.ToArray()).Contains("key") && System.Text.Encoding.UTF8.GetString(m.Headers.ToArray()).Contains("val")),
@@ -207,9 +207,9 @@ public class DefaultOutboxTests
     public async Task IntegrationEvent_With_Empty_Guid_Should_Generate_New_Id()
     {
         var ev = new TestIntegrationEvent { EventId = Guid.Empty };
-        
+
         await _outbox.StoreAsync(ev, _transaction);
-        
+
         await _repo.Received(1).InsertAsync(
             Arg.Is<OutboxMessage>(m => m.Id != Guid.Empty),
             _transaction,
@@ -272,8 +272,8 @@ public class DefaultOutboxTests
         await builder.StoreAsync();
 
         await _repo.Received(1).InsertAsync(
-            Arg.Is<OutboxMessage>(m => 
-                System.Text.Encoding.UTF8.GetString(m.Headers.ToArray()).Contains("OverriddenValue") && 
+            Arg.Is<OutboxMessage>(m =>
+                System.Text.Encoding.UTF8.GetString(m.Headers.ToArray()).Contains("OverriddenValue") &&
                 !System.Text.Encoding.UTF8.GetString(m.Headers.ToArray()).Contains("BaggageValue") &&
                 !System.Text.Encoding.UTF8.GetString(m.Headers.ToArray()).Contains("NullBaggageKey")),
             _transaction,
@@ -348,7 +348,7 @@ public class DefaultOutboxTests
     public async Task StoreAsync_With_Empty_Messages_Should_Return_Default()
     {
         await _outbox.StoreAsync(ReadOnlyMemory<TestMessage>.Empty, _transaction);
-        
+
         await _repo.DidNotReceiveWithAnyArgs().InsertBatchAsync(default!, default!, default!);
     }
 
@@ -382,7 +382,7 @@ public class DefaultOutboxTests
                 x[1] = "";
                 return true;
             });
-        
+
         // It should fallback to GetAlias when ThrowOnUnregisteredType is false
         await outbox.StoreAsync(new TestMessage(), _transaction);
 
@@ -397,17 +397,17 @@ public class DefaultOutboxTests
     {
         var builder = _outbox.Publish(new TestMessage());
         builder = builder.WithTransaction(_transaction);
-        
+
         // Add 10 headers to exceed the initial ArrayPool rent of 8 and trigger reallocation
         for (int i = 0; i < 10; i++)
         {
             builder = builder.WithHeader($"key{i}", $"val{i}");
         }
-        
+
         await builder.StoreAsync();
 
         await _repo.Received(1).InsertAsync(
-            Arg.Is<OutboxMessage>(m => 
+            Arg.Is<OutboxMessage>(m =>
                 System.Text.Encoding.UTF8.GetString(m.Headers.ToArray()).Contains("key9") &&
                 System.Text.Encoding.UTF8.GetString(m.Headers.ToArray()).Contains("val9")
             ),
@@ -416,9 +416,9 @@ public class DefaultOutboxTests
     }
 
     public class TestMessage { public string Data { get; set; } = string.Empty; }
-    public class TestIntegrationEvent 
-    { 
-        public Guid EventId { get; set; } 
+    public class TestIntegrationEvent
+    {
+        public Guid EventId { get; set; }
         public DateTimeOffset OccurredOn { get; set; }
     }
 
@@ -450,7 +450,7 @@ public class DefaultOutboxTests
         var repo = Substitute.For<IOutboxRepository>();
         var serializer = Substitute.For<IOutboxSerializer>();
         var typeResolver = Substitute.For<IOutboxMessageTypeResolver>();
-        
+
         typeResolver.TryGetAlias(typeof(TestMessage1), out _).Returns(false);
         typeResolver.GetAlias(typeof(TestMessage1)).Returns(x => throw new InvalidOperationException());
 
@@ -462,12 +462,12 @@ public class DefaultOutboxTests
         var outbox = new DefaultOutbox(repo, serializer, typeResolver, Options.Create(options), new EricksonLopez.Outbox.Diagnostics.OutboxMetrics());
         var msg = new TestMessage1();
         var tx = Substitute.For<EricksonLopez.Outbox.Persistence.IOutboxTransactionContext>();
-        
+
         await outbox.StoreAsync(msg, tx);
 
         await repo.Received().InsertAsync(
-            Arg.Is<OutboxMessage>(m => m.MessageType == "TestMessage1"), 
-            tx, 
+            Arg.Is<OutboxMessage>(m => m.MessageType == "TestMessage1"),
+            tx,
             Arg.Any<CancellationToken>());
     }
 
@@ -542,10 +542,10 @@ public class DefaultOutboxTests
         await _outbox.StoreAsync(new TestMessage(), _transaction, metadata, deliverAt);
 
         await _repo.Received(1).InsertAsync(
-            Arg.Is<OutboxMessage>(m => 
-                m.CorrelationId == "corr-123" && 
-                m.CausationId == "caus-123" && 
-                m.MessageType == "MyType" && 
+            Arg.Is<OutboxMessage>(m =>
+                m.CorrelationId == "corr-123" &&
+                m.CausationId == "caus-123" &&
+                m.MessageType == "MyType" &&
                 m.DeliverAt == deliverAt),
             _transaction,
             Arg.Any<CancellationToken>());
@@ -586,7 +586,7 @@ public class DefaultOutboxTests
         await builder.StoreAsync();
 
         await _repo.Received(1).InsertAsync(
-            Arg.Is<OutboxMessage>(m => 
+            Arg.Is<OutboxMessage>(m =>
                 System.Text.Encoding.UTF8.GetString(m.Headers.ToArray()).Contains("ExplicitTenant") &&
                 !System.Text.Encoding.UTF8.GetString(m.Headers.ToArray()).Contains("BaggageTenant")),
             _transaction,
@@ -597,7 +597,7 @@ public class DefaultOutboxTests
     public async Task StoreAsync_WithLargePayload_Should_Dispose_Buffer()
     {
         var localSerializer = Substitute.For<IOutboxSerializer>();
-        
+
         // Mock serializer to write > 64KB
         localSerializer.When(x => x.Serialize(Arg.Any<object>(), Arg.Any<System.Buffers.IBufferWriter<byte>>()))
             .Do(info =>
@@ -624,7 +624,7 @@ public class DefaultOutboxTests
     {
         var outbox = new DefaultOutbox(_repo, _serializer, _resolver, Options.Create(new OutboxRuntimeOptions()), new EricksonLopez.Outbox.Diagnostics.OutboxMetrics());
         var metadata = new OutboxMessageMetadata("corr-123", "caus-123", "MyType", new[] { new MetadataEntry(null!, "val") }); // null key throws ArgumentNullException in Utf8JsonWriter
-        
+
         var act = async () => await outbox.StoreAsync(new TestMessage(), _transaction, metadata, null);
         await act.Should().ThrowAsync<ArgumentNullException>();
 
@@ -888,7 +888,7 @@ public class DefaultOutboxTests
         };
 
         var outbox = new DefaultOutbox(repo, serializer, typeResolver, Options.Create(options), new EricksonLopez.Outbox.Diagnostics.OutboxMetrics());
-        
+
         // First call: expands capacity > 64KB -> disposes and sets t_payloadBufferWriter = null
         await outbox.StoreAsync(new TestMessage1(), _transaction);
 
@@ -939,7 +939,7 @@ public class DefaultOutboxTests
         };
 
         var outbox = new DefaultOutbox(repo, serializer, typeResolver, Options.Create(options), new EricksonLopez.Outbox.Diagnostics.OutboxMetrics());
-        
+
         // First call: capacity is exactly 65536 (<= 65536) -> retained
         await outbox.StoreAsync(new TestMessage1(), _transaction);
 

@@ -38,7 +38,7 @@ public class OutboxModelBuilderExtensionsTests
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
             .ReplaceService<IModelCacheKeyFactory, NoCacheModelCacheKeyFactory>()
             .Options;
-        
+
         using var context = new TestDbContext(options);
         var model = context.Model;
         var entityType = model.GetEntityTypes().Single(e => e.ClrType == typeof(OutboxMessageEntity));
@@ -88,6 +88,7 @@ public class OutboxModelBuilderExtensionsTests
         var stateProp = entityType.GetProperty("State");
         stateProp.GetColumnName().Should().Be("state");
         stateProp.IsNullable.Should().BeFalse();
+        stateProp.IsConcurrencyToken.Should().BeTrue();
 
         var retriesProp = entityType.GetProperty("RetryCount");
         retriesProp.GetColumnName().Should().Be("retry_count");
@@ -109,7 +110,7 @@ public class OutboxModelBuilderExtensionsTests
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
             .ReplaceService<IModelCacheKeyFactory, NoCacheModelCacheKeyFactory>()
             .Options;
-        
+
         using var context = new TestDbContext(options);
         var model = context.Model;
         var entityType = model.GetEntityTypes().Single(e => e.ClrType == typeof(IdempotencyRecordEntity));
@@ -128,7 +129,7 @@ public class OutboxModelBuilderExtensionsTests
         msgIdProp.GetColumnName().Should().Be("message_id");
         msgIdProp.GetMaxLength().Should().Be(255);
         msgIdProp.IsNullable.Should().BeFalse();
-        
+
         var consIdProp = entityType.GetProperty("ConsumerId");
         consIdProp.GetColumnName().Should().Be("consumer_id");
         consIdProp.GetMaxLength().Should().Be(255);
@@ -146,7 +147,7 @@ public class OutboxModelBuilderExtensionsTests
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
             .ReplaceService<IModelCacheKeyFactory, NoCacheModelCacheKeyFactory>()
             .Options;
-        
+
         using var context = new TestDbContext(options);
         var model = context.Model;
         var entityType = model.GetEntityTypes().Single(e => e.ClrType == typeof(DeadLetterMessageEntity));

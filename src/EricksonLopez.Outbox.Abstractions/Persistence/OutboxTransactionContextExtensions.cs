@@ -14,7 +14,7 @@ public static class OutboxTransactionContextExtensions
     /// </summary>
     /// <param name="transaction">The ADO.NET database transaction.</param>
     /// <returns>An <see cref="IOutboxTransactionContext"/> wrapping the transaction.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="transaction"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="transaction"/> is <see langword="null"/></exception>
     public static IOutboxTransactionContext ToOutboxContext(this DbTransaction transaction)
     {
         ArgumentNullException.ThrowIfNull(transaction);

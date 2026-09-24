@@ -29,7 +29,7 @@ public partial class OutboxChannelTests
         {
             var publisher = Substitute.For<IBrokerPublisher>();
             var options = Options.Create(new OutboxDispatcherOptions { ChannelCapacity = 10, HasOnlySingletonMiddlewares = true });
-            
+
             var mw = Substitute.For<IOutboxMiddleware>();
             var services = new ServiceCollection().AddSingleton(mw).BuildServiceProvider();
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
@@ -38,7 +38,7 @@ public partial class OutboxChannelTests
             scopeFactory.CreateScope().Returns(scope);
 
             var channel = new OutboxChannel(NullLogger<OutboxChannel>.Instance, publisher, options, Options.Create(new OutboxRuntimeOptions()), new OutboxMetrics(), scopeFactory, FakeErrorSanitizer(), TimeProvider.System);
-            
+
             scopeFactory.Received(1).CreateScope();
             channel.Should().NotBeNull();
         }
@@ -63,20 +63,20 @@ public partial class OutboxChannelTests
 
             var options = Options.Create(new OutboxDispatcherOptions { HasOnlySingletonMiddlewares = true, ChannelCapacity = 10 });
             var baseOptions = Options.Create(new OutboxRuntimeOptions());
-            
+
             var channel = new OutboxChannel(
-                NullLogger<OutboxChannel>.Instance, 
-                publisher, 
-                options, 
+                NullLogger<OutboxChannel>.Instance,
+                publisher,
+                options,
                 baseOptions,
-                new OutboxMetrics(), 
+                new OutboxMetrics(),
                 scopeFactory,
                 Substitute.For<IErrorSanitizer>(), TimeProvider.System);
 
             serviceProvider.ClearReceivedCalls();
 
             var msg = new OutboxMessage(Guid.NewGuid(), "alias", Array.Empty<byte>(), null, null, Array.Empty<byte>(), DateTimeOffset.UtcNow, null, null, 0, 0, null);
-            
+
             await channel.WriteAsync(msg, default);
             channel.Complete();
 
@@ -91,23 +91,23 @@ public partial class OutboxChannelTests
         {
             var msg = new OutboxMessage(Guid.NewGuid(), "alias", Array.Empty<byte>(), null, null, Array.Empty<byte>(), DateTimeOffset.UtcNow, null, null, 0, 0, null);
             var headers = new Dictionary<string, string> { { "key1", "value1" } };
-            
+
             var meta = OutboxChannel.BuildMetadata(msg, headers);
-            
+
             meta.Entries.Should().NotBeNull();
             meta.Entries.Length.Should().Be(1);
             meta.Entries.Span[0].Key.Should().Be("key1");
             meta.Entries.Span[0].Value.Should().Be("value1");
         }
-        
+
         [Fact]
         public void BuildMetadata_EmptyHeaders_LeavesEntriesNull()
         {
             var msg = new OutboxMessage(Guid.NewGuid(), "alias", Array.Empty<byte>(), null, null, Array.Empty<byte>(), DateTimeOffset.UtcNow, null, null, 0, 0, null);
             var headers = new Dictionary<string, string>();
-            
+
             var meta = OutboxChannel.BuildMetadata(msg, headers);
-            
+
             meta.Entries.IsEmpty.Should().BeTrue();
         }
     }

@@ -38,11 +38,11 @@ public class G_PipelineBenchmarks
         OutboxPipelineDelegate terminal = (msg, meta, ct) => new ValueTask<DispatchResult>(DispatchResult.Ok());
         var middlewares = Array.Empty<IOutboxMiddleware>();
         _pipeline0 = new OutboxPipeline(middlewares, terminal);
-        
+
         _pipeline1 = new OutboxPipeline([new DummyMiddleware()], terminal);
-        
+
         _pipeline3 = new OutboxPipeline(
-            [new DummyMiddleware(), new DummyMiddleware(), new DummyMiddleware()], 
+            [new DummyMiddleware(), new DummyMiddleware(), new DummyMiddleware()],
             terminal);
     }
 

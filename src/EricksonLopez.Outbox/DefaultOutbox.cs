@@ -49,8 +49,8 @@ public sealed class DefaultOutbox : IOutbox
     /// <param name="typeResolver">The resolver used to map message types to their string aliases.</param>
     /// <param name="options">The configuration options for the outbox runtime.</param>
     /// <param name="metrics">The telemetry metrics tracker.</param>
-    /// <param name="timeProvider">The optional time provider used for timestamping and deadline calculations.</param>
-    /// <exception cref="ArgumentNullException">Any of the provided arguments is <see langword="null"/>.</exception>
+    /// <param name="timeProvider">The optional time provider for timestamping and deadline calculations.</param>
+    /// <exception cref="ArgumentNullException">Any of the provided arguments is <see langword="null"/></exception>
     public DefaultOutbox(
         IOutboxRepository repository,
         IOutboxSerializer serializer,

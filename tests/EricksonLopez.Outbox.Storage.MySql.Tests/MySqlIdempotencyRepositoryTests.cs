@@ -80,7 +80,8 @@ public class MySqlIdempotencyRepositoryTests : IAsyncLifetime
         MySqlConnection? createdConn = null;
         var mockedOptions = Substitute.For<IOptionsMonitor<OutboxRuntimeOptions>>();
         mockedOptions.CurrentValue.Returns(_options);
-        var sut = new MySqlIdempotencyRepository(() => {
+        var sut = new MySqlIdempotencyRepository(() =>
+        {
             createdConn = new MySqlConnection(_fixture.Container.GetConnectionString() + ";AllowLoadLocalInfile=true");
             return createdConn;
         }, mockedOptions);
@@ -117,7 +118,7 @@ public class MySqlIdempotencyRepositoryTests : IAsyncLifetime
         var result = await sut.TryInsertAsync(record);
 
         result.Should().BeFalse();
-        
+
         await using var connection = new MySqlConnection(_fixture.Container.GetConnectionString() + ";AllowLoadLocalInfile=true");
         var count = await connection.ExecuteScalarAsync<int>("SELECT COUNT(1) FROM outbox_messages_idempotency WHERE message_id = @MessageId AND consumer_id = @ConsumerId", new { record.MessageId, record.ConsumerId });
         count.Should().Be(1);
@@ -158,7 +159,7 @@ public class MySqlIdempotencyRepositoryTests : IAsyncLifetime
         await using var connection = new MySqlConnection(_fixture.Container.GetConnectionString() + ";AllowLoadLocalInfile=true");
         var staleCount = await connection.ExecuteScalarAsync<int>("SELECT COUNT(1) FROM outbox_messages_idempotency WHERE message_id = @MessageId", new { staleRecord.MessageId });
         var freshCount = await connection.ExecuteScalarAsync<int>("SELECT COUNT(1) FROM outbox_messages_idempotency WHERE message_id = @MessageId", new { freshRecord.MessageId });
-        
+
         staleCount.Should().Be(0);
         freshCount.Should().Be(1);
     }

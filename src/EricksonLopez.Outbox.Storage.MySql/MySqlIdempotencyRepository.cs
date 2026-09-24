@@ -23,7 +23,7 @@ public sealed class MySqlIdempotencyRepository : IIdempotencyRepository
     /// </summary>
     /// <param name="connectionFactory">The factory that creates MySQL connections.</param>
     /// <param name="options">The outbox runtime options.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="connectionFactory"/> or <paramref name="options"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="connectionFactory"/> or <paramref name="options"/> is <see langword="null"/></exception>
 
     public MySqlIdempotencyRepository(Func<IDbConnection> connectionFactory, IOptionsMonitor<OutboxRuntimeOptions> options)
     {
@@ -32,8 +32,8 @@ public sealed class MySqlIdempotencyRepository : IIdempotencyRepository
 
         // MySQL database name (schema) is usually in the connection string, but we allow prefixing if provided
         var table = options.CurrentValue.TableName + "_idempotency";
-        var fullTableName = string.IsNullOrWhiteSpace(options.CurrentValue.SchemaName) 
-            ? $"`{table}`" 
+        var fullTableName = string.IsNullOrWhiteSpace(options.CurrentValue.SchemaName)
+            ? $"`{table}`"
             : $"`{options.CurrentValue.SchemaName}`.`{table}`";
 
         _insertSql = $@"

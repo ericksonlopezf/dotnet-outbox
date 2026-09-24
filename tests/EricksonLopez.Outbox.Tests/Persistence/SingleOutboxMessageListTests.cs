@@ -39,7 +39,7 @@ public class SingleOutboxMessageListTests
     {
         var msg = CreateDummyMessage();
         var repo = Substitute.For<IOutboxRepository>();
-        
+
         IReadOnlyList<OutboxMessage> capturedList = null!;
 
         repo.MarkAsFailedAsync(Arg.Do<IReadOnlyList<OutboxMessage>>(list => capturedList = list), Arg.Any<string>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
@@ -102,7 +102,7 @@ public class SingleOutboxMessageListTests
     {
         var msg = CreateDummyMessage();
         var repo = Substitute.For<IOutboxRepository>();
-        
+
         IReadOnlyList<OutboxMessage> capturedList = null!;
 
         repo.MarkAsFailedAsync(Arg.Do<IReadOnlyList<OutboxMessage>>(list => capturedList = list), Arg.Any<string>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())

@@ -191,10 +191,10 @@ public class OutboxPublishBehaviorTests
 
         var settingsField = typeof(EndpointConfiguration).BaseType!.GetField("<Settings>k__BackingField", BindingFlags.NonPublic | BindingFlags.Instance)!;
         var settingsHolder = settingsField.GetValue(config)!;
-        
+
         var overridesProp = settingsHolder.GetType().GetField("Overrides", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public)!;
         var defaultsProp = settingsHolder.GetType().GetField("Defaults", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public)!;
-        
+
         var overrides = (System.Collections.IDictionary)overridesProp.GetValue(settingsHolder)!;
         var defaults = (System.Collections.IDictionary)defaultsProp.GetValue(settingsHolder)!;
 
@@ -248,7 +248,7 @@ public class OutboxPublishBehaviorTests
 
         var additionsMember = (System.Collections.IEnumerable?)(mods.GetType().GetProperty("Additions", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public)?.GetValue(mods)
             ?? mods.GetType().GetField("additions", BindingFlags.NonPublic | BindingFlags.Instance)?.GetValue(mods));
-        
+
         additionsMember.Should().NotBeNull();
 
         bool registered = false;
@@ -278,7 +278,7 @@ public class OutboxPublishBehaviorTests
     {
         var feature = new NServiceBusOutboxFeature();
         var setupMethod = typeof(NServiceBusOutboxFeature).GetMethod("Setup", BindingFlags.NonPublic | BindingFlags.Instance);
-        
+
         Action act = () =>
         {
             try

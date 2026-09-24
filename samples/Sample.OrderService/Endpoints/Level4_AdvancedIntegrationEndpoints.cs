@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Tasks;
 using EricksonLopez.Outbox;
 using EricksonLopez.Outbox.EntityFrameworkCore;
 using Microsoft.AspNetCore.Builder;
@@ -11,7 +12,6 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore.Storage;
 using Sample.OrderService.Domain.Aggregates.OrderAggregate;
 using Sample.OrderService.Infrastructure;
-using System.Threading.Tasks;
 
 namespace Sample.OrderService.Endpoints;
 

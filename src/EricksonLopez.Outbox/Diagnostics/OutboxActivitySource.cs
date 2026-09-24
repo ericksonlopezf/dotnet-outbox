@@ -19,14 +19,14 @@ namespace EricksonLopez.Outbox.Diagnostics;
 /// </remarks>
 public static class OutboxActivitySource
 {
-    /// <summary>The name of the ActivitySource used for distributed tracing.</summary>
+    /// <summary>Gets the name of the ActivitySource for distributed tracing.</summary>
     public const string SourceName = "EricksonLopez.Outbox";
 
-    /// <summary>The <see cref="ActivitySource"/> instance used by the Outbox.</summary>
-    public static readonly ActivitySource Source = new(SourceName, "2.0.0");
+    /// <summary>Gets the <see cref="ActivitySource"/> instance used by the Outbox.</summary>
+    public static readonly ActivitySource Source = new(SourceName, "3.0.0");
 
     /// <summary>
-    /// The <c>messaging.system</c> value used when the actual broker name is not known.
+    /// Gets the fallback <c>messaging.system</c> tag value used when the actual broker name is not known.
     /// Store activities always use this value. Dispatch activities should use the actual
     /// broker name (<c>"rabbitmq"</c>, <c>"kafka"</c>, etc.) via the <c>brokerSystemName</c>
     /// parameter of <see cref="StartDispatchActivity"/>.

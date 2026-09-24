@@ -6,9 +6,13 @@ This document outlines the delivered features, architectural foundations, releas
 
 ---
 
-## 🟢 Delivered Ecosystem Features (v1.x)
+## 🟢 Delivered Ecosystem Features (v1.x & v2.0)
 
-### 1. Ecosystem Adapters & Framework Integrations
+### 1. Core Architectural Primitives & Extensions
+- **Strongly-Typed Transaction Context (`IOutboxTransactionContext<TConnection, TTransaction>`)** — ✅ **Shipped (v2.0)**. Generic transaction context alongside `IOutboxTransactionContext` and `IRelationalOutboxTransactionContext` supporting relational and NoSQL transaction contexts (MongoDB, EF Core, etc.).
+- **Mockable Publishing Extensions (`OutboxPublishExtensions`)** — ✅ **Shipped (v2.0)**. `outbox.EnqueueAsync<T>()` static extension methods delegating directly to `IOutbox.StoreAsync()`, ensuring 100% mockable producer calls in consumer code.
+
+### 2. Ecosystem Adapters & Framework Integrations
 Enterprise adapter packages providing seamless, AOT-compatible integration with leading .NET messaging frameworks:
 - **`EricksonLopez.Outbox.Mediator`** — ✅ **Shipped**. NativeAOT source-generated mediator adapter (`EricksonLopez.Mediator`).
 - **`EricksonLopez.Outbox.MassTransit`** — ✅ **Shipped**. Includes `MassTransitBrokerPublisher` adapter and `InboxIdempotencyFilter`.
@@ -18,40 +22,28 @@ Enterprise adapter packages providing seamless, AOT-compatible integration with 
 - **`EricksonLopez.Outbox.Brighter`** — ✅ **Shipped**. Producer adapter `OutboxMessageProducer` and `AddOutboxBrighterProducer()` for Paramore.Brighter command processors.
 - **`EricksonLopez.Outbox.Dapr`** — ✅ **Shipped**. Cloud-Native broker adapter `DaprBrokerPublisher` and `UseDapr()` / `AddDaprBrokerPublisher()` for Dapr Pub/Sub building blocks.
 
-### 2. Standalone Consumer Deduplication & Events Packages
+### 3. Standalone Consumer Deduplication & Events Packages
 - **`EricksonLopez.Inbox`** & **`EricksonLopez.Inbox.Abstractions`** — ✅ **Shipped**. Standalone consumer idempotency and message deduplication engine (`IInboxStore`, `IInboxConsumerFilter`, `AddInboxDeduplication()`) backed by `IIdempotencyRepository` (ADR-022).
 - **`EricksonLopez.Outbox.Events`** & **`EricksonLopez.Outbox.Inbox.Events`** — ✅ **Shipped**. First-class domain event and integration event transactional dispatch and idempotent consumption pipeline (`OutboxEventPublisher`, `IdempotentEventHandler<TEvent>`).
 - **`EricksonLopez.Outbox.Inbox.AspNetCore`** — ✅ **Shipped**. ASP.NET Core endpoint filter automating `Idempotency-Key` HTTP header handling and deduplication.
 
-### 3. High-Performance Binary Serializers
+### 4. High-Performance Binary Serializers
 Pluggable binary serializers implementing `IOutboxSerializer`:
 - **`EricksonLopez.Outbox.Serialization.Protobuf`** — ✅ **Shipped**. High-throughput binary serializer using `protobuf-net` with zero-allocation buffer writer support.
 - **`EricksonLopez.Outbox.Serialization.MessagePack`** — ✅ **Shipped**. Ultra-fast binary serializer using `MessagePack-CSharp` with optional LZ4 compression.
 
-### 4. Background Purging & Retention Engine
+### 5. Background Purging & Retention Engine
 - **`OutboxCleanupService`** — ✅ **Shipped**. Native background service for periodic purging of soft-deleted (`DeleteOnDispatch = false`) dispatched records with configurable `RetentionPeriod`, `CleanupInterval`, and `BatchSize`.
 - **`PurgeDispatchedMessagesAsync`** — ✅ **Shipped**. Default interface method on `IOutboxRepository` implemented across all storage engines (PostgreSQL, SQL Server, MySQL, MariaDB, Oracle, SQLite, MongoDB, EF Core, InMemory).
 
-### 5. Cloud-Native & Streaming Storage/Brokers
+### 6. Cloud-Native & Streaming Storage/Brokers
 - **`EricksonLopez.Outbox.Storage.MongoDb`** — ✅ **Shipped**. Transactional document storage for MongoDB with `IClientSessionHandle` support, atomic state transitions (`FindOneAndUpdate`), and NativeAOT-safe BSON mapping (ADR-031).
 - **`EricksonLopez.Outbox.Brokers.AzureEventHubs`** — ✅ **Shipped**. High-throughput event streaming publisher for Azure Event Hubs using `EventHubProducerClient` with zero-reflection payload transmission (ADR-034).
 - **`EricksonLopez.Outbox.Aspire`** — ✅ **Shipped**. .NET Aspire host component integration automatically registering OpenTelemetry meters, tracers, and health checks (ADR-033).
 
-### 6. Compile-Time Tooling & Roslyn Analyzers
+### 7. Compile-Time Tooling & Roslyn Analyzers
 - **`EricksonLopez.Outbox.Analyzers`** — ✅ **Shipped**. 12 Roslyn Analyzers (OUTBOX001-OUTBOX013) with automated Code Fix Providers in the IDE to enforce correct outbox usage at compile time.
 - **`EricksonLopez.Outbox.SourceGenerators`** — ✅ **Shipped**. Incremental source generator for compile-time type resolution and NativeAOT JSON serialization context templates.
-
----
-
-## 🛑 Forward-Compatible Primitives & v2.0 Roadmap
-
-The following foundational primitives have been introduced in v1.x in a non-breaking manner, paving the way for complete architectural evolution in v2.0:
-
-### 1. Strongly-Typed Transaction Context (`IOutboxTransactionContext<TConnection, TTransaction>`)
-- Introduced `IOutboxTransactionContext<TConnection, TTransaction>` non-breaking generic interface alongside `IOutboxTransactionContext` and `IRelationalOutboxTransactionContext` to support NoSQL transaction contexts (Marten, Cosmos DB, MongoDB).
-
-### 2. Mockable Publishing Extensions (`OutboxPublishExtensions`)
-- Added `outbox.EnqueueAsync<T>()` static extension methods delegating cleanly to `IOutbox.StoreAsync()`, ensuring 100% mockable producer calls in consumer code.
 
 ---
 

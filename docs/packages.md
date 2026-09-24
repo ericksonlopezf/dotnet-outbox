@@ -65,16 +65,16 @@ is always resolved from `Directory.Packages.props`.
 
 | Category | Package | Version |
 |---|---|---|
-| Framework | `Microsoft.Extensions.Hosting.Abstractions` | `10.0.10` |
-| Framework | `Microsoft.Extensions.DependencyInjection.Abstractions` | `10.0.10` |
-| Framework | `Microsoft.Extensions.Logging` | `10.0.10` |
+| Framework | `Microsoft.Extensions.Hosting.Abstractions` | `10.0.11` |
+| Framework | `Microsoft.Extensions.DependencyInjection.Abstractions` | `10.0.11` |
+| Framework | `Microsoft.Extensions.Logging` | `10.0.11` |
 | ORM | `Microsoft.EntityFrameworkCore` | `9.0.18` |
 | ORM | `Microsoft.EntityFrameworkCore.Relational` | `9.0.18` |
 | Database | `Npgsql` | `10.0.3` |
 | Database | `Microsoft.Data.SqlClient` | `7.0.2` |
-| Database | `Microsoft.Data.Sqlite` | `10.0.10` |
+| Database | `Microsoft.Data.Sqlite` | `10.0.11` |
 | Database | `MySqlConnector` | `2.6.1` |
-| Database | `Oracle.ManagedDataAccess.Core` | `23.4.0` |
+| Database | `Oracle.ManagedDataAccess.Core` | `23.26.300` |
 | Database | `MongoDB.Driver` | `3.2.1` |
 | Broker | `RabbitMQ.Client` | `7.1.1` |
 | Broker | `Confluent.Kafka` | `2.15.0` |
@@ -90,7 +90,7 @@ is always resolved from `Directory.Packages.props`.
 | Serializer | `protobuf-net` | `3.2.45` |
 | Serializer | `MessagePack` | `3.1.3` |
 | Roslyn | `Microsoft.CodeAnalysis.CSharp` | `5.6.0` |
-| Build | `Microsoft.SourceLink.GitHub` | `10.0.301` |
+| Build | `Microsoft.SourceLink.GitHub` | `10.0.400` |
 | Testing | `AwesomeAssertions` | `9.5.0` |
 | Testing | `xunit` | `2.9.3` |
 | Testing | `Testcontainers` | `4.13.0` |
@@ -102,7 +102,7 @@ is always resolved from `Directory.Packages.props`.
 
 The project adheres to **Semantic Versioning 2.0** (SemVer).
 
-- The base version is managed in `Directory.Build.props` via `<VersionPrefix>` (current: `2.0.0`).
+- The base version is managed in `Directory.Build.props` via `<VersionPrefix>` (current: `3.0.0`).
 - A git tag `vX.Y.Z` triggers the publish workflow.
 - Pre-releases are detected automatically: if the resolved version string contains
   a hyphen (e.g., `1.0.0-preview.1`), the GitHub Release is marked as pre-release

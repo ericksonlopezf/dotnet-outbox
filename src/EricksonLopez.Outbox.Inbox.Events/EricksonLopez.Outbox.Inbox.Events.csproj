@@ -2,7 +2,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <Description>Idempotent event consumer bridge for EricksonLopez.Events backed by EricksonLopez.Inbox for guaranteed exactly-once event handler execution.</Description>
-    <PackageTags>$(CommonPackageTags);inbox;idempotency;events;domain-events;integration-events;native-aot</PackageTags>
+    <PackageTags>$(CommonPackageTags);inbox;idempotency;deduplication;domain-events;integration-events;event-driven;native-aot</PackageTags>
     <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
     <Nullable>enable</Nullable>
     <IsAotCompatible>true</IsAotCompatible>

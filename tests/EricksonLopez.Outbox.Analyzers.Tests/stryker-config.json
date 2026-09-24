@@ -1,6 +1,6 @@
 {
   "stryker-config": {
-    "concurrency": 6,
+    "concurrency": 2,
     "additional-timeout": 30000,
     "coverage-analysis": "off",
     "thresholds": {
@@ -28,8 +28,6 @@
       "*Log*",
       "*Trace*",
       "*Debug*",
-      "*Exception*",
-      "ThrowIf*",
       "ConfigureAwait",
       "Dispose",
       "ToString",

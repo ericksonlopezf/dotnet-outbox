@@ -37,7 +37,7 @@ public class OracleOutboxSetupTests
         services.AddLogging();
         services.AddOptions();
         services.AddOutbox(options => options.UseOracle(sp => new OracleConnection()));
-        
+
         var provider = services.BuildServiceProvider();
         var connFactory = provider.GetRequiredService<Func<System.Data.IDbConnection>>();
         connFactory.Should().NotBeNull();

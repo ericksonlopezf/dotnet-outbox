@@ -1,6 +1,10 @@
-<!-- Copyright © Erickson Lopez. MIT License. -->
-
 # ADR-009: Package Consolidation Strategy
+
+## Status
+Accepted
+
+## Date
+2026-09-04
 
 ## 1. Title and Status
 

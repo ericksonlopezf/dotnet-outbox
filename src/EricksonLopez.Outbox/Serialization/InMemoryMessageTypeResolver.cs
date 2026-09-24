@@ -17,7 +17,7 @@ public sealed class InMemoryMessageTypeResolver : IOutboxMessageTypeResolver
     /// Initializes a new instance of the <see cref="InMemoryMessageTypeResolver"/> class with the specified mappings.
     /// </summary>
     /// <param name="mappings">The collection of alias-to-type pairs to register.</param>
-    /// <exception cref="ArgumentException">An alias in the mappings is null or whitespace.</exception>
+    /// <exception cref="ArgumentException">An alias in the mappings is null or whitespace</exception>
     public InMemoryMessageTypeResolver(IEnumerable<(string alias, Type type)> mappings)
     {
         var aliasToType = new Dictionary<string, Type>(StringComparer.OrdinalIgnoreCase);

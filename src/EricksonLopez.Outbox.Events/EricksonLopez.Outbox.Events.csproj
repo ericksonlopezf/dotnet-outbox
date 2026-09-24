@@ -2,7 +2,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <Description>EricksonLopez.Events integration for EricksonLopez.Outbox. Provides an IEventPublisher implementation backed by transactional outbox for reliable at-least-once domain and integration event delivery.</Description>
-    <PackageTags>$(CommonPackageTags);domain-events;integration-events;event-driven;events;messaging;native-aot</PackageTags>
+    <PackageTags>$(CommonPackageTags);outbox;transactional-outbox;domain-events;integration-events;event-driven;native-aot</PackageTags>
     <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
     <Nullable>enable</Nullable>
     <IsAotCompatible>true</IsAotCompatible>

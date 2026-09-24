@@ -74,9 +74,9 @@ using EricksonLopez.Outbox;
 public interface IBrokerPublisher
 {
     ValueTask<DispatchResult> PublishRawAsync(
-        OutboxMessage message,    // Contains pre-serialized Payload (byte[]) and MessageType alias
-        MessageMetadata metadata, // CorrelationId, CausationId, MessageType alias
-        DispatchContext context); // CancellationToken + Attempt number
+        OutboxMessage message,          // Contains pre-serialized Payload (byte[]) and MessageType alias
+        OutboxMessageMetadata metadata, // CorrelationId, CausationId, MessageType alias
+        DispatchContext context);       // CancellationToken + Attempt number
 }
 ```
 
@@ -95,7 +95,7 @@ public sealed class RabbitMqBrokerPublisher : IBrokerPublisher
 
     public async ValueTask<DispatchResult> PublishRawAsync(
         OutboxMessage message,
-        MessageMetadata metadata,
+        OutboxMessageMetadata metadata,
         DispatchContext context)
     {
         if (!_circuitBreaker.AllowRequest())

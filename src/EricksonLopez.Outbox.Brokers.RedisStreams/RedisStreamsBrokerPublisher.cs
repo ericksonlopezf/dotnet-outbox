@@ -35,7 +35,7 @@ public sealed class RedisStreamsBrokerPublisher : IBrokerPublisher
     /// </summary>
     /// <param name="redis">The Redis connection multiplexer.</param>
     /// <param name="maxStreamLength">The maximum length of the Redis stream. Defaults to 10,000.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="redis"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="redis"/> is <see langword="null"/></exception>
     public RedisStreamsBrokerPublisher(IConnectionMultiplexer redis, int maxStreamLength = 10_000)
     {
         _redis = redis ?? throw new ArgumentNullException(nameof(redis));

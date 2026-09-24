@@ -22,6 +22,7 @@ graph LR
 using EricksonLopez.Outbox;
 using EricksonLopez.Outbox.Contracts;
 using EricksonLopez.Outbox.Persistence;
+using Microsoft.EntityFrameworkCore.Storage;
 
 [OutboxMessage("order-created-v1")]
 public record OrderCreatedEvent(Guid OrderId, string CustomerId, decimal Total);

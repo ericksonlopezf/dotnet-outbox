@@ -102,7 +102,7 @@ public class PostgreSqlIdempotencyRepositoryTests : IAsyncLifetime
         var countAfterRollback = await newConn.ExecuteScalarAsync<int>("SELECT COUNT(1) FROM outbox.messages_idempotency WHERE message_id = @MessageId", new { record.MessageId });
         countAfterRollback.Should().Be(0);
     }
-    
+
     [Fact]
     public async Task TryInsertAsync_WithCanceledToken_Should_Throw_And_Dispose()
     {
@@ -110,7 +110,7 @@ public class PostgreSqlIdempotencyRepositoryTests : IAsyncLifetime
         var record = _autoFixture.Create<IdempotencyRecord>() with { ProcessedAt = DateTimeOffset.UtcNow };
         using var cts = new CancellationTokenSource();
         cts.Cancel();
-        
+
         Func<Task> act = async () => await sut.TryInsertAsync(record, cancellationToken: cts.Token);
         await act.Should().ThrowAsync<OperationCanceledException>();
     }
@@ -120,11 +120,11 @@ public class PostgreSqlIdempotencyRepositoryTests : IAsyncLifetime
     {
         var sut = CreateSut();
         var now = DateTimeOffset.UtcNow;
-        
+
         var r1 = new IdempotencyRecord(Guid.NewGuid().ToString(), "c1", now.AddDays(-2));
         var r2 = new IdempotencyRecord(Guid.NewGuid().ToString(), "c2", now.AddDays(-1));
         var r3 = new IdempotencyRecord(Guid.NewGuid().ToString(), "c3", now);
-        
+
         await sut.TryInsertAsync(r1);
         await sut.TryInsertAsync(r2);
         await sut.TryInsertAsync(r3);
@@ -163,7 +163,7 @@ public class PostgreSqlIdempotencyRepositoryTests : IAsyncLifetime
 
         var repo = new PostgreSqlIdempotencyRepository(_dataSource, optionsMonitor);
         var record = new IdempotencyRecord(Guid.NewGuid().ToString(), "consumer_public_" + Guid.NewGuid().ToString("N"), DateTimeOffset.UtcNow);
-        
+
         var result = await repo.TryInsertAsync(record);
         result.Should().BeTrue();
     }
@@ -173,7 +173,7 @@ public class PostgreSqlIdempotencyRepositoryTests : IAsyncLifetime
     {
         var sut = CreateSut();
         var record = new IdempotencyRecord(Guid.NewGuid().ToString(), "c1", DateTimeOffset.UtcNow);
-        
+
         var mockTx = Substitute.For<IOutboxTransactionContext>();
         mockTx.Connection.Returns(Substitute.For<System.Data.Common.DbConnection>());
 

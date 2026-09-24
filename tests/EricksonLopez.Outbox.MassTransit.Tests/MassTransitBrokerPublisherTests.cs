@@ -55,7 +55,7 @@ public class MassTransitBrokerPublisherTests
             return Task.CompletedTask;
         }
 
-        public Task Publish<T>(T message, IPipe<PublishContext> publishPipe, CancellationToken cancellationToken = default) where T : class 
+        public Task Publish<T>(T message, IPipe<PublishContext> publishPipe, CancellationToken cancellationToken = default) where T : class
         {
             PublishedMessage = message;
             var ctx = Substitute.For<PublishContext>();
@@ -132,7 +132,7 @@ public class MassTransitBrokerPublisherTests
 
         var corrId = Guid.NewGuid();
         var msg = new MessageEnvelope<string>("data", new OutboxMessageMetadata(corrId.ToString(), null, null, new[] { new MetadataEntry("k", "v") }));
-        
+
         var result = await publisher.PublishAsync(msg, new DispatchContext(CancellationToken.None, 1));
 
         result.Success.Should().BeTrue();
@@ -140,7 +140,7 @@ public class MassTransitBrokerPublisherTests
         endpoint.LastPublishContext!.Received(1).CorrelationId = corrId;
         endpoint.LastHeaders.Received(1).Set("k", "v");
     }
-    
+
     [Fact]
     public async Task PublishAsync_Should_Handle_Invalid_CorrelationId_Guid()
     {
@@ -192,7 +192,7 @@ public class MassTransitBrokerPublisherTests
         var corrId = Guid.NewGuid();
         var msg = new OutboxMessage(Guid.NewGuid(), "OrderCreated", System.Text.Encoding.UTF8.GetBytes("{\"id\":1}"), null, null, System.Text.Encoding.UTF8.GetBytes("{}"), DateTimeOffset.UtcNow, null, null, 0, 0, null);
         var meta = new OutboxMessageMetadata(corrId.ToString(), null, null, new[] { new MetadataEntry("k", "v") });
-        
+
         var result = await publisher.PublishRawAsync(msg, meta, new DispatchContext(CancellationToken.None, 1));
 
         result.Success.Should().BeTrue();
@@ -203,7 +203,7 @@ public class MassTransitBrokerPublisherTests
         endpoint.LastHeaders.Received(1).Set("outbox.message_type", "OrderCreated");
         endpoint.LastHeaders.Received(1).Set("k", "v");
     }
-    
+
     [Fact]
     public async Task PublishRawAsync_Should_Handle_Invalid_CorrelationId_Guid()
     {

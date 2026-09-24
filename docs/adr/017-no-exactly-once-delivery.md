@@ -3,8 +3,10 @@
 # ADR-017 — Outbox Does Not Guarantee Exactly-Once Delivery
 
 ## Status
-
 Accepted
+
+## Date
+2026-09-04
 
 ## Context
 

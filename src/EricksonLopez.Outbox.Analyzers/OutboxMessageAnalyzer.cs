@@ -19,12 +19,12 @@ namespace EricksonLopez.Outbox.Analyzers;
 public sealed class OutboxMessageAnalyzer : DiagnosticAnalyzer
 {
     /// <summary>
-    /// The diagnostic identifier for missing message identifier properties.
+    /// Defines the diagnostic identifier for missing message identifier properties.
     /// </summary>
     public const string MissingIdDiagnosticId = "OUTBOX001";
 
     /// <summary>
-    /// The diagnostic rule descriptor for missing message identifier properties.
+    /// Defines the diagnostic rule descriptor for missing message identifier properties.
     /// </summary>
     public static readonly DiagnosticDescriptor MissingIdRule = new(
         id: MissingIdDiagnosticId,
@@ -36,12 +36,12 @@ public sealed class OutboxMessageAnalyzer : DiagnosticAnalyzer
         description: "Outbox messages must have an explicit 'Guid Id' property to guarantee unique delivery tracking.");
 
     /// <summary>
-    /// The diagnostic identifier for missing message aliases.
+    /// Defines the diagnostic identifier for missing message aliases.
     /// </summary>
     public const string MissingAliasDiagnosticId = "OUTBOX002";
 
     /// <summary>
-    /// The diagnostic rule descriptor for missing message aliases.
+    /// Defines the diagnostic rule descriptor for missing message aliases.
     /// </summary>
     public static readonly DiagnosticDescriptor MissingAliasRule = new(
         id: MissingAliasDiagnosticId,
@@ -53,12 +53,12 @@ public sealed class OutboxMessageAnalyzer : DiagnosticAnalyzer
         description: "All types stored via IOutbox<T>.StoreAsync must be decorated with [OutboxMessage(\"alias\")] to guarantee NativeAOT-safe, reflection-free serialization.");
 
     /// <summary>
-    /// The diagnostic identifier for non-idempotent consumers.
+    /// Defines the diagnostic identifier for non-idempotent consumers.
     /// </summary>
     public const string NonIdempotentConsumerDiagnosticId = "OUTBOX003";
 
     /// <summary>
-    /// The diagnostic rule descriptor for non-idempotent consumers.
+    /// Defines the diagnostic rule descriptor for non-idempotent consumers.
     /// </summary>
     public static readonly DiagnosticDescriptor NonIdempotentConsumerRule = new(
         id: NonIdempotentConsumerDiagnosticId,
@@ -70,12 +70,12 @@ public sealed class OutboxMessageAnalyzer : DiagnosticAnalyzer
         description: "Consumers should implement the Inbox pattern via [InboxConsumer] to handle at-least-once delivery safely.");
 
     /// <summary>
-    /// The diagnostic identifier for infinite retry configurations.
+    /// Defines the diagnostic identifier for infinite retry configurations.
     /// </summary>
     public const string InfiniteRetriesDiagnosticId = "OUTBOX004";
 
     /// <summary>
-    /// The diagnostic rule descriptor for infinite retry configurations.
+    /// Defines the diagnostic rule descriptor for infinite retry configurations.
     /// </summary>
     public static readonly DiagnosticDescriptor InfiniteRetriesRule = new(
         id: InfiniteRetriesDiagnosticId,
@@ -87,12 +87,12 @@ public sealed class OutboxMessageAnalyzer : DiagnosticAnalyzer
         description: "Configure MaxAttempts to a reasonable finite value (1-50) to prevent infinite retry loops.");
 
     /// <summary>
-    /// The diagnostic identifier for missing serializer configurations.
+    /// Defines the diagnostic identifier for missing serializer configurations.
     /// </summary>
     public const string SerializationConfigDiagnosticId = "OUTBOX005";
 
     /// <summary>
-    /// The diagnostic rule descriptor for missing serializer configurations.
+    /// Defines the diagnostic rule descriptor for missing serializer configurations.
     /// </summary>
     public static readonly DiagnosticDescriptor SerializationConfigRule = new(
         id: SerializationConfigDiagnosticId,
@@ -104,12 +104,12 @@ public sealed class OutboxMessageAnalyzer : DiagnosticAnalyzer
         description: "Configure a source-generated or AOT-safe serializer on OutboxOptions.");
 
     /// <summary>
-    /// The diagnostic identifier for unregistered AOT JSON types.
+    /// Defines the diagnostic identifier for unregistered AOT JSON types.
     /// </summary>
     public const string MissingJsonSerializableDiagnosticId = "OUTBOX013";
 
     /// <summary>
-    /// The diagnostic rule descriptor for unregistered AOT JSON types.
+    /// Defines the diagnostic rule descriptor for unregistered AOT JSON types.
     /// </summary>
     public static readonly DiagnosticDescriptor MissingJsonSerializableRule = new(
         id: MissingJsonSerializableDiagnosticId,
@@ -122,12 +122,12 @@ public sealed class OutboxMessageAnalyzer : DiagnosticAnalyzer
         customTags: new[] { WellKnownDiagnosticTags.CompilationEnd });
 
     /// <summary>
-    /// The diagnostic identifier for missing integration event outbox attributes.
+    /// Defines the diagnostic identifier for missing integration event outbox attributes.
     /// </summary>
     public const string MissingOutboxMessageAttributeDiagnosticId = "OUTBOX006";
 
     /// <summary>
-    /// The diagnostic rule descriptor for missing integration event outbox attributes.
+    /// Defines the diagnostic rule descriptor for missing integration event outbox attributes.
     /// </summary>
     public static readonly DiagnosticDescriptor MissingOutboxMessageAttributeRule = new(
         id: MissingOutboxMessageAttributeDiagnosticId,
@@ -142,12 +142,12 @@ public sealed class OutboxMessageAnalyzer : DiagnosticAnalyzer
                      "type resolver (NativeAOT-safe) can serialize and deserialize them.");
 
     /// <summary>
-    /// The diagnostic identifier for null transaction invocations.
+    /// Defines the diagnostic identifier for null transaction invocations.
     /// </summary>
     public const string NullTransactionDiagnosticId = "OUTBOX007";
 
     /// <summary>
-    /// The diagnostic rule descriptor for null transaction invocations.
+    /// Defines the diagnostic rule descriptor for null transaction invocations.
     /// </summary>
     public static readonly DiagnosticDescriptor NullTransactionRule = new(
         id: NullTransactionDiagnosticId,
@@ -162,12 +162,12 @@ public sealed class OutboxMessageAnalyzer : DiagnosticAnalyzer
                      "persisted without the accompanying business transaction, violating the exactly-once guarantee.");
 
     /// <summary>
-    /// The diagnostic identifier for abandoned message builder instances.
+    /// Defines the diagnostic identifier for abandoned message builder instances.
     /// </summary>
     public const string AbandonedBuilderDiagnosticId = "OUTBOX008";
 
     /// <summary>
-    /// The diagnostic rule descriptor for abandoned message builder instances.
+    /// Defines the diagnostic rule descriptor for abandoned message builder instances.
     /// </summary>
     public static readonly DiagnosticDescriptor AbandonedBuilderRule = new(
         id: AbandonedBuilderDiagnosticId,
@@ -179,12 +179,12 @@ public sealed class OutboxMessageAnalyzer : DiagnosticAnalyzer
         description: "Always call StoreAsync(transaction) at the end of the IOutboxMessageBuilder chain.");
 
     /// <summary>
-    /// The diagnostic identifier for zero maximum retries configurations.
+    /// Defines the diagnostic identifier for zero maximum retries configurations.
     /// </summary>
     public const string ZeroMaxRetriesDiagnosticId = "OUTBOX009";
 
     /// <summary>
-    /// The diagnostic rule descriptor for zero maximum retries configurations.
+    /// Defines the diagnostic rule descriptor for zero maximum retries configurations.
     /// </summary>
     public static readonly DiagnosticDescriptor ZeroMaxRetriesRule = new(
         id: ZeroMaxRetriesDiagnosticId,
@@ -196,12 +196,29 @@ public sealed class OutboxMessageAnalyzer : DiagnosticAnalyzer
         description: "Setting MaxRetryCount to 0 disables the transient fault tolerance mechanism of the outbox pattern.");
 
     /// <summary>
-    /// The diagnostic identifier for default dispatch result returns.
+    /// Defines the diagnostic identifier for low reclaim/stale lease timeout configurations.
+    /// </summary>
+    public const string StaleLeaseTimeoutDiagnosticId = "OUTBOX011";
+
+    /// <summary>
+    /// Defines the diagnostic rule descriptor for low reclaim/stale lease timeout configurations.
+    /// </summary>
+    public static readonly DiagnosticDescriptor StaleLeaseTimeoutRule = new(
+        id: StaleLeaseTimeoutDiagnosticId,
+        title: "Stale lease timeout configured too low",
+        messageFormat: "ReclaimTimeout is configured below 30 seconds ({0}s). Stale lease timeout should be at least 30 seconds to prevent premature lease reclamation.",
+        category: "Reliability",
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true,
+        description: "Stale lease timeout (ReclaimTimeout) configured too low (< 30s) may lead to concurrent lease stealing while the current worker is still processing the message.");
+
+    /// <summary>
+    /// Defines the diagnostic identifier for default dispatch result returns.
     /// </summary>
     public const string DefaultDispatchResultDiagnosticId = "OUTBOX012";
 
     /// <summary>
-    /// The diagnostic rule descriptor for default dispatch result returns.
+    /// Defines the diagnostic rule descriptor for default dispatch result returns.
     /// </summary>
     public static readonly DiagnosticDescriptor DefaultDispatchResultRule = new(
         id: DefaultDispatchResultDiagnosticId,
@@ -227,6 +244,7 @@ public sealed class OutboxMessageAnalyzer : DiagnosticAnalyzer
             NullTransactionRule,
             AbandonedBuilderRule,
             ZeroMaxRetriesRule,
+            StaleLeaseTimeoutRule,
             DefaultDispatchResultRule);
 
     /// <inheritdoc/>
@@ -255,7 +273,7 @@ public sealed class OutboxMessageAnalyzer : DiagnosticAnalyzer
 
         // OUTBOX013: Validate all [OutboxMessage] are registered in JsonSerializerContext
         context.RegisterSymbolAction(AnalyzeJsonSerializerContext, SymbolKind.NamedType);
-        
+
         // OUTBOX008, OUTBOX009: Use Operations for easier analysis
         context.RegisterOperationAction(AnalyzeAbandonedBuilder, OperationKind.ExpressionStatement);
         context.RegisterOperationAction(AnalyzeAssignment, OperationKind.SimpleAssignment);
@@ -578,22 +596,86 @@ public sealed class OutboxMessageAnalyzer : DiagnosticAnalyzer
 
     // -------------------------------------------------------------------------
     // OUTBOX009 — MaxRetryCount = 0
+    // OUTBOX011 — ReclaimTimeout < 30s
     // -------------------------------------------------------------------------
     private static void AnalyzeAssignment(OperationAnalysisContext ctx)
     {
         var assignment = (ISimpleAssignmentOperation)ctx.Operation;
 
-        if (assignment.Target is IPropertyReferenceOperation propRef &&
-            propRef.Property.Name == "MaxRetryCount" &&
-            propRef.Property.ContainingType?.Name == "OutboxOptions")
+        if (assignment.Target is IPropertyReferenceOperation propRef)
         {
-            if (assignment.Value is ILiteralOperation literal &&
-                literal.ConstantValue.HasValue &&
-                literal.ConstantValue.Value is int val && val == 0)
+            if (propRef.Property.Name == "MaxRetryCount" &&
+                propRef.Property.ContainingType?.Name == "OutboxOptions")
             {
-                ctx.ReportDiagnostic(Diagnostic.Create(ZeroMaxRetriesRule, assignment.Syntax.GetLocation()));
+                if (assignment.Value is ILiteralOperation literal &&
+                    literal.ConstantValue.HasValue &&
+                    literal.ConstantValue.Value is int val && val == 0)
+                {
+                    ctx.ReportDiagnostic(Diagnostic.Create(ZeroMaxRetriesRule, assignment.Syntax.GetLocation()));
+                }
+            }
+            else if (propRef.Property.Name == "ReclaimTimeout" &&
+                     propRef.Property.ContainingType?.Name is "OutboxDispatcherOptions" or "OutboxOptions")
+            {
+                if (TryGetTimeSpanSeconds(assignment.Value, out double seconds) && seconds < 30.0)
+                {
+                    ctx.ReportDiagnostic(Diagnostic.Create(
+                        StaleLeaseTimeoutRule,
+                        assignment.Syntax.GetLocation(),
+                        seconds));
+                }
             }
         }
+    }
+
+    private static bool TryGetTimeSpanSeconds(IOperation operation, out double seconds)
+    {
+        seconds = 0;
+
+        while (operation is IConversionOperation conv)
+        {
+            operation = conv.Operand;
+        }
+
+        if (operation is IInvocationOperation inv &&
+            inv.TargetMethod.ContainingType?.Name == "TimeSpan")
+        {
+            string methodName = inv.TargetMethod.Name;
+            if (inv.Arguments.Length == 1 &&
+                inv.Arguments[0].Value.ConstantValue.HasValue &&
+                inv.Arguments[0].Value.ConstantValue.Value is object rawVal)
+            {
+                double num = Convert.ToDouble(rawVal, System.Globalization.CultureInfo.InvariantCulture);
+                switch (methodName)
+                {
+                    case "FromSeconds":
+                        seconds = num;
+                        return true;
+                    case "FromMilliseconds":
+                        seconds = num / 1000.0;
+                        return true;
+                    case "FromMinutes":
+                        seconds = num * 60.0;
+                        return true;
+                    case "FromHours":
+                        seconds = num * 3600.0;
+                        return true;
+                    case "FromDays":
+                        seconds = num * 86400.0;
+                        return true;
+                }
+            }
+        }
+
+        if (operation is IFieldReferenceOperation field &&
+            field.Field.Name == "Zero" &&
+            field.Field.ContainingType?.Name == "TimeSpan")
+        {
+            seconds = 0;
+            return true;
+        }
+
+        return false;
     }
 
     // -------------------------------------------------------------------------

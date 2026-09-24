@@ -3,7 +3,7 @@
 
   <PropertyGroup>
     <Description>Azure Event Hubs broker transport for EricksonLopez.Outbox. Delivers high-performance, Zero-Reflection, NativeAOT-ready event streaming to Azure Event Hubs.</Description>
-    <PackageTags>$(CommonPackageTags);azure;azure-event-hubs;event-hubs;event-streaming;native-aot</PackageTags>
+    <PackageTags>$(CommonPackageTags);outbox;transactional-outbox;azure;azure-event-hubs;event-hubs;event-streaming;native-aot</PackageTags>
     <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
     <Nullable>enable</Nullable>
   </PropertyGroup>

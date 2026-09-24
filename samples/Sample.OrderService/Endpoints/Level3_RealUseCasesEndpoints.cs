@@ -2,13 +2,13 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Tasks;
 using MediatR;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Sample.OrderService.Application.Orders.Commands.CreateOrder;
-using System.Threading.Tasks;
 
 namespace Sample.OrderService.Endpoints;
 

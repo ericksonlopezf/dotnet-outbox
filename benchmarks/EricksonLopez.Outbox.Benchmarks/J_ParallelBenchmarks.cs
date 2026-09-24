@@ -31,28 +31,28 @@ public class J_ParallelBenchmarks
 
         public ValueTask InsertBatchAsync(IEnumerable<OutboxMessage> messages, IOutboxTransactionContext? transaction, CancellationToken cancellationToken = default)
             => ValueTask.CompletedTask;
-            
+
         public ValueTask InsertBatchAsync(ReadOnlyMemory<OutboxMessage> messages, IOutboxTransactionContext? transaction, CancellationToken cancellationToken = default)
             => ValueTask.CompletedTask;
-            
+
         public ValueTask<IReadOnlyList<OutboxMessage>> GetPendingMessagesAsync(int batchSize, CancellationToken cancellationToken = default)
             => ValueTask.FromResult<IReadOnlyList<OutboxMessage>>(Array.Empty<OutboxMessage>());
-            
+
         public ValueTask<IReadOnlyList<OutboxMessage>> FetchPendingAsync(int batchSize, CancellationToken cancellationToken = default)
             => ValueTask.FromResult<IReadOnlyList<OutboxMessage>>(Array.Empty<OutboxMessage>());
-            
+
         public ValueTask MarkAsDispatchedAsync(IEnumerable<Guid> messageIds, CancellationToken cancellationToken = default)
             => ValueTask.CompletedTask;
-            
+
         public ValueTask MarkAsDispatchedAsync(IReadOnlyList<OutboxMessage> messages, CancellationToken cancellationToken = default)
             => ValueTask.CompletedTask;
-            
+
         public ValueTask MarkAsFailedAsync(IReadOnlyList<OutboxMessage> messages, string error, bool isDeadLetter, CancellationToken cancellationToken = default)
             => ValueTask.CompletedTask;
-            
+
         public ValueTask<int> ReclaimStaleMessagesAsync(TimeSpan timeout, CancellationToken cancellationToken = default)
             => ValueTask.FromResult(0);
-            
+
         public ValueTask<long> GetPendingCountAsync(CancellationToken cancellationToken = default)
             => ValueTask.FromResult(0L);
     }

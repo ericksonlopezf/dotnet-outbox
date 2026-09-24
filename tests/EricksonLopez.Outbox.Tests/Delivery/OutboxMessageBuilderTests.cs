@@ -52,7 +52,7 @@ public sealed class OutboxMessageBuilderTests
         MetadataEntry[]? capturedEntries = null;
 
         store.StoreAsync(Arg.Any<TestEvent>(), Arg.Any<EricksonLopez.Outbox.Persistence.IOutboxTransactionContext>(), Arg.Any<OutboxMessageMetadata>(), Arg.Any<DateTimeOffset?>(), Arg.Any<CancellationToken>())
-            .Returns(x => 
+            .Returns(x =>
             {
                 var meta = x.Arg<OutboxMessageMetadata>();
                 capturedMeta = meta;
@@ -167,7 +167,7 @@ public sealed class OutboxMessageBuilderTests
         var store = Substitute.For<IOutbox>();
         var builder = new OutboxMessageBuilder<TestEvent>(store, new TestEvent(Guid.NewGuid()));
         builder.WithTransaction(null!);
-        
+
         for (int i = 0; i < 15; i++)
         {
             builder.WithHeader($"K{i}", $"V{i}");
@@ -190,9 +190,9 @@ public sealed class OutboxMessageBuilderTests
         var builder = new OutboxMessageBuilder<TestEvent>(store, new TestEvent(Guid.NewGuid()));
         builder.WithTransaction(Substitute.For<EricksonLopez.Outbox.Persistence.IOutboxTransactionContext>());
         builder.WithHeader("K1", "V1");
-        
+
         builder.Dispose();
-        
+
         var act = async () => await builder.StoreAsync();
         await act.Should().ThrowAsync<ObjectDisposedException>();
 
@@ -205,9 +205,9 @@ public sealed class OutboxMessageBuilderTests
     {
         var store = Substitute.For<IOutbox>();
         var builder = new OutboxMessageBuilder<TestEvent>(store, new TestEvent(Guid.NewGuid()));
-        
+
         builder.Dispose();
-        
+
         var act = async () => await builder.StoreAsync();
         await act.Should().ThrowAsync<ObjectDisposedException>();
     }
@@ -226,10 +226,10 @@ public sealed class OutboxMessageBuilderTests
         await builder.WithTransaction(NSubstitute.Substitute.For<EricksonLopez.Outbox.Persistence.IOutboxTransactionContext>()).StoreAsync();
 
         await store.Received(1).StoreAsync(
-            Arg.Any<TestEvent>(), 
+            Arg.Any<TestEvent>(),
             Arg.Any<EricksonLopez.Outbox.Persistence.IOutboxTransactionContext>(),
-            Arg.Is<OutboxMessageMetadata>(m => m.Entries.Length == 15), 
-            null, 
+            Arg.Is<OutboxMessageMetadata>(m => m.Entries.Length == 15),
+            null,
             Arg.Any<CancellationToken>());
     }
 
@@ -237,7 +237,7 @@ public sealed class OutboxMessageBuilderTests
     public async Task StoreAsync_Uses_Activity_Current_For_Correlation()
     {
         var store = Substitute.For<IOutbox>();
-        
+
         var activity = new System.Diagnostics.Activity("TestActivity");
         activity.Start();
 
@@ -271,7 +271,7 @@ public sealed class OutboxMessageBuilderTests
     {
         var store = Substitute.For<IOutbox>();
         var builder = new OutboxMessageBuilder<TestEvent>(store, new TestEvent(Guid.NewGuid()));
-        
+
         var act1 = () => builder.WithHeader(null!, "value");
         act1.Should().Throw<ArgumentNullException>();
 
@@ -285,7 +285,7 @@ public sealed class OutboxMessageBuilderTests
         var store = Substitute.For<IOutbox>();
         var builder = new OutboxMessageBuilder<TestEvent>(store, new TestEvent(Guid.NewGuid()));
         builder.WithHeader("K", "V");
-        
+
         builder.Dispose();
         var act = () => builder.Dispose();
         act.Should().NotThrow();
@@ -347,7 +347,7 @@ public sealed class OutboxMessageBuilderTests
                     }
                 }
             }
-            
+
             foundSecret.Should().BeFalse("the array should have been cleared when StoreAsync throws because of missing transaction");
         }
         finally
@@ -365,7 +365,7 @@ public sealed class OutboxMessageBuilderTests
         var store = Substitute.For<IOutbox>();
         var builder = new OutboxMessageBuilder<TestEvent>(store, new TestEvent(Guid.NewGuid()));
         var deliverAt = DateTimeOffset.UtcNow.AddDays(1);
-        
+
         await builder.WithTransaction(null!)
                      .WithDeliverAt(deliverAt)
                      .StoreAsync();
@@ -383,7 +383,7 @@ public sealed class OutboxMessageBuilderTests
     {
         var store = Substitute.For<IOutbox>();
         var builder = new OutboxMessageBuilder<TestEvent>(store, new TestEvent(Guid.NewGuid()));
-        
+
         // Add enough headers to guarantee we exceed the ArrayPool's actual rented size (16 -> 32)
         for (int i = 0; i < 17; i++)
         {
@@ -421,7 +421,7 @@ public sealed class OutboxMessageBuilderTests
     public async Task StoreAsync_Uses_Activity_Current_For_Correlation_Unless_Explicitly_Set()
     {
         var store = Substitute.For<IOutbox>();
-        
+
         var activity = new System.Diagnostics.Activity("TestActivity");
         activity.Start();
 
@@ -462,7 +462,7 @@ public sealed class OutboxMessageBuilderTests
         var builder = new OutboxMessageBuilder<TestEvent>(store, new TestEvent(Guid.NewGuid()));
         builder.WithTransaction(Substitute.For<EricksonLopez.Outbox.Persistence.IOutboxTransactionContext>())
                .WithHeader("SecretKey", "SecretValue");
-        
+
         await builder.StoreAsync();
 
         capturedArray.Should().NotBeNull();
@@ -476,7 +476,7 @@ public sealed class OutboxMessageBuilderTests
     public void Dispose_Clears_Array_When_Returned_To_Pool()
     {
         var pool = System.Buffers.ArrayPool<MetadataEntry>.Shared;
-        
+
         // Prime the thread-local pool bucket
         var primed = pool.Rent(8);
         pool.Return(primed, clearArray: true);
@@ -484,7 +484,7 @@ public sealed class OutboxMessageBuilderTests
         var store = Substitute.For<IOutbox>();
         var builder = new OutboxMessageBuilder<TestEvent>(store, new TestEvent(Guid.NewGuid()));
         builder.WithHeader("SecretDisposeKey", "SecretDisposeValue");
-        
+
         builder.Dispose(); // Returns and clears
 
         // Rent from the same thread's pool bucket
@@ -504,7 +504,7 @@ public sealed class OutboxMessageBuilderTests
     public async Task StoreAsync_Should_Not_Overwrite_CausationId_If_Already_Provided_Along_With_Activity()
     {
         var store = Substitute.For<IOutbox>();
-        
+
         using var activity = new System.Diagnostics.Activity("TestActivity");
         activity.Start();
 
@@ -526,7 +526,7 @@ public sealed class OutboxMessageBuilderTests
     {
         var store = Substitute.For<IOutbox>();
         var builder = new OutboxMessageBuilder<TestEvent>(store, new TestEvent(Guid.NewGuid()));
-        
+
         for (int i = 0; i < 9; i++)
         {
             builder.WithHeader($"K{i}", $"V{i}");
@@ -547,7 +547,7 @@ public sealed class OutboxMessageBuilderTests
     {
         var store = Substitute.For<IOutbox>();
         var builder = new OutboxMessageBuilder<TestEvent>(store, new TestEvent(Guid.NewGuid()));
-        
+
         await builder.WithTransaction(Substitute.For<EricksonLopez.Outbox.Persistence.IOutboxTransactionContext>())
                      .WithCorrelationId("corr-only")
                      .StoreAsync();

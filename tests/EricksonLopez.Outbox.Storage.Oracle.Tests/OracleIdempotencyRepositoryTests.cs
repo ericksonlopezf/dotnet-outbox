@@ -78,7 +78,8 @@ public class OracleIdempotencyRepositoryTests : IAsyncLifetime
         OracleConnection? createdConn = null;
         var optionsMonitor = Substitute.For<IOptionsMonitor<OutboxRuntimeOptions>>();
         optionsMonitor.CurrentValue.Returns(_options);
-        var sut = new OracleIdempotencyRepository(() => {
+        var sut = new OracleIdempotencyRepository(() =>
+        {
             createdConn = new OracleConnection(_fixture.Container.GetConnectionString());
             return createdConn;
         }, optionsMonitor);
@@ -142,7 +143,7 @@ public class OracleIdempotencyRepositoryTests : IAsyncLifetime
     {
         var sut = CreateSut();
         var now = DateTimeOffset.UtcNow;
-        
+
         var r1 = new IdempotencyRecord(Guid.NewGuid().ToString(), "c1", now.AddDays(-2));
         var r2 = new IdempotencyRecord(Guid.NewGuid().ToString(), "c2", now.AddDays(-1));
         var r3 = new IdempotencyRecord(Guid.NewGuid().ToString(), "c3", now);

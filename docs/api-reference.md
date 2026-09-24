@@ -50,9 +50,10 @@ ValueTask StoreAsync<TMessage>(
   - `cancellationToken` (`CancellationToken`): Token to observe while waiting for the task to complete.
 - **Returns:** `ValueTask` representing the asynchronous store operation.
 - **Exceptions:**
-  - `ArgumentNullException`: Thrown if `message` or `transaction` is null.
-  - `OutboxException`: Thrown if the message type is not registered and `ThrowOnUnregisteredType=true`.
-  - `PayloadTooLargeException`: Thrown if the serialized payload exceeds `MaxPayloadSizeInBytes`.
+  - `ArgumentNullException`: Thrown if `transaction` is null. The `message` parameter is enforced non-null by the `where TMessage : notnull` generic constraint at compile time.
+  - `OutboxTypeNotRegisteredException` (subtype of `OutboxException`): Thrown if the message type alias is not registered and `ThrowOnUnregisteredType=true`.
+  - `OutboxPayloadTooLargeException`: Thrown if the serialized payload exceeds `MaxPayloadSizeInBytes`.
+  - `OutboxHeadersTooLargeException`: Thrown if the serialized headers exceed `MaxHeaderSizeInBytes`.
 - **Remarks:** This method is atomic. If the surrounding database transaction is committed, the message is guaranteed to be persisted. If rolled back, the message is discarded.
 - **Example:**
 ```csharp
@@ -105,15 +106,72 @@ ValueTask StoreAsync<TMessage>(
 
 ---
 
-##### `Publish<TMessage>(TMessage)`
+##### `Publish<TMessage>(TMessage)` (Extension Method)
 
-Initializes the fluent builder for fine-grained message configuration before storing.
+Initializes the fluent builder for fine-grained message configuration before storing. Provided as an extension method in `EricksonLopez.Outbox` (`OutboxPublishExtensions.cs`) and implemented on `DefaultOutbox` and `InMemoryOutboxStore`.
 
 ```csharp
-OutboxMessageBuilder<TMessage> Publish<TMessage>(TMessage message) where TMessage : notnull;
+OutboxMessageBuilder<TMessage> Publish<TMessage>(this IOutbox outbox, TMessage message) where TMessage : notnull;
 ```
 
 - **Returns:** `OutboxMessageBuilder<TMessage>` — a `sealed class` (heap-allocated, `IDisposable`). Dispose is handled automatically by `await StoreAsync()`. Do **not** manually call `Dispose()` unless aborting the fluent chain early.
+
+---
+
+##### `EnqueueAsync<TMessage>` (Extension Methods — `OutboxPublishExtensions`)
+
+Four convenience overloads provided as extension methods in `EricksonLopez.Outbox` (`OutboxPublishExtensions`). These wrap the core `IOutbox.StoreAsync` overloads with explicit null guards and a cleaner call site for simple messaging scenarios.
+
+**Namespace:** `EricksonLopez.Outbox`  
+**Assembly:** `EricksonLopez.Outbox.dll`
+
+```csharp
+// 1. Single message (direct enqueue, no metadata)
+public static ValueTask EnqueueAsync<TMessage>(
+    this IOutbox outbox,
+    TMessage message,
+    IOutboxTransactionContext transaction,
+    CancellationToken cancellationToken = default)
+    where TMessage : class;
+
+// 2. Batch via ReadOnlyMemory<TMessage> (zero-copy slice)
+public static ValueTask EnqueueAsync<TMessage>(
+    this IOutbox outbox,
+    ReadOnlyMemory<TMessage> messages,
+    IOutboxTransactionContext transaction,
+    CancellationToken cancellationToken = default)
+    where TMessage : class;
+
+// 3. Batch via IEnumerable<TMessage> (convenience, materializes internally)
+public static ValueTask EnqueueAsync<TMessage>(
+    this IOutbox outbox,
+    IEnumerable<TMessage> messages,
+    IOutboxTransactionContext transaction,
+    CancellationToken cancellationToken = default)
+    where TMessage : class;
+
+// 4. Single message with explicit metadata and scheduled delivery
+public static ValueTask EnqueueAsync<TMessage>(
+    this IOutbox outbox,
+    TMessage message,
+    IOutboxTransactionContext transaction,
+    OutboxMessageMetadata metadata,
+    DateTimeOffset? deliverAt = null,
+    CancellationToken cancellationToken = default)
+    where TMessage : class;
+```
+
+- **Exceptions:** All overloads throw `ArgumentNullException` if `outbox`, `message` (where applicable), or `transaction` is null.
+- **Difference vs `Publish<T>()`:** `EnqueueAsync` stores messages immediately without a fluent chain. Use `Publish<T>()` when you need to attach correlation IDs, custom headers, or delayed delivery.
+- **Example:**
+```csharp
+// Direct enqueue — simplest API for fire-and-go scenarios
+await outbox.EnqueueAsync(@event, tx.ToOutboxContext(), ct);
+
+// Batch enqueue via ReadOnlyMemory
+ReadOnlyMemory<OrderCreatedEvent> batch = events.AsMemory();
+await outbox.EnqueueAsync(batch, tx.ToOutboxContext(), ct);
+```
 
 ---
 
@@ -162,7 +220,7 @@ await outbox.Publish(@event)
 
 ### `OutboxServiceCollectionExtensions`
 
-**Namespace:** `EricksonLopez.Outbox`
+**Namespace:** `EricksonLopez.Outbox.Hosting`
 
 ```csharp
 public static class OutboxServiceCollectionExtensions
@@ -210,6 +268,25 @@ public static class OutboxServiceCollectionExtensions
 - `ReclaimTimeout` (`TimeSpan`, default: 5 min): InFlight lock expiration for crash recovery.
 - `ReclaimInterval` (`TimeSpan`, default: 1 min): Frequency of the stale message recovery job.
 - `HasOnlySingletonMiddlewares` (`bool`, default: false): Caches pipeline delegate per batch when all middlewares are Singleton.
+
+#### `OutboxRuntimeOptions`
+
+Configured inside `options.ConfigureRuntimeOptions(ro => { ... })`:
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `SchemaName` | `string` | `"outbox"` | Database schema where outbox tables reside. |
+| `TableName` | `string` | `"messages"` | Base name of the outbox messages table. |
+| `MaxPayloadSizeInBytes` | `int` | `1,048,576` | Max serialized payload in bytes. Throws `OutboxPayloadTooLargeException` if exceeded. |
+| `MaxHeaderSizeInBytes` | `int` | `65,536` | Max serialized metadata headers in bytes. Throws `OutboxHeadersTooLargeException` if exceeded. |
+| `ThrowOnUnregisteredType` | `bool` | `true` | Throws `OutboxTypeNotRegisteredException` if alias is not registered. |
+| `DeleteOnDispatch` | `bool` | `true` | Physically deletes dispatched messages. Set to `false` for soft-delete audit trails. |
+| `MaxMessageAge` | `TimeSpan` | `30 days` | Maximum age before a message is eligible for cleanup or archival. |
+| `MaxBackoffSeconds` | `int` | `3600` | Maximum exponential backoff ceiling (seconds) for failed messages. |
+| `MaxStoreRatePerSecond` | `int` | `0` | Max messages stored per second via `IOutbox.StoreAsync`. `0` = no limit. |
+| `LargeTableThreshold` | `int` | `50,000` | Row count above which catalog estimates replace `COUNT(*)` for PostgreSQL. |
+| `ReclaimBatchLimit` | `int` | `1000` | Max stale `InFlight` messages reclaimed per cycle. |
+| `IncludeMessageTypeTag` | `bool` | `true` | Adds `messaging.message.type` dimension to OpenTelemetry metrics instruments. |
 
 ---
 

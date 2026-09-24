@@ -3,8 +3,10 @@
 # ADR-037: `OutboxMessageBuilder<T>` as `sealed class : IDisposable` (Supersedes ADR-008)
 
 ## Status
-
 Accepted — August 2026
+
+## Date
+2026-09-04
 
 > **Supersedes:** [ADR-008](008-ref-struct-builder.md) (ref struct builder — original intent, not implemented)
 
@@ -41,21 +43,37 @@ public sealed class OutboxMessageBuilder<TMessage> : IDisposable where TMessage 
 
     public void Dispose()
     {
-        if (_disposed) return;
-        _disposed = true;
+        _disposed = true;   // No early-exit guard: idempotency is achieved via _headersArray = null below.
+
         if (_headersArray is not null)
-            ArrayPool<MetadataEntry>.Shared.Return(_headersArray);
+        {
+            ArrayPool<MetadataEntry>.Shared.Return(_headersArray, clearArray: true); // clearArray: true for safety
+            _headersArray = null;  // Prevents double-return on subsequent Dispose() calls
+        }
     }
 }
 ```
 
-`StoreAsync()` disposes the builder before returning:
+`StoreAsync()` disposes the builder automatically, either directly on the slow path or indirectly when the fast path returns to the pool-free early exit:
 
 ```csharp
-public async ValueTask StoreAsync(CancellationToken cancellationToken = default)
+public ValueTask StoreAsync(CancellationToken cancellationToken = default)
 {
-    // ... validation, store, ...
-    Dispose(); // return rented buffer
+    ObjectDisposedException.ThrowIf(_disposed, this);
+
+    if (!_hasTransaction)
+    {
+        Dispose(); // Return any rented buffer before throwing
+        throw new InvalidOperationException("A transaction must be provided via WithTransaction() before calling StoreAsync().");
+    }
+
+    // Fast path: no headers/metadata rented — no ArrayPool buffer to return
+    if (_headerCount == 0 && _deliverAt is null && _correlationId is null && _causationId is null)
+    {
+        return _outbox.StoreAsync(_message, _transaction!, cancellationToken);
+    }
+
+    return StoreWithMetadataAsync(cancellationToken); // Slow path: always calls Dispose() in finally block
 }
 ```
 

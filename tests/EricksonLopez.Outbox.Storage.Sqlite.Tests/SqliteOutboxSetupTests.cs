@@ -38,7 +38,7 @@ public class SqliteOutboxSetupTests
         services.AddLogging();
         services.AddOptions();
         services.AddOutbox(options => options.UseSqlite(sp => new SqliteConnection("Data Source=:memory:")));
-        
+
         var provider = services.BuildServiceProvider();
         var connFactory = provider.GetRequiredService<Func<System.Data.IDbConnection>>();
         connFactory.Should().NotBeNull();

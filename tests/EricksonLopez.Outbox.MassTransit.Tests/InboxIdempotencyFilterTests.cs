@@ -38,7 +38,7 @@ public class InboxIdempotencyFilterTests
         context.MessageId.Returns(Guid.NewGuid());
         IServiceProvider? sp = null;
         context.TryGetPayload(out sp).Returns(false);
-        
+
         var next = Substitute.For<IPipe<ConsumeContext<TestMessage>>>();
 
         var filter = new InboxIdempotencyFilter<TestMessage>();
@@ -52,12 +52,12 @@ public class InboxIdempotencyFilterTests
     {
         var context = Substitute.For<ConsumeContext<TestMessage>>();
         context.MessageId.Returns(Guid.NewGuid());
-        context.TryGetPayload(out Arg.Any<IServiceProvider?>()).Returns(x => 
+        context.TryGetPayload(out Arg.Any<IServiceProvider?>()).Returns(x =>
         {
             x[0] = null;
             return true;
         });
-        
+
         var next = Substitute.For<IPipe<ConsumeContext<TestMessage>>>();
 
         var filter = new InboxIdempotencyFilter<TestMessage>();
@@ -71,9 +71,9 @@ public class InboxIdempotencyFilterTests
     {
         var context = Substitute.For<ConsumeContext<TestMessage>>();
         context.MessageId.Returns(Guid.NewGuid());
-        
+
         var sp = Substitute.For<IServiceProvider>();
-        context.TryGetPayload(out Arg.Any<IServiceProvider?>()).Returns(x => 
+        context.TryGetPayload(out Arg.Any<IServiceProvider?>()).Returns(x =>
         {
             x[0] = sp;
             return true;
@@ -86,18 +86,18 @@ public class InboxIdempotencyFilterTests
 
         await next.Received(1).Send(context);
     }
-    
+
     [Fact]
     public async Task Send_Should_Bypass_If_Missing_IdempotencyRepository()
     {
         var context = Substitute.For<ConsumeContext<TestMessage>>();
         context.MessageId.Returns(Guid.NewGuid());
-        
+
         var sp = Substitute.For<IServiceProvider>();
         sp.GetService(typeof(EricksonLopez.Outbox.Persistence.IOutboxTransactionContext))
             .Returns(Substitute.For<EricksonLopez.Outbox.Persistence.IOutboxTransactionContext>());
-        
-        context.TryGetPayload(out Arg.Any<IServiceProvider?>()).Returns(x => 
+
+        context.TryGetPayload(out Arg.Any<IServiceProvider?>()).Returns(x =>
         {
             x[0] = sp;
             return true;
@@ -110,18 +110,18 @@ public class InboxIdempotencyFilterTests
 
         await next.Received(1).Send(context);
     }
-    
+
     [Fact]
     public async Task Send_Should_Bypass_If_Missing_TransactionContext()
     {
         var context = Substitute.For<ConsumeContext<TestMessage>>();
         context.MessageId.Returns(Guid.NewGuid());
-        
+
         var sp = Substitute.For<IServiceProvider>();
         sp.GetService(typeof(IIdempotencyRepository))
             .Returns(Substitute.For<IIdempotencyRepository>());
-        
-        context.TryGetPayload(out Arg.Any<IServiceProvider?>()).Returns(x => 
+
+        context.TryGetPayload(out Arg.Any<IServiceProvider?>()).Returns(x =>
         {
             x[0] = sp;
             return true;
@@ -143,19 +143,19 @@ public class InboxIdempotencyFilterTests
         var rc = Substitute.For<ReceiveContext>();
         rc.InputAddress.Returns(new Uri("queue:test"));
         context.ReceiveContext.Returns(rc);
-        
+
         var sp = Substitute.For<IServiceProvider>();
         var repo = Substitute.For<IIdempotencyRepository>();
         var tx = Substitute.For<EricksonLopez.Outbox.Persistence.IOutboxTransactionContext>();
-        _ = repo.TryInsertAsync(Arg.Is<IdempotencyRecord>(r => 
+        _ = repo.TryInsertAsync(Arg.Is<IdempotencyRecord>(r =>
             r.MessageId == context.MessageId!.Value.ToString() &&
             r.ConsumerId == "queue:test"
         ), tx, Arg.Any<CancellationToken>()).Returns(new ValueTask<bool>(true));
-        
+
         sp.GetService(typeof(IIdempotencyRepository)).Returns(repo);
         sp.GetService(typeof(EricksonLopez.Outbox.Persistence.IOutboxTransactionContext)).Returns(tx);
 
-        context.TryGetPayload(out Arg.Any<IServiceProvider?>()).Returns(x => 
+        context.TryGetPayload(out Arg.Any<IServiceProvider?>()).Returns(x =>
         {
             x[0] = sp;
             return true;
@@ -177,19 +177,19 @@ public class InboxIdempotencyFilterTests
         var rc = Substitute.For<ReceiveContext>();
         rc.InputAddress.Returns(new Uri("queue:test"));
         context.ReceiveContext.Returns(rc);
-        
+
         var sp = Substitute.For<IServiceProvider>();
         var repo = Substitute.For<IIdempotencyRepository>();
         var tx = Substitute.For<EricksonLopez.Outbox.Persistence.IOutboxTransactionContext>();
-        _ = repo.TryInsertAsync(Arg.Is<IdempotencyRecord>(r => 
+        _ = repo.TryInsertAsync(Arg.Is<IdempotencyRecord>(r =>
             r.MessageId == context.MessageId!.Value.ToString() &&
             r.ConsumerId == "queue:test"
         ), tx, Arg.Any<CancellationToken>()).Returns(new ValueTask<bool>(false));
-        
+
         sp.GetService(typeof(IIdempotencyRepository)).Returns(repo);
         sp.GetService(typeof(EricksonLopez.Outbox.Persistence.IOutboxTransactionContext)).Returns(tx);
 
-        context.TryGetPayload(out Arg.Any<IServiceProvider?>()).Returns(x => 
+        context.TryGetPayload(out Arg.Any<IServiceProvider?>()).Returns(x =>
         {
             x[0] = sp;
             return true;

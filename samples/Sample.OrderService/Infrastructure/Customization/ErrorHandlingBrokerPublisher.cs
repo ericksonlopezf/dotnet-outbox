@@ -51,7 +51,7 @@ public sealed class ErrorHandlingBrokerPublisher : IBrokerPublisher
             // Action: The dispatcher will DELETE the message from the DB (or UPDATE if DeleteOnDispatch=false).
             var payloadStr = Encoding.UTF8.GetString(message.Payload.Span);
             _logger.LogInformation("PUBLISHED successfully: {Payload}", payloadStr);
-            
+
             return ValueTask.FromResult(DispatchResult.Ok());
         }
         else if (chance <= 90)
@@ -62,7 +62,7 @@ public sealed class ErrorHandlingBrokerPublisher : IBrokerPublisher
             // and apply the exponential backoff to set deliver_at in the future.
             var transientEx = new TimeoutException("Connection to broker timed out.");
             _logger.LogWarning(transientEx, "TRANSIENT FAILURE when publishing.");
-            
+
             return ValueTask.FromResult(DispatchResult.FailAndRetry(transientEx));
         }
         else
@@ -72,7 +72,7 @@ public sealed class ErrorHandlingBrokerPublisher : IBrokerPublisher
             // Action: The dispatcher will NOT retry. It will mark it as Dead-Letter (state=4) immediately.
             var fatalEx = new InvalidOperationException("Payload exceeds broker's max message size limit.");
             _logger.LogError(fatalEx, "FATAL FAILURE when publishing.");
-            
+
             return ValueTask.FromResult(DispatchResult.FailFatal(fatalEx));
         }
     }

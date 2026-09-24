@@ -23,7 +23,7 @@ public sealed class AzureServiceBusBrokerPublisher : IBrokerPublisher
     /// </summary>
     /// <param name="sender">The Azure Service Bus sender client.</param>
     /// <param name="serializer">The serializer that converts message payloads to byte arrays.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="sender"/> or <paramref name="serializer"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="sender"/> or <paramref name="serializer"/> is <see langword="null"/></exception>
     public AzureServiceBusBrokerPublisher(ServiceBusSender sender, IOutboxSerializer serializer)
     {
         _sender = sender ?? throw new ArgumentNullException(nameof(sender));
@@ -96,7 +96,7 @@ public sealed class AzureServiceBusBrokerPublisher : IBrokerPublisher
             sbMessage.CorrelationId = message.Metadata.CorrelationId;
             sbMessage.SessionId = message.Metadata.CorrelationId; // Crucial for ASB FIFO (Sessions)
         }
-        
+
         if (!string.IsNullOrEmpty(message.Metadata.MessageType))
         {
             sbMessage.ApplicationProperties["MessageType"] = message.Metadata.MessageType;

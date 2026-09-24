@@ -18,7 +18,7 @@ public static class DaprOutboxExtensions
     /// <param name="options">The outbox options.</param>
     /// <param name="pubsubName">The name of the Dapr pub/sub component.</param>
     /// <returns>The outbox options for method chaining.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="options"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="options"/> is <see langword="null"/></exception>
     public static OutboxOptions UseDapr(
         this OutboxOptions options,
         string pubsubName = "pubsub")
@@ -40,7 +40,7 @@ public static class DaprOutboxExtensions
     /// <param name="services">The service collection.</param>
     /// <param name="pubsubName">The name of the Dapr pub/sub component.</param>
     /// <returns>The service collection.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="services"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="services"/> is <see langword="null"/></exception>
     public static IServiceCollection AddDaprBrokerPublisher(
         this IServiceCollection services,
         string pubsubName = "pubsub")

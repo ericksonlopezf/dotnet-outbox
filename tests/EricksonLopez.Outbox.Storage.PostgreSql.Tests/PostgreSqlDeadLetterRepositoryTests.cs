@@ -80,11 +80,11 @@ public class PostgreSqlDeadLetterRepositoryTests : IAsyncLifetime
         await using var connection = await _dataSource.OpenConnectionAsync();
         var count = await connection.ExecuteScalarAsync<int>("SELECT COUNT(1) FROM outbox.messages_dead_letters WHERE id = @Id", new { msg.Id });
         count.Should().Be(1);
-        
+
         // Assert payload/headers were correctly translated to strings for JSONB
         var textPayload = await connection.ExecuteScalarAsync<string>("SELECT payload::text FROM outbox.messages_dead_letters WHERE id = @Id", new { msg.Id });
         textPayload.Should().Be("{}"); // JSONB text representation adds quotes if it's a string, wait, {} is an object, so it will be just "{}"
-        
+
         // Wait, if it's JSONB, the text is "{}"
         var headersText = await connection.ExecuteScalarAsync<string>("SELECT headers_json::text FROM outbox.messages_dead_letters WHERE id = @Id", new { msg.Id });
         headersText.Should().Be("{}");
@@ -111,11 +111,11 @@ public class PostgreSqlDeadLetterRepositoryTests : IAsyncLifetime
     {
         var sut = CreateSut();
         var msg = CreateDeadLetterMessage();
-        
+
         // Force the fallback path by creating a ReadOnlyMemory that isn't cleanly array-backed from offset 0
         var fullPayload = new byte[] { 99, 123, 34, 107, 34, 58, 34, 118, 34, 125, 99 }; // 'c' + "{\"k\":\"v\"}" + 'c'
         var slicedPayload = new ReadOnlyMemory<byte>(fullPayload, 1, 9);
-        
+
         var nullPropsMsg = new DeadLetterMessage(
             msg.Id,
             msg.OriginalMessageId,
@@ -135,12 +135,12 @@ public class PostgreSqlDeadLetterRepositoryTests : IAsyncLifetime
 
         await using var connection = await _dataSource.OpenConnectionAsync();
         var dbRecord = await connection.QuerySingleAsync("SELECT correlation_id, causation_id, error_reason, last_error FROM outbox.messages_dead_letters WHERE id = @Id", new { msg.Id });
-        
+
         ((string?)dbRecord.correlation_id).Should().BeNull();
         ((string?)dbRecord.causation_id).Should().BeNull();
         ((string)dbRecord.error_reason).Should().Be(msg.Reason ?? "Unknown");
         ((string?)dbRecord.last_error).Should().BeNull();
-        
+
         var payloadJson = await connection.ExecuteScalarAsync<string>("SELECT payload::text FROM outbox.messages_dead_letters WHERE id = @Id", new { msg.Id });
         payloadJson.Should().Be("{\"k\": \"v\"}");
         var headersJson = await connection.ExecuteScalarAsync<string>("SELECT headers_json::text FROM outbox.messages_dead_letters WHERE id = @Id", new { msg.Id });
@@ -153,7 +153,7 @@ public class PostgreSqlDeadLetterRepositoryTests : IAsyncLifetime
         var sut = CreateSut();
         var msg1 = CreateDeadLetterMessage();
         var msg2 = CreateDeadLetterMessage();
-        
+
         // Ensure msg2 is strictly after msg1
         msg1 = msg1 with { DeadLetteredAt = DateTimeOffset.UtcNow.AddMinutes(-5) };
         msg2 = msg2 with { DeadLetteredAt = DateTimeOffset.UtcNow };
@@ -169,7 +169,7 @@ public class PostgreSqlDeadLetterRepositoryTests : IAsyncLifetime
         retrieved1.CorrelationId.Should().Be(msg1.CorrelationId);
         retrieved1.CausationId.Should().Be(msg1.CausationId);
         retrieved1.LastError.Should().Be(msg1.LastError);
-        
+
         var retrieved2 = results.FirstOrDefault(m => m.Id == msg2.Id)!;
         retrieved2.CorrelationId.Should().Be(msg2.CorrelationId);
 
@@ -182,10 +182,10 @@ public class PostgreSqlDeadLetterRepositoryTests : IAsyncLifetime
     public async Task GetAsync_WithCustomPayloadAndHeaders_ReturnsExactValues()
     {
         var sut = CreateSut();
-        var msg = CreateDeadLetterMessage() with 
-        { 
-            Payload = System.Text.Encoding.UTF8.GetBytes("{\"custom\":\"dl_payload_123\"}"), 
-            Headers = System.Text.Encoding.UTF8.GetBytes("{\"custom\":\"dl_headers_456\"}") 
+        var msg = CreateDeadLetterMessage() with
+        {
+            Payload = System.Text.Encoding.UTF8.GetBytes("{\"custom\":\"dl_payload_123\"}"),
+            Headers = System.Text.Encoding.UTF8.GetBytes("{\"custom\":\"dl_headers_456\"}")
         };
 
         await sut.InsertAsync(msg);
@@ -211,13 +211,13 @@ public class PostgreSqlDeadLetterRepositoryTests : IAsyncLifetime
         System.Text.Encoding.UTF8.GetString(retrieved.Payload.Span).Should().Be("{\"k\": \"v\"}");
         System.Text.Encoding.UTF8.GetString(retrieved.Headers.Span).Should().Be("{\"k\": \"v\"}");
     }
-    
+
     [Fact]
     public async Task GetAsync_Should_Handle_Null_Columns_Properly()
     {
         var sut = CreateSut();
         var msg = CreateDeadLetterMessage();
-        
+
         var nullPropsMsg = new DeadLetterMessage(
             msg.Id,
             msg.OriginalMessageId,
@@ -241,11 +241,11 @@ public class PostgreSqlDeadLetterRepositoryTests : IAsyncLifetime
 
         var results = await sut.GetAsync();
         var fetched = results.Should().ContainSingle().Subject;
-        
+
         fetched.CorrelationId.Should().BeNull();
         fetched.CausationId.Should().BeNull();
         fetched.LastError.Should().BeNull();
-        
+
         // When DB is null, it should fallback to "{}"
         System.Text.Encoding.UTF8.GetString(fetched.Payload.Span).Should().Be("{}");
         System.Text.Encoding.UTF8.GetString(fetched.Headers.Span).Should().Be("{}");
@@ -280,7 +280,7 @@ public class PostgreSqlDeadLetterRepositoryTests : IAsyncLifetime
         await using var connection = await _dataSource.OpenConnectionAsync();
         var countOld = await connection.ExecuteScalarAsync<int>("SELECT COUNT(1) FROM outbox.messages_dead_letters WHERE id = @Id", new { oldMsg.Id });
         countOld.Should().Be(0);
-        
+
         var countNew = await connection.ExecuteScalarAsync<int>("SELECT COUNT(1) FROM outbox.messages_dead_letters WHERE id = @Id", new { newMsg.Id });
         countNew.Should().Be(1);
     }
@@ -331,7 +331,7 @@ public class PostgreSqlDeadLetterRepositoryTests : IAsyncLifetime
     {
         var sut = CreateSut();
         var msg = CreateDeadLetterMessage();
-        
+
         var mockTx = Substitute.For<IOutboxTransactionContext>();
         mockTx.Connection.Returns(Substitute.For<System.Data.Common.DbConnection>());
 

@@ -1,6 +1,10 @@
-<!-- Copyright © Erickson Lopez. MIT License. -->
-
 # ADR-003: Postgres SKIP LOCKED vs Traditional Polling
+
+## Status
+Accepted
+
+## Date
+2026-09-04
 
 ## 1. Title and Status
 **Event Fetching Strategy: `FOR UPDATE SKIP LOCKED` (PostgreSQL)**

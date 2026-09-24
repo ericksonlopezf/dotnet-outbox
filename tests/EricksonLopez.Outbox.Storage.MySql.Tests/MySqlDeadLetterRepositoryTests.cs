@@ -76,7 +76,7 @@ public class MySqlDeadLetterRepositoryTests : IAsyncLifetime
     {
         var custom = new OutboxRuntimeOptions { SchemaName = "non_existent_schema_xyz", TableName = "outbox_messages" };
         var sut = CreateSut(custom);
-        
+
         Func<Task> act = async () => await sut.GetAsync(10);
         var ex = await act.Should().ThrowAsync<MySqlException>();
         ex.Which.Message.Should().Contain("non_existent_schema_xyz");
@@ -88,12 +88,14 @@ public class MySqlDeadLetterRepositoryTests : IAsyncLifetime
         MySqlConnection? createdConn = null;
         var mockedOptions = Substitute.For<IOptionsMonitor<OutboxRuntimeOptions>>();
         mockedOptions.CurrentValue.Returns(_options);
-        var sut = new MySqlDeadLetterRepository(() => {
+        var sut = new MySqlDeadLetterRepository(() =>
+        {
             createdConn = new MySqlConnection(_fixture.Container.GetConnectionString() + ";AllowLoadLocalInfile=true");
             return createdConn;
         }, mockedOptions);
 
-        var msg = _autoFixture.Create<DeadLetterMessage>() with {
+        var msg = _autoFixture.Create<DeadLetterMessage>() with
+        {
             Payload = "{}"u8.ToArray(),
             Headers = "{}"u8.ToArray(),
             CreatedAt = DateTimeOffset.UtcNow,
@@ -108,7 +110,8 @@ public class MySqlDeadLetterRepositoryTests : IAsyncLifetime
     public async Task InsertAsync_Should_Persist_DeadLetterMessage()
     {
         var sut = CreateSut();
-        var msg = _autoFixture.Create<DeadLetterMessage>() with { 
+        var msg = _autoFixture.Create<DeadLetterMessage>() with
+        {
             Payload = "{}"u8.ToArray(),
             Headers = "{}"u8.ToArray(),
             CreatedAt = DateTimeOffset.UtcNow,
@@ -126,7 +129,8 @@ public class MySqlDeadLetterRepositoryTests : IAsyncLifetime
     public async Task InsertAsync_WithNullReason_DefaultsToUnknown()
     {
         var sut = CreateSut();
-        var msg = _autoFixture.Create<DeadLetterMessage>() with { 
+        var msg = _autoFixture.Create<DeadLetterMessage>() with
+        {
             Payload = "{}"u8.ToArray(),
             Headers = "{}"u8.ToArray(),
             Reason = null!,
@@ -145,7 +149,8 @@ public class MySqlDeadLetterRepositoryTests : IAsyncLifetime
     public async Task InsertAsync_Should_Not_Throw_If_Already_Exists()
     {
         var sut = CreateSut();
-        var msg = _autoFixture.Create<DeadLetterMessage>() with { 
+        var msg = _autoFixture.Create<DeadLetterMessage>() with
+        {
             Payload = "{}"u8.ToArray(),
             Headers = "{}"u8.ToArray(),
             CreatedAt = DateTimeOffset.UtcNow,
@@ -164,7 +169,8 @@ public class MySqlDeadLetterRepositoryTests : IAsyncLifetime
     public async Task InsertAsync_WithTransaction_Should_Use_Transaction()
     {
         var sut = CreateSut();
-        var msg = _autoFixture.Create<DeadLetterMessage>() with { 
+        var msg = _autoFixture.Create<DeadLetterMessage>() with
+        {
             Payload = "{}"u8.ToArray(),
             Headers = "{}"u8.ToArray(),
             CreatedAt = DateTimeOffset.UtcNow,
@@ -188,7 +194,8 @@ public class MySqlDeadLetterRepositoryTests : IAsyncLifetime
     public async Task GetAsync_Should_Return_Messages_With_Null_Mapping()
     {
         var sut = CreateSut();
-        var msg1 = _autoFixture.Create<DeadLetterMessage>() with { 
+        var msg1 = _autoFixture.Create<DeadLetterMessage>() with
+        {
             Payload = "{}"u8.ToArray(),
             Headers = "{}"u8.ToArray(),
             CorrelationId = null,
@@ -198,7 +205,8 @@ public class MySqlDeadLetterRepositoryTests : IAsyncLifetime
             CreatedAt = DateTimeOffset.UtcNow,
             DeadLetteredAt = DateTimeOffset.UtcNow
         };
-        var msg2 = _autoFixture.Create<DeadLetterMessage>() with { 
+        var msg2 = _autoFixture.Create<DeadLetterMessage>() with
+        {
             Payload = System.Text.Encoding.UTF8.GetBytes("{\"mysql\":\"custom_data\"}"),
             Headers = System.Text.Encoding.UTF8.GetBytes("{\"mysql\":\"custom_headers\"}"),
             CorrelationId = "corr",
@@ -213,7 +221,7 @@ public class MySqlDeadLetterRepositoryTests : IAsyncLifetime
         await sut.InsertAsync(msg2);
 
         var results = await sut.GetAsync(10);
-        
+
         results.Should().Contain(m => m.Id == msg1.Id);
         results.Should().Contain(m => m.Id == msg2.Id);
 
@@ -261,7 +269,8 @@ public class MySqlDeadLetterRepositoryTests : IAsyncLifetime
     public async Task GetAsync_Should_Filter_By_After_Date()
     {
         var sut = CreateSut();
-        var msg = _autoFixture.Create<DeadLetterMessage>() with { 
+        var msg = _autoFixture.Create<DeadLetterMessage>() with
+        {
             Payload = "{}"u8.ToArray(),
             Headers = "{}"u8.ToArray(),
             CreatedAt = DateTimeOffset.UtcNow,
@@ -277,7 +286,8 @@ public class MySqlDeadLetterRepositoryTests : IAsyncLifetime
     public async Task DeleteAsync_Should_Remove_Message()
     {
         var sut = CreateSut();
-        var msg = _autoFixture.Create<DeadLetterMessage>() with { 
+        var msg = _autoFixture.Create<DeadLetterMessage>() with
+        {
             Payload = "{}"u8.ToArray(),
             Headers = "{}"u8.ToArray(),
             CreatedAt = DateTimeOffset.UtcNow,
@@ -295,7 +305,8 @@ public class MySqlDeadLetterRepositoryTests : IAsyncLifetime
     public async Task PurgeAsync_Should_Remove_Old_Messages()
     {
         var sut = CreateSut();
-        var msg = _autoFixture.Create<DeadLetterMessage>() with { 
+        var msg = _autoFixture.Create<DeadLetterMessage>() with
+        {
             Payload = "{}"u8.ToArray(),
             Headers = "{}"u8.ToArray(),
             CreatedAt = DateTimeOffset.UtcNow,
