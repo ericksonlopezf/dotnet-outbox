@@ -10,6 +10,8 @@
 
   <ItemGroup>
     <PackageReference Include="Dapr.Client" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Microsoft.Extensions.Logging" />
   </ItemGroup>
 
   <ItemGroup>
