@@ -25,13 +25,13 @@ public class OutboxCodeFixProvidersTests
         var project = workspace.AddProject("TestProj", LanguageNames.CSharp)
             .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
             .AddMetadataReference(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
-            
+
         var document = project.AddDocument("Test.cs", source);
-        
+
         var compilation = await document.Project.GetCompilationAsync();
         var compilationWithAnalyzers = compilation!.WithAnalyzers(ImmutableArray.Create(analyzer));
         var diagnostics = await compilationWithAnalyzers.GetAnalyzerDiagnosticsAsync();
-        
+
         var diagnostic = diagnostics.FirstOrDefault(d => d.Id == diagnosticId);
         return (document, diagnostic!);
     }
@@ -40,18 +40,18 @@ public class OutboxCodeFixProvidersTests
     {
         var actions = new List<CodeAction>();
         var context = new CodeFixContext(document, diagnostic, (a, d) => actions.Add(a), CancellationToken.None);
-        
+
         await provider.RegisterCodeFixesAsync(context);
-        
+
         if (actions.Count == 0)
             return (await document.GetTextAsync()).ToString();
-            
+
         var operations = await actions[0].GetOperationsAsync(CancellationToken.None);
         var applyChangesOperation = operations.OfType<ApplyChangesOperation>().FirstOrDefault();
-        
+
         if (applyChangesOperation == null)
             return (await document.GetTextAsync()).ToString();
-            
+
         var newDoc = applyChangesOperation.ChangedSolution.GetDocument(document.Id);
         return (await newDoc!.GetTextAsync()).ToString();
     }
@@ -131,7 +131,7 @@ namespace Test {
         diag.Should().NotBeNull("OUTBOX001 should be reported");
 
         var newCode = await ApplyCodeFixAsync(doc, diag, new OutboxMissingIdCodeFixProvider());
-        
+
         newCode.Should().Contain("public Guid Id { get; } = Guid.NewGuid();");
     }
 
@@ -154,7 +154,7 @@ namespace Test {
         diag.Should().NotBeNull("OUTBOX002 should be reported");
 
         var newCode = await ApplyCodeFixAsync(doc, diag, new OutboxMissingAliasCodeFixProvider());
-        
+
         newCode.Should().Contain("[EricksonLopez.Outbox.Contracts.OutboxMessage(\"usage\")]");
     }
 
@@ -176,7 +176,7 @@ namespace Test {
         diag.Should().NotBeNull("OUTBOX002 should be reported");
 
         var newCode = await ApplyCodeFixAsync(doc, diag, new OutboxMissingAliasCodeFixProvider());
-        
+
         newCode.Should().Contain("[EricksonLopez.Outbox.Contracts.OutboxMessage(\"order.created.workflow\")]");
     }
 
@@ -193,7 +193,7 @@ namespace Test {
         diag.Should().NotBeNull("OUTBOX003 should be reported");
 
         var newCode = await ApplyCodeFixAsync(doc, diag, new OutboxMissingInboxConsumerCodeFixProvider());
-        
+
         newCode.Should().Contain("[EricksonLopez.Outbox.Contracts.InboxConsumer]");
     }
 
@@ -213,7 +213,7 @@ namespace Test {
         diag.Should().NotBeNull("OUTBOX004 should be reported");
 
         var newCode = await ApplyCodeFixAsync(doc, diag, new OutboxInfiniteRetriesCodeFixProvider());
-        
+
         newCode.Should().Contain("maxAttempts: 3");
     }
 
@@ -231,7 +231,7 @@ namespace Test {
         diag.Should().NotBeNull("OUTBOX006 should be reported");
 
         var newCode = await ApplyCodeFixAsync(doc, diag, new OutboxIntegrationEventAliasCodeFixProvider());
-        
+
         newCode.Should().Contain("[EricksonLopez.Outbox.Contracts.OutboxMessage(\"my.event\")]");
     }
 
@@ -251,7 +251,7 @@ namespace Test {
         diag.Should().NotBeNull("OUTBOX005 should be reported");
 
         var newCode = await ApplyCodeFixAsync(doc, diag, new OutboxMissingSerializerCodeFixProvider());
-        
+
         newCode.Should().Contain("opts.UseNativeAotJsonSerializer();");
     }
 
@@ -265,7 +265,7 @@ namespace Test {
         var proj = workspace.AddProject("TestProj", LanguageNames.CSharp);
         var doc = proj.AddDocument("Test.cs", "class C {}");
         var diag = Diagnostic.Create(OutboxMessageAnalyzer.MissingIdRule, Location.None);
-        var ctx = new CodeFixContext(doc, diag, (a, d) => {}, CancellationToken.None);
+        var ctx = new CodeFixContext(doc, diag, (a, d) => { }, CancellationToken.None);
         var act = () => provider.RegisterCodeFixesAsync(ctx);
         await act.Should().NotThrowAsync();
     }
@@ -278,7 +278,7 @@ namespace Test {
         var proj = workspace.AddProject("TestProj", LanguageNames.CSharp);
         var doc = proj.AddDocument("Test.cs", "class C {}");
         var diag = Diagnostic.Create(OutboxMessageAnalyzer.MissingAliasRule, Location.None);
-        var ctx = new CodeFixContext(doc, diag, (a, d) => {}, CancellationToken.None);
+        var ctx = new CodeFixContext(doc, diag, (a, d) => { }, CancellationToken.None);
         var act = () => provider.RegisterCodeFixesAsync(ctx);
         await act.Should().NotThrowAsync();
     }
@@ -304,7 +304,7 @@ namespace Test {
         diag.Should().NotBeNull("OUTBOX007 should be reported");
 
         var newCode = await ApplyCodeFixAsync(doc, diag, new OutboxNullTransactionCodeFixProvider());
-        
+
         newCode.Should().Contain("transactionContext/* TODO: Provide IOutboxTransactionContext */");
     }
 
@@ -324,7 +324,7 @@ namespace Test {
         diag.Should().NotBeNull("OUTBOX005 should be reported");
 
         var newCode = await ApplyCodeFixAsync(doc, diag, new OutboxMissingSerializerCodeFixProvider());
-        
+
         newCode.Should().Contain("opts.UseNativeAotJsonSerializer();");
     }
 
@@ -344,7 +344,7 @@ namespace Test {
         diag.Should().NotBeNull("OUTBOX005 should be reported");
 
         var newCode = await ApplyCodeFixAsync(doc, diag, new OutboxMissingSerializerCodeFixProvider());
-        
+
         newCode.Should().Contain("opts.UseNativeAotJsonSerializer();");
     }
 
@@ -364,7 +364,7 @@ namespace Test {
         diag.Should().NotBeNull("OUTBOX005 should be reported");
 
         var newCode = await ApplyCodeFixAsync(doc, diag, new OutboxMissingSerializerCodeFixProvider());
-        
+
         newCode.Should().Contain("opts.UseNativeAotJsonSerializer();");
     }
 
@@ -376,7 +376,7 @@ namespace Test {
         var proj = workspace.AddProject("TestProj", LanguageNames.CSharp);
         var doc = proj.AddDocument("Test.cs", "class C {}");
         var diag = Diagnostic.Create(OutboxMessageAnalyzer.SerializationConfigRule, Location.None);
-        var ctx = new CodeFixContext(doc, diag, (a, d) => {}, CancellationToken.None);
+        var ctx = new CodeFixContext(doc, diag, (a, d) => { }, CancellationToken.None);
         var act = () => provider.RegisterCodeFixesAsync(ctx);
         await act.Should().NotThrowAsync();
     }
@@ -397,17 +397,17 @@ namespace Test {
         var doc = project.AddDocument("Test.cs", source);
         var tree = await doc.GetSyntaxTreeAsync();
         var root = await tree!.GetRootAsync();
-        
+
         var invocation = root.DescendantNodes()
             .OfType<Microsoft.CodeAnalysis.CSharp.Syntax.InvocationExpressionSyntax>()
             .First(n => n.Expression.ToString() == "AddOutbox");
-            
+
         var diag = Microsoft.CodeAnalysis.Diagnostic.Create(
             new Microsoft.CodeAnalysis.DiagnosticDescriptor("OUTBOX005", "Title", "Message", "Category", Microsoft.CodeAnalysis.DiagnosticSeverity.Warning, true),
             invocation.GetLocation());
 
         var newCode = await ApplyCodeFixAsync(doc, diag, new OutboxMissingSerializerCodeFixProvider());
-        
+
         // Unchanged since it doesn't support anonymous methods
         newCode.Should().Contain("delegate (object opts)");
     }

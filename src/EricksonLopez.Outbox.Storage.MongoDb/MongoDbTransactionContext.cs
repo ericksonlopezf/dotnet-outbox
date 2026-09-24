@@ -27,7 +27,7 @@ public sealed class MongoDbTransactionContext : IOutboxTransactionContext, IAsyn
     /// Initializes a new instance of the <see cref="MongoDbTransactionContext"/> class.
     /// </summary>
     /// <param name="session">The MongoDB client session handle.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="session"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="session"/> is <see langword="null"/></exception>
     public MongoDbTransactionContext(IClientSessionHandle session)
     {
         Session = session ?? throw new ArgumentNullException(nameof(session));

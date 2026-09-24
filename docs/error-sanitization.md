@@ -16,7 +16,7 @@ To prevent sensitive data leaks into DLQ storage and observability tools, `Erick
 ## 1. The `IErrorSanitizer` Abstraction
 
 ```csharp
-namespace EricksonLopez.Outbox.Retry;
+namespace EricksonLopez.Outbox.Diagnostics;
 
 public interface IErrorSanitizer
 {
@@ -24,7 +24,7 @@ public interface IErrorSanitizer
 }
 ```
 
-The default implementation (`DefaultErrorSanitizer`) strips known connection string patterns, bearer tokens, and credentials from exception messages before writing to `IDeadLetterRepository`.
+The default implementation (`DefaultErrorSanitizer`) uses compile-time C# source-generated regular expressions (`[GeneratedRegex]`) to strip known connection string patterns (`password=...`, `secret=...`, `api_key=...`) and HTTP bearer tokens from exception messages before persisting to `IDeadLetterRepository`. Because regexes are compiled at build time, it introduces zero runtime Reflection and is fully NativeAOT compatible.
 
 ---
 
@@ -34,12 +34,15 @@ You can customize redaction rules for domain-specific secrets or regulatory comp
 
 ```csharp
 using System.Text.RegularExpressions;
-using EricksonLopez.Outbox.Retry;
+using EricksonLopez.Outbox.Diagnostics;
 
-public sealed class ComplianceErrorSanitizer : IErrorSanitizer
+public sealed partial class ComplianceErrorSanitizer : IErrorSanitizer
 {
-    private static readonly Regex PiiCreditCardRegex = new(@"\b(?:\d[ -]*?){13,16}\b", RegexOptions.Compiled);
-    private static readonly Regex SecretTokenRegex = new(@"Bearer\s+[A-Za-z0-9\-\._~\+\/]+=*", RegexOptions.Compiled);
+    [GeneratedRegex(@"\b(?:\d[ -]*?){13,16}\b", RegexOptions.Compiled)]
+    private static partial Regex CreditCardRegex();
+
+    [GeneratedRegex(@"Bearer\s+[A-Za-z0-9\-\._~\+\/]+=*", RegexOptions.Compiled)]
+    private static partial Regex SecretTokenRegex();
 
     public string Sanitize(Exception exception)
     {
@@ -48,8 +51,8 @@ public sealed class ComplianceErrorSanitizer : IErrorSanitizer
         var fullDetails = $"{exception.GetType().FullName}: {exception.Message}\n{exception.StackTrace}";
 
         // Redact Credit Cards and Bearer Tokens
-        var sanitized = PiiCreditCardRegex.Replace(fullDetails, "[REDACTED_CC]");
-        sanitized = SecretTokenRegex.Replace(sanitized, "Bearer [REDACTED_TOKEN]");
+        var sanitized = CreditCardRegex().Replace(fullDetails, "[REDACTED_CC]");
+        sanitized = SecretTokenRegex().Replace(sanitized, "Bearer [REDACTED_TOKEN]");
 
         return sanitized;
     }

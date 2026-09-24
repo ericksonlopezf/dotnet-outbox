@@ -19,7 +19,7 @@ public class FakeBrokerPublisherTests
         var publisher = new FakeBrokerPublisher();
         var msg = new MessageEnvelope<string>("data", new OutboxMessageMetadata("corr", "caus", "type", null));
         var result = await publisher.PublishAsync(msg, new DispatchContext(CancellationToken.None, 1));
-        
+
         result.Success.Should().BeTrue();
         publisher.CapturedMessages.Count.Should().Be(1);
     }
@@ -30,7 +30,7 @@ public class FakeBrokerPublisherTests
         var publisher = new FakeBrokerPublisher().WithFailure();
         var msg = new MessageEnvelope<string>("data", new OutboxMessageMetadata("corr", "caus", "type", null));
         var result = await publisher.PublishAsync(msg, new DispatchContext(CancellationToken.None, 1));
-        
+
         result.Success.Should().BeFalse();
         result.ShouldRetry.Should().BeTrue();
         publisher.CapturedMessages.Count.Should().Be(0);
@@ -42,7 +42,7 @@ public class FakeBrokerPublisherTests
         var publisher = new FakeBrokerPublisher();
         var msg = new MessageEnvelope<string>("data", new OutboxMessageMetadata("corr", "caus", "type", null));
         var result = await publisher.PublishBatchAsync(new[] { msg }, new DispatchContext(CancellationToken.None, 1));
-        
+
         result.Count.Should().Be(1);
         result[0].Success.Should().BeTrue();
         publisher.CapturedMessages.Count.Should().Be(1);
@@ -55,7 +55,7 @@ public class FakeBrokerPublisherTests
         var msg = new Infrastructure.OutboxMessageTestDataBuilder().WithMessageType("alias").WithPayload(Array.Empty<byte>()).Build();
         var meta = new OutboxMessageMetadata("corr", "caus", "type", null);
         var result = await publisher.PublishRawAsync(msg, meta, new DispatchContext(CancellationToken.None, 1));
-        
+
         result.Success.Should().BeTrue();
         publisher.CapturedMessages.Count.Should().Be(1);
     }
@@ -67,7 +67,7 @@ public class FakeBrokerPublisherTests
         var msg = new Infrastructure.OutboxMessageTestDataBuilder().WithMessageType("alias").WithPayload(Array.Empty<byte>()).Build();
         var meta = new OutboxMessageMetadata("corr", "caus", "type", null);
         var result = await publisher.PublishRawAsync(msg, meta, new DispatchContext(CancellationToken.None, 1));
-        
+
         result.Success.Should().BeFalse();
         publisher.CapturedMessages.Count.Should().Be(0);
     }
@@ -78,7 +78,7 @@ public class FakeBrokerPublisherTests
         var publisher = new FakeBrokerPublisher();
         var msg = new MessageEnvelope<string>("data", new OutboxMessageMetadata("corr", "caus", "type", null));
         await publisher.PublishAsync(msg, new DispatchContext(CancellationToken.None, 1));
-        
+
         publisher.Reset();
         publisher.CapturedMessages.Count.Should().Be(0);
     }
@@ -89,7 +89,7 @@ public class FakeBrokerPublisherTests
         var publisher = new FakeBrokerPublisher();
         var msg = new MessageEnvelope<string>("data", new OutboxMessageMetadata("corr", "caus", "type", null));
         await publisher.PublishAsync(msg, new DispatchContext(CancellationToken.None, 1));
-        
+
         publisher.ShouldHavePublished("type").Once();
     }
 
@@ -106,7 +106,7 @@ public class FakeBrokerPublisherTests
         var publisher = new FakeBrokerPublisher();
         var msg = new MessageEnvelope<string>("data", new OutboxMessageMetadata("corr", "caus", "type", null));
         await publisher.PublishAsync(msg, new DispatchContext(CancellationToken.None, 1));
-        
+
         publisher.ShouldHavePublished("type").WithCorrelationId("corr").Once();
     }
 
@@ -116,7 +116,7 @@ public class FakeBrokerPublisherTests
         var publisher = new FakeBrokerPublisher();
         var msg = new MessageEnvelope<string>("data", new OutboxMessageMetadata("corr2", "caus", "type", null));
         await publisher.PublishAsync(msg, new DispatchContext(CancellationToken.None, 1));
-        
+
         Assert.Throws<InvalidOperationException>(() => publisher.ShouldHavePublished("type").WithCorrelationId("corr").Once());
     }
 
@@ -127,7 +127,7 @@ public class FakeBrokerPublisherTests
         var msg = new MessageEnvelope<string>("data", new OutboxMessageMetadata("corr", "caus", "type", null));
         await publisher.PublishAsync(msg, new DispatchContext(CancellationToken.None, 1));
         await publisher.PublishAsync(msg, new DispatchContext(CancellationToken.None, 1));
-        
+
         publisher.ShouldHavePublished("type").AtLeastOnce();
     }
 
@@ -144,7 +144,7 @@ public class FakeBrokerPublisherTests
         var publisher = new FakeBrokerPublisher();
         var msg = new MessageEnvelope<string>("data", new OutboxMessageMetadata("corr", "caus", "type", null));
         await publisher.PublishAsync(msg, new DispatchContext(CancellationToken.None, 1));
-        
+
         Assert.Throws<InvalidOperationException>(() => publisher.ShouldHavePublished("type").Never());
     }
 
@@ -161,7 +161,7 @@ public class FakeBrokerPublisherTests
         var publisher = new FakeBrokerPublisher().WithFailure().WithSuccess();
         var msg = new MessageEnvelope<string>("data", new OutboxMessageMetadata("corr", "caus", "type", null));
         var result = await publisher.PublishAsync(msg, new DispatchContext(CancellationToken.None, 1));
-        
+
         result.Success.Should().BeTrue();
     }
 
@@ -171,7 +171,7 @@ public class FakeBrokerPublisherTests
         var publisher = new FakeBrokerPublisher();
         var msg = new MessageEnvelope<string>("data", new OutboxMessageMetadata("corr", "caus", "other_type", null));
         await publisher.PublishAsync(msg, new DispatchContext(CancellationToken.None, 1));
-        
+
         Assert.Throws<InvalidOperationException>(() => publisher.ShouldHavePublished("type").Once());
     }
 
@@ -182,7 +182,7 @@ public class FakeBrokerPublisherTests
         var publisher = new FakeBrokerPublisher().WithFailure(customEx);
         var msg = new MessageEnvelope<string>("data", new OutboxMessageMetadata("corr", "caus", "type", null));
         var result = await publisher.PublishAsync(msg, new DispatchContext(CancellationToken.None, 1));
-        
+
         result.Success.Should().BeFalse();
         result.Error.Should().BeSameAs(customEx);
     }

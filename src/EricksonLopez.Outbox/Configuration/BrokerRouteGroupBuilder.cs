@@ -23,7 +23,7 @@ public sealed class BrokerRouteGroupBuilder
     /// </summary>
     /// <param name="publisher">The publisher instance to dispatch messages to.</param>
     /// <returns>The parent <see cref="OutboxOptions"/> instance for method chaining.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="publisher"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="publisher"/> is <see langword="null"/></exception>
     public OutboxOptions ToPublisher(IBrokerPublisher publisher)
     {
         ArgumentNullException.ThrowIfNull(publisher);
@@ -42,7 +42,7 @@ public sealed class BrokerRouteGroupBuilder
     /// </summary>
     /// <param name="factory">A factory delegate that receives the <see cref="IServiceProvider"/> and returns the publisher to use.</param>
     /// <returns>The parent <see cref="OutboxOptions"/> instance for method chaining.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="factory"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="factory"/> is <see langword="null"/></exception>
     public OutboxOptions ToPublisher(Func<IServiceProvider, IBrokerPublisher> factory)
     {
         ArgumentNullException.ThrowIfNull(factory);

@@ -16,7 +16,7 @@ public static class RebusOutboxConfigurationExtensions
     /// </summary>
     /// <param name="configurer">The options configurer.</param>
     /// <param name="outbox">The outbox instance.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="configurer"/> or <paramref name="outbox"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="configurer"/> or <paramref name="outbox"/> is <see langword="null"/></exception>
     public static void EnableTransactionalOutbox(this OptionsConfigurer configurer, IOutbox outbox)
     {
         ArgumentNullException.ThrowIfNull(configurer);

@@ -147,7 +147,7 @@ public interface IOutboxRepository
     /// Retrieves the approximate count of messages awaiting processing.
     /// </summary>
     /// <remarks>
-    /// This includes messages in the Pending (0) or Failed (3) states and is typically used for metrics and monitoring.
+    /// Includes messages in the Pending (0) or Failed (3) states for metrics and monitoring.
     /// </remarks>
     /// <param name="cancellationToken">A token that can be used to cancel the asynchronous operation.</param>
     /// <returns>
@@ -161,13 +161,13 @@ public interface IOutboxRepository
     /// <remarks>
     /// <para>
     /// <b>AUDIT-FIX P1-G — Default Interface Method for operational tooling:</b><br/>
-    /// This method is designed for debugging, manual requeue, and administrative UIs that need
-    /// to inspect a specific message. It is NOT used in the normal dispatcher hot path.
+    /// Designed for debugging, manual requeue, and administrative UIs that need
+    /// to inspect a specific message. It is not used in the normal dispatcher hot path.
     /// </para>
     /// <para>
     /// This is a Default Interface Method (DIM): existing implementations automatically inherit
     /// the default implementation which throws <see cref="NotSupportedException"/>. Storage engine
-    /// implementations should override this method for efficient single-row lookup.
+    /// implementations should override <see cref="GetMessageAsync(Guid, CancellationToken)"/> for efficient single-row lookup.
     /// </para>
     /// <para>
     /// For PostgreSQL, the expected implementation is:
@@ -213,7 +213,7 @@ public interface IOutboxRepository
     /// <para>
     /// <b>Default implementation:</b> Delegates to <see cref="GetMessageAsync(Guid, CancellationToken)"/>
     /// (ignoring the hint) for backward compatibility. Partition-aware storage engines should
-    /// override this method to enable partition pruning.
+    /// override <see cref="GetMessageAsync(Guid, DateTimeOffset?, CancellationToken)"/> to enable partition pruning.
     /// </para>
     /// </remarks>
     /// <param name="id">The unique identifier of the message to retrieve.</param>

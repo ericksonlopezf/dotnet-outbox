@@ -131,10 +131,10 @@ public class OracleOutboxRepositoryTests : IAsyncLifetime
     private OutboxMessage CreateMessage(int state = 0, DateTimeOffset? deliverAt = null, DateTimeOffset? createdAt = null, int retryCount = 0, string? correlationId = null, string? causationId = null)
     {
         var msg = _autoFixture.Create<OutboxMessage>();
-        return msg with 
-        { 
-            Status = (OutboxMessageStatus)state, 
-            DeliverAt = deliverAt, 
+        return msg with
+        {
+            Status = (OutboxMessageStatus)state,
+            DeliverAt = deliverAt,
             CreatedAt = createdAt ?? DateTimeOffset.UtcNow,
             RetryCount = retryCount,
             CorrelationId = correlationId ?? msg.CorrelationId,
@@ -153,14 +153,14 @@ public class OracleOutboxRepositoryTests : IAsyncLifetime
         await using var connection = new OracleConnection(_fixture.Container.GetConnectionString());
         await connection.OpenAsync();
         await using var tx = await connection.BeginTransactionAsync();
-        
+
         await sut.InsertAsync(msg, new EricksonLopez.Outbox.Persistence.DbTransactionContext(tx));
         await tx.CommitAsync();
 
         var row = await connection.QuerySingleAsync(
-            "SELECT correlation_id as \"CorrelationId\", causation_id as \"CausationId\", deliver_at as \"DeliverAt\" FROM \"messages\" WHERE id = :Id", 
+            "SELECT correlation_id as \"CorrelationId\", causation_id as \"CausationId\", deliver_at as \"DeliverAt\" FROM \"messages\" WHERE id = :Id",
             new { Id = msg.Id.ToByteArray() });
-            
+
         ((string?)row.CorrelationId).Should().Be(msg.CorrelationId);
         ((string?)row.CausationId).Should().Be(msg.CausationId);
         if (msg.DeliverAt.HasValue)
@@ -169,7 +169,7 @@ public class OracleOutboxRepositoryTests : IAsyncLifetime
             deliverAt.Should().BeCloseTo(msg.DeliverAt.Value.UtcDateTime, TimeSpan.FromHours(24));
         }
     }
-    
+
     [Fact]
     public async Task InsertAsync_Should_Ignore_Duplicate_Keys()
     {
@@ -178,11 +178,11 @@ public class OracleOutboxRepositoryTests : IAsyncLifetime
 
         await using var connection = new OracleConnection(_fixture.Container.GetConnectionString());
         await connection.OpenAsync();
-        
+
         await using var tx1 = await connection.BeginTransactionAsync();
         await sut.InsertAsync(msg, new EricksonLopez.Outbox.Persistence.DbTransactionContext(tx1));
         await tx1.CommitAsync();
-        
+
         await using var tx2 = await connection.BeginTransactionAsync();
         await sut.InsertAsync(msg, new EricksonLopez.Outbox.Persistence.DbTransactionContext(tx2)); // duplicate insert should be ignored
         await tx2.CommitAsync();
@@ -190,7 +190,7 @@ public class OracleOutboxRepositoryTests : IAsyncLifetime
         var count = await connection.ExecuteScalarAsync<int>("SELECT COUNT(*) FROM \"messages\" WHERE id = :Id", new { Id = msg.Id.ToByteArray() });
         count.Should().Be(1);
     }
-    
+
     [Fact]
     public async Task FetchPendingAsync_Should_Return_Only_Pending_Messages_Ready_To_Deliver()
     {
@@ -207,14 +207,14 @@ public class OracleOutboxRepositoryTests : IAsyncLifetime
 
         await using var connection = new OracleConnection(_fixture.Container.GetConnectionString());
         await connection.OpenAsync();
-        
-        foreach(var m in new[] { pendingReady, pendingNotReady, dispatched, retryingReady, invalidState })
+
+        foreach (var m in new[] { pendingReady, pendingNotReady, dispatched, retryingReady, invalidState })
         {
             await connection.ExecuteAsync(
-            "INSERT INTO \"messages\" (id, type, correlation_id, causation_id, payload, headers_json, created_at, updated_at, deliver_at, state) VALUES (:Id, :MessageType, :CorrelationId, :CausationId, :PayloadBytes, :HeadersBytes, :CreatedAt, CURRENT_TIMESTAMP, :DeliverAt, :State)", 
+            "INSERT INTO \"messages\" (id, type, correlation_id, causation_id, payload, headers_json, created_at, updated_at, deliver_at, state) VALUES (:Id, :MessageType, :CorrelationId, :CausationId, :PayloadBytes, :HeadersBytes, :CreatedAt, CURRENT_TIMESTAMP, :DeliverAt, :State)",
             new { Id = m.Id.ToByteArray(), m.MessageType, m.CorrelationId, m.CausationId, PayloadBytes = m.Payload.ToArray(), HeadersBytes = m.Headers.ToArray(), CreatedAt = m.CreatedAt, DeliverAt = m.DeliverAt, State = m.Status });
         }
-        
+
         // Let's force the invalidState message to state 99 but also to state IN (0, 3) in the inner query somehow?
         // Wait, Oracle FetchPendingAsync queries "WHERE state IN (0, 3)". So if we insert state 99, it won't even be returned by the claim query!
         // To cover the Enum.IsDefined check in OracleOutboxRepository.cs line 267:
@@ -233,7 +233,7 @@ public class OracleOutboxRepositoryTests : IAsyncLifetime
         var fetched = await sut.FetchPendingAsync(10);
         fetched.Should().HaveCount(2);
     }
-    
+
     private sealed class FakeDbConnection : DbConnection
     {
 #pragma warning disable CS8765 // Nullability of type of parameter doesn't match overridden member (possibly because of nullability attributes).
@@ -244,14 +244,14 @@ public class OracleOutboxRepositoryTests : IAsyncLifetime
         public override string ServerVersion => "";
         public override System.Data.ConnectionState State => System.Data.ConnectionState.Open;
 
-        public override void ChangeDatabase(string databaseName) {}
-        public override void Close() {}
-        public override void Open() {}
+        public override void ChangeDatabase(string databaseName) { }
+        public override void Close() { }
+        public override void Open() { }
 
         public DbCommand ClaimCmd { get; set; } = null!;
         public DbCommand UpdateCmd { get; set; } = null!;
         public DbCommand HydrateCmd { get; set; } = null!;
-        
+
         public int CommandCount { get; set; }
 
         protected override DbTransaction BeginDbTransaction(System.Data.IsolationLevel isolationLevel)
@@ -297,7 +297,7 @@ public class OracleOutboxRepositoryTests : IAsyncLifetime
 
         await using var connection = new OracleConnection(_fixture.Container.GetConnectionString());
         await connection.OpenAsync();
-        
+
         await connection.ExecuteAsync("INSERT INTO \"messages\" (id, type, payload, headers_json, created_at, updated_at, state) VALUES (:Id, :MessageType, :P, :H, :CreatedAt, CURRENT_TIMESTAMP - INTERVAL '2' HOUR, :State)", new { Id = staleMsg.Id.ToByteArray(), staleMsg.MessageType, P = Array.Empty<byte>(), H = Array.Empty<byte>(), CreatedAt = staleMsg.CreatedAt, State = (int)staleMsg.Status });
         await connection.ExecuteAsync("INSERT INTO \"messages\" (id, type, payload, headers_json, created_at, updated_at, state) VALUES (:Id, :MessageType, :P, :H, :CreatedAt, CURRENT_TIMESTAMP, :State)", new { Id = freshMsg.Id.ToByteArray(), freshMsg.MessageType, P = Array.Empty<byte>(), H = Array.Empty<byte>(), CreatedAt = freshMsg.CreatedAt, State = (int)freshMsg.Status });
 
@@ -405,7 +405,7 @@ public class OracleOutboxRepositoryTests : IAsyncLifetime
         await using var connection = new OracleConnection(_fixture.Container.GetConnectionString());
         await connection.OpenAsync();
         await using var tx = connection.BeginTransaction();
-        
+
         await sut.InsertBatchAsync(messages, new EricksonLopez.Outbox.Persistence.DbTransactionContext(tx));
         await tx.CommitAsync();
 
@@ -418,7 +418,7 @@ public class OracleOutboxRepositoryTests : IAsyncLifetime
         var deliverAt = db1.DELIVER_AT is DateTimeOffset dto ? dto.UtcDateTime : (DateTime)db1.DELIVER_AT;
         deliverAt.Should().BeCloseTo(msg1.DeliverAt!.Value.UtcDateTime, TimeSpan.FromHours(24));
     }
-    
+
     [Fact]
     public async Task InsertBatchAsync_Should_Ignore_Duplicate_Keys()
     {
@@ -427,11 +427,11 @@ public class OracleOutboxRepositoryTests : IAsyncLifetime
 
         await using var connection = new OracleConnection(_fixture.Container.GetConnectionString());
         await connection.OpenAsync();
-        
+
         await using var tx1 = connection.BeginTransaction();
         await sut.InsertBatchAsync(new[] { msg }, new EricksonLopez.Outbox.Persistence.DbTransactionContext(tx1));
         await tx1.CommitAsync();
-        
+
         await using var tx2 = connection.BeginTransaction();
         await sut.InsertBatchAsync(new[] { msg }, new EricksonLopez.Outbox.Persistence.DbTransactionContext(tx2)); // duplicate batch insert should be ignored
         await tx2.CommitAsync();

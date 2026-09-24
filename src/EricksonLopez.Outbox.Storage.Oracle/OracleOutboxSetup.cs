@@ -17,7 +17,7 @@ public static class OracleOutboxSetup
     /// <param name="options">The outbox options being configured.</param>
     /// <param name="connectionFactory">A factory delegate to provide an <see cref="OracleConnection"/> based on the <see cref="IServiceProvider"/>.</param>
     /// <returns>The original <see cref="OutboxOptions"/> for method chaining.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="options"/> or <paramref name="connectionFactory"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="options"/> or <paramref name="connectionFactory"/> is <see langword="null"/></exception>
     public static OutboxOptions UseOracle(this OutboxOptions options, Func<IServiceProvider, OracleConnection> connectionFactory)
     {
         ArgumentNullException.ThrowIfNull(options);

@@ -20,7 +20,7 @@ public class FakeDeadLetterRepositoryTests
     {
         var msg = CreateMessage(DateTimeOffset.UtcNow);
         await _sut.InsertAsync(msg);
-        
+
         _sut.Count.Should().Be(1);
         _sut.Messages.Should().ContainSingle().Which.Id.Should().Be(msg.Id);
     }
@@ -31,12 +31,12 @@ public class FakeDeadLetterRepositoryTests
         var now = DateTimeOffset.UtcNow;
         var msg1 = CreateMessage(now.AddMinutes(-5));
         var msg2 = CreateMessage(now.AddMinutes(5));
-        
+
         await _sut.InsertAsync(msg1);
         await _sut.InsertAsync(msg2);
-        
+
         var result = await _sut.GetAsync(100, now);
-        
+
         result.Should().ContainSingle().Which.Id.Should().Be(msg2.Id);
     }
 
@@ -58,12 +58,12 @@ public class FakeDeadLetterRepositoryTests
         var now = DateTimeOffset.UtcNow;
         var msg1 = CreateMessage(now.AddMinutes(5));
         var msg2 = CreateMessage(now.AddMinutes(-5));
-        
+
         await _sut.InsertAsync(msg1);
         await _sut.InsertAsync(msg2);
-        
+
         var result = await _sut.GetAsync(100);
-        
+
         result.Should().HaveCount(2);
         result[0].Id.Should().Be(msg2.Id); // older first
         result[1].Id.Should().Be(msg1.Id);
@@ -74,9 +74,9 @@ public class FakeDeadLetterRepositoryTests
     {
         var msg = CreateMessage(DateTimeOffset.UtcNow);
         await _sut.InsertAsync(msg);
-        
+
         await _sut.DeleteAsync(msg.Id);
-        
+
         _sut.Count.Should().Be(0);
     }
 
@@ -86,12 +86,12 @@ public class FakeDeadLetterRepositoryTests
         var now = DateTimeOffset.UtcNow;
         var msg1 = CreateMessage(now.AddMinutes(-5));
         var msg2 = CreateMessage(now.AddMinutes(5));
-        
+
         await _sut.InsertAsync(msg1);
         await _sut.InsertAsync(msg2);
-        
+
         await _sut.PurgeAsync(now);
-        
+
         _sut.Count.Should().Be(1);
         _sut.Messages.Single().Id.Should().Be(msg2.Id);
     }
@@ -125,17 +125,17 @@ public class FakeDeadLetterRepositoryTests
     private static DeadLetterMessage CreateMessage(DateTimeOffset deadLetteredAt)
     {
         return new DeadLetterMessage(
-            Guid.NewGuid(), 
-            Guid.NewGuid(), 
-            "Type", 
-            ReadOnlyMemory<byte>.Empty, 
-            null, 
-            null, 
-            ReadOnlyMemory<byte>.Empty, 
-            DateTimeOffset.UtcNow, 
-            deadLetteredAt, 
-            3, 
-            "Error", 
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            "Type",
+            ReadOnlyMemory<byte>.Empty,
+            null,
+            null,
+            ReadOnlyMemory<byte>.Empty,
+            DateTimeOffset.UtcNow,
+            deadLetteredAt,
+            3,
+            "Error",
             null);
     }
 }

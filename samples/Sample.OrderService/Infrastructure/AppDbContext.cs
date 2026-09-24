@@ -16,7 +16,7 @@ public sealed class AppDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
-        
+
         // Configure the Order entity (defaults to mapping to the Orders table)
         modelBuilder.Entity<Order>().HasKey(x => x.Id);
 

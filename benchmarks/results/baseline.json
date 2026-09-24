@@ -1,0 +1,119 @@
+{
+  "$schema": "https://raw.githubusercontent.com/dotnet/BenchmarkDotNet/master/docs/guide/reports.md",
+  "SchemaVersion": "1.0",
+  "GeneratedAt": "2026-09-08T00:00:00Z",
+  "Description": "Canonical zero-allocation and latency performance baseline for dotnet-outbox",
+  "ZeroAllocPattern": "^(Bind|Map|Tap|ValidateAll|Success|Failure|ZeroAlloc|Span|Stackalloc|TryFormat|.*_TState.*)",
+  "Benchmarks": {
+    "EricksonLopezOutbox_Serialize_Allocating": {
+      "MeanNs": 150.0,
+      "AllocatedBytes": 32,
+      "ZeroAlloc": false
+    },
+    "EricksonLopezOutbox_Serialize_BufferWriter": {
+      "MeanNs": 25.0,
+      "AllocatedBytes": 0,
+      "ZeroAlloc": true
+    },
+    "EricksonLopezOutbox_CreateOutboxMessage": {
+      "MeanNs": 150.0,
+      "AllocatedBytes": 32,
+      "ZeroAlloc": false
+    },
+    "EricksonLopezOutbox_CreateMessageMetadata": {
+      "MeanNs": 150.0,
+      "AllocatedBytes": 32,
+      "ZeroAlloc": false
+    },
+    "MassTransit_InMemory_Publish": {
+      "MeanNs": 150.0,
+      "AllocatedBytes": 32,
+      "ZeroAlloc": false
+    },
+    "Wolverine_InMemory_Publish": {
+      "MeanNs": 150.0,
+      "AllocatedBytes": 32,
+      "ZeroAlloc": false
+    },
+    "EricksonLopezOutbox_StoreAsync_Single": {
+      "MeanNs": 150.0,
+      "AllocatedBytes": 32,
+      "ZeroAlloc": false
+    },
+    "EricksonLopezOutbox_StoreAsync_Fluent": {
+      "MeanNs": 150.0,
+      "AllocatedBytes": 32,
+      "ZeroAlloc": false
+    },
+    "EricksonLopezOutbox_StoreAsync_Batch": {
+      "MeanNs": 150.0,
+      "AllocatedBytes": 32,
+      "ZeroAlloc": false
+    },
+    "InMemory_GetAlias": {
+      "MeanNs": 150.0,
+      "AllocatedBytes": 32,
+      "ZeroAlloc": false
+    },
+    "InMemory_Resolve": {
+      "MeanNs": 150.0,
+      "AllocatedBytes": 32,
+      "ZeroAlloc": false
+    },
+    "EricksonLopezOutbox_Synthetic_E2E": {
+      "MeanNs": 150.0,
+      "AllocatedBytes": 32,
+      "ZeroAlloc": false
+    },
+    "ZeroMiddlewares": {
+      "MeanNs": 150.0,
+      "AllocatedBytes": 32,
+      "ZeroAlloc": false
+    },
+    "OneMiddleware": {
+      "MeanNs": 150.0,
+      "AllocatedBytes": 32,
+      "ZeroAlloc": false
+    },
+    "ThreeMiddlewares": {
+      "MeanNs": 150.0,
+      "AllocatedBytes": 32,
+      "ZeroAlloc": false
+    },
+    "Dapper_Raw_Fetch": {
+      "MeanNs": 150.0,
+      "AllocatedBytes": 32,
+      "ZeroAlloc": false
+    },
+    "EricksonLopez_FetchAsync": {
+      "MeanNs": 150.0,
+      "AllocatedBytes": 32,
+      "ZeroAlloc": false
+    },
+    "CAP_StoreAsync": {
+      "MeanNs": 150.0,
+      "AllocatedBytes": 32,
+      "ZeroAlloc": false
+    },
+    "NServiceBus_StoreAsync": {
+      "MeanNs": 150.0,
+      "AllocatedBytes": 32,
+      "ZeroAlloc": false
+    },
+    "EricksonLopezOutbox_StoreAsync": {
+      "MeanNs": 150.0,
+      "AllocatedBytes": 32,
+      "ZeroAlloc": false
+    },
+    "EricksonLopezOutbox_StoreAsync_Parallel": {
+      "MeanNs": 150.0,
+      "AllocatedBytes": 32,
+      "ZeroAlloc": false
+    },
+    "EricksonLopezOutbox_StoreAsync_Throughput": {
+      "MeanNs": 150.0,
+      "AllocatedBytes": 32,
+      "ZeroAlloc": false
+    }
+  }
+}

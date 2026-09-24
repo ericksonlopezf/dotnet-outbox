@@ -5,6 +5,9 @@
 ## Status
 Accepted
 
+## Date
+2026-09-04
+
 > [!NOTE]
 > This decision establishes the Native AOT source generator boundaries for `JsonSerializerContext`
 > with Roslyn Analyzer compile-time validations.

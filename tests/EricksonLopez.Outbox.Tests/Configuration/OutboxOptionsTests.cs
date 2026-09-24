@@ -44,7 +44,7 @@ public class OutboxOptionsConfigurationTests
 
         var serviceProvider = _services.BuildServiceProvider();
         var options = serviceProvider.GetRequiredService<IOptions<OutboxRuntimeOptions>>().Value;
-        
+
         options.SchemaName.Should().Be("testschema");
     }
 
@@ -59,7 +59,8 @@ public class OutboxOptionsConfigurationTests
     public void Configure_ValidConfigure_ExecutesDelegate()
     {
         var invoked = false;
-        _sut.Configure(services => {
+        _sut.Configure(services =>
+        {
             services.Should().BeSameAs(_services);
             invoked = true;
         });
@@ -114,7 +115,7 @@ public class OutboxOptionsConfigurationTests
 
         var serviceProvider = _services.BuildServiceProvider();
         var registeredResolver = serviceProvider.GetRequiredService<IOutboxMessageTypeResolver>();
-        
+
         registeredResolver.Should().BeSameAs(resolver);
     }
 
@@ -222,15 +223,15 @@ public class OutboxOptionsConfigurationTests
     {
         var publisher = Substitute.For<IBrokerPublisher>();
         var retryPolicy = new FixedDelayRetryPolicy(TimeSpan.FromSeconds(1), 1);
-        
+
         _sut.UseBroker(sp => publisher, retryPolicy);
 
         _sut.DefaultPublisherFactory.Should().NotBeNull();
-        
+
         _services.AddLogging();
         var sp = _services.BuildServiceProvider();
         var factoryResult = _sut.DefaultPublisherFactory!(sp);
-        
+
         factoryResult.Should().BeOfType<RetryDispatcherInterceptor>();
     }
 
@@ -240,13 +241,13 @@ public class OutboxOptionsConfigurationTests
         var publisher = Substitute.For<IBrokerPublisher>();
         var retryPolicy = new FixedDelayRetryPolicy(TimeSpan.FromSeconds(1), 1);
         var customCb = new CircuitBreakerState();
-        
+
         _sut.UseBroker(sp => publisher, retryPolicy, customCb);
 
         _services.AddLogging();
         var sp = _services.BuildServiceProvider();
         var factoryResult = _sut.DefaultPublisherFactory!(sp);
-        
+
         var interceptor = factoryResult as RetryDispatcherInterceptor;
         interceptor.Should().NotBeNull();
         interceptor!.CircuitBreaker.Should().BeSameAs(customCb);
@@ -256,16 +257,16 @@ public class OutboxOptionsConfigurationTests
     public void UseBroker_TypeWithRetryPolicy_RegistersInterceptorAndSelfInServices()
     {
         var retryPolicy = new FixedDelayRetryPolicy(TimeSpan.FromSeconds(1), 1);
-        
+
         _sut.UseBroker<TestBroker>(retryPolicy);
 
         _sut.DefaultPublisherFactory.Should().NotBeNull();
-        
+
         _services.AddLogging();
         // Do NOT manually add TestBroker to services, verify UseBroker<TestBroker> added it!
         var sp = _services.BuildServiceProvider();
         var factoryResult = _sut.DefaultPublisherFactory!(sp);
-        
+
         factoryResult.Should().BeOfType<RetryDispatcherInterceptor>();
     }
 
@@ -274,13 +275,13 @@ public class OutboxOptionsConfigurationTests
     {
         var retryPolicy = new FixedDelayRetryPolicy(TimeSpan.FromSeconds(1), 1);
         var customCb = new CircuitBreakerState();
-        
+
         _sut.UseBroker<TestBroker>(retryPolicy, customCb);
 
         _services.AddLogging();
         var sp = _services.BuildServiceProvider();
         var factoryResult = _sut.DefaultPublisherFactory!(sp);
-        
+
         var interceptor = factoryResult as RetryDispatcherInterceptor;
         interceptor.Should().NotBeNull();
         interceptor!.CircuitBreaker.Should().BeSameAs(customCb);
@@ -292,11 +293,11 @@ public class OutboxOptionsConfigurationTests
         _sut.UseBroker<TestBroker>();
 
         _sut.DefaultPublisherFactory.Should().NotBeNull();
-        
+
         // Do NOT manually add TestBroker to services, verify UseBroker<TestBroker> added it!
         var sp = _services.BuildServiceProvider();
         var factoryResult = _sut.DefaultPublisherFactory!(sp);
-        
+
         factoryResult.Should().BeOfType<TestBroker>();
     }
 
@@ -313,7 +314,7 @@ public class OutboxOptionsAutoPropertiesTests
     public void OutboxDispatcherOptions_Defaults_AreCorrect()
     {
         var options = new OutboxDispatcherOptions();
-        
+
         options.HasOnlySingletonMiddlewares.Should().BeFalse();
         options.PollingInterval.Should().Be(TimeSpan.FromMilliseconds(500));
         options.UseAdaptivePolling.Should().BeTrue();
@@ -359,7 +360,7 @@ public class OutboxOptionsAutoPropertiesTests
             DbRetryBaseDelayMs = 100,
             PendingCountRefreshInterval = TimeSpan.FromSeconds(60)
         };
-        
+
         options.HasOnlySingletonMiddlewares.Should().BeTrue();
         options.PollingInterval.Should().Be(TimeSpan.FromSeconds(1));
         options.UseAdaptivePolling.Should().BeFalse();
@@ -379,7 +380,7 @@ public class OutboxOptionsAutoPropertiesTests
     public void OutboxRuntimeOptions_Defaults_AreCorrect()
     {
         var options = new OutboxRuntimeOptions();
-        
+
         options.InstanceId.Should().NotBeNullOrWhiteSpace();
         options.InstanceId.Length.Should().Be(32);
         options.InstanceId.Should().NotContain("-");
@@ -417,7 +418,7 @@ public class OutboxOptionsAutoPropertiesTests
             ReclaimBatchLimit = 5000,
             IncludeMessageTypeTag = false
         };
-        
+
         options.InstanceId.Should().Be("test-id");
         options.SchemaName.Should().Be("test-schema");
         options.TableName.Should().Be("test-table");
@@ -437,7 +438,7 @@ public class OutboxOptionsAutoPropertiesTests
     public void OutboxInboxOptions_Defaults_AreCorrect()
     {
         var options = new OutboxInboxOptions();
-        
+
         options.RetentionPeriod.Should().Be(TimeSpan.FromDays(7));
         options.DuplicateDetectionWindow.Should().Be(TimeSpan.FromHours(24));
         options.CleanupInterval.Should().Be(TimeSpan.FromHours(1));
@@ -452,7 +453,7 @@ public class OutboxOptionsAutoPropertiesTests
             DuplicateDetectionWindow = TimeSpan.FromHours(12),
             CleanupInterval = TimeSpan.FromHours(2)
         };
-        
+
         options.RetentionPeriod.Should().Be(TimeSpan.FromDays(30));
         options.DuplicateDetectionWindow.Should().Be(TimeSpan.FromHours(12));
         options.CleanupInterval.Should().Be(TimeSpan.FromHours(2));
@@ -472,7 +473,7 @@ public class OutboxOptionsAutoPropertiesTests
         {
             WarningThreshold = 500
         };
-        
+
         options.WarningThreshold.Should().Be(500);
     }
 
@@ -483,13 +484,13 @@ public class OutboxOptionsAutoPropertiesTests
         var options = new OutboxOptions(services);
         var publisher = Substitute.For<IBrokerPublisher>();
         var retryPolicy = new FixedDelayRetryPolicy(TimeSpan.FromSeconds(1), 1);
-        
+
         options.UseBroker(sp => publisher, retryPolicy, null);
-        
+
         services.AddLogging();
         var sp = services.BuildServiceProvider();
         var factoryResult = options.DefaultPublisherFactory!(sp);
-        
+
         var interceptor = factoryResult as RetryDispatcherInterceptor;
         interceptor.Should().NotBeNull();
         interceptor!.CircuitBreaker.Should().NotBeNull();
@@ -503,13 +504,13 @@ public class OutboxOptionsAutoPropertiesTests
         var options = new OutboxOptions(services);
         var publisher = Substitute.For<IBrokerPublisher>();
         var retryPolicy = new FixedDelayRetryPolicy(TimeSpan.FromSeconds(1), 1);
-        
+
         options.UseBroker(publisher, retryPolicy, null);
-        
+
         services.AddLogging();
         var sp = services.BuildServiceProvider();
         var factoryResult = options.DefaultPublisherFactory!(sp);
-        
+
         var interceptor = factoryResult as RetryDispatcherInterceptor;
         interceptor.Should().NotBeNull();
         interceptor!.CircuitBreaker.Should().NotBeNull();
@@ -524,13 +525,13 @@ public class OutboxOptionsAutoPropertiesTests
         var publisher = Substitute.For<IBrokerPublisher>();
         var retryPolicy = new FixedDelayRetryPolicy(TimeSpan.FromSeconds(1), 1);
         var customCb = new CircuitBreakerState();
-        
+
         options.UseBroker(publisher, retryPolicy, customCb);
-        
+
         services.AddLogging();
         var sp = services.BuildServiceProvider();
         var factoryResult = options.DefaultPublisherFactory!(sp);
-        
+
         var interceptor = factoryResult as RetryDispatcherInterceptor;
         interceptor.Should().NotBeNull();
         interceptor!.CircuitBreaker.Should().BeSameAs(customCb);
@@ -542,13 +543,13 @@ public class OutboxOptionsAutoPropertiesTests
         var services = new ServiceCollection();
         var options = new OutboxOptions(services);
         var retryPolicy = new FixedDelayRetryPolicy(TimeSpan.FromSeconds(1), 1);
-        
+
         options.UseBroker<OutboxOptionsConfigurationTests.TestBroker>(retryPolicy, null);
-        
+
         services.AddLogging();
         var sp = services.BuildServiceProvider();
         var factoryResult = options.DefaultPublisherFactory!(sp);
-        
+
         var interceptor = factoryResult as RetryDispatcherInterceptor;
         interceptor.Should().NotBeNull();
     }
@@ -560,10 +561,10 @@ public class OutboxOptionsAutoPropertiesTests
         var options = new OutboxOptions(services);
         var publisher = Substitute.For<IBrokerPublisher>();
         options.UseBroker(publisher);
-        
+
         var sp = services.BuildServiceProvider();
         var factoryResult = options.DefaultPublisherFactory!(sp);
-        
+
         factoryResult.Should().BeSameAs(publisher);
     }
 
@@ -574,12 +575,12 @@ public class OutboxOptionsAutoPropertiesTests
         var options = new OutboxOptions(services);
         var publisher = Substitute.For<IBrokerPublisher>();
         services.AddSingleton(publisher);
-        
+
         options.UseBroker<IBrokerPublisher>();
-        
+
         var sp = services.BuildServiceProvider();
         var factoryResult = options.DefaultPublisherFactory!(sp);
-        
+
         factoryResult.Should().BeSameAs(publisher);
     }
 }

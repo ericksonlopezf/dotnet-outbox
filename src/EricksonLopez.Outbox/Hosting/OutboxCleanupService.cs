@@ -88,12 +88,12 @@ public sealed class OutboxCleanupService : BackgroundService
                 // Stryker restore all
                 await PerformCleanupAsync(stoppingToken);
             }
+            // Stryker disable all : Cancellation exit per ADR-013
             catch (OperationCanceledException)
             {
-                // Stryker disable all : Cancellation exit per ADR-013
                 break;
-                // Stryker restore all
             }
+            // Stryker restore all
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error occurred while executing Outbox Cleanup pass.");

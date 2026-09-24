@@ -92,7 +92,7 @@ public class AwsSqsBrokerPublisherTests
         var result = await publisher.PublishAsync(msg, new DispatchContext(CancellationToken.None, 1));
 
         result.Success.Should().BeTrue();
-        await sqs.Received(1).SendMessageAsync(Arg.Is<SendMessageRequest>(r => 
+        await sqs.Received(1).SendMessageAsync(Arg.Is<SendMessageRequest>(r =>
             r.QueueUrl == "http://localhost/queue.fifo" &&
             r.MessageGroupId == "corr" &&
             r.MessageDeduplicationId == "caus" &&
@@ -110,7 +110,7 @@ public class AwsSqsBrokerPublisherTests
         var sqs = Substitute.For<IAmazonSQS>();
         var ex = new AmazonSQSException("test") { StatusCode = System.Net.HttpStatusCode.InternalServerError };
         sqs.SendMessageAsync(Arg.Any<SendMessageRequest>(), Arg.Any<CancellationToken>()).ThrowsAsync(ex);
-        
+
         var serializer = Substitute.For<IOutboxSerializer>();
         var publisher = new AwsSqsBrokerPublisher(sqs, serializer, "http://localhost/queue");
 
@@ -127,7 +127,7 @@ public class AwsSqsBrokerPublisherTests
         var sqs = Substitute.For<IAmazonSQS>();
         var ex = new AmazonSQSException("test") { StatusCode = System.Net.HttpStatusCode.TooManyRequests };
         sqs.SendMessageAsync(Arg.Any<SendMessageRequest>(), Arg.Any<CancellationToken>()).ThrowsAsync(ex);
-        
+
         var serializer = Substitute.For<IOutboxSerializer>();
         var publisher = new AwsSqsBrokerPublisher(sqs, serializer, "http://localhost/queue");
 
@@ -143,7 +143,7 @@ public class AwsSqsBrokerPublisherTests
     {
         var sqs = Substitute.For<IAmazonSQS>();
         sqs.SendMessageAsync(Arg.Any<SendMessageRequest>(), Arg.Any<CancellationToken>()).ThrowsAsync(new InvalidOperationException("fatal"));
-        
+
         var serializer = Substitute.For<IOutboxSerializer>();
         var publisher = new AwsSqsBrokerPublisher(sqs, serializer, "http://localhost/queue");
 
@@ -170,7 +170,7 @@ public class AwsSqsBrokerPublisherTests
 
         result.Count.Should().Be(1);
         result[0].Success.Should().BeTrue();
-        await sqs.Received(1).SendMessageBatchAsync(Arg.Is<SendMessageBatchRequest>(r => 
+        await sqs.Received(1).SendMessageBatchAsync(Arg.Is<SendMessageBatchRequest>(r =>
             r.QueueUrl == "http://localhost/queue" &&
             r.Entries.Count == 1 &&
             r.Entries[0].MessageBody != null &&

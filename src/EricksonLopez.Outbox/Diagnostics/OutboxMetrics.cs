@@ -66,7 +66,7 @@ public sealed class OutboxMetrics : IDisposable
 {
 
     /// <summary>
-    /// The canonical name of the Outbox meter.
+    /// Gets the canonical name of the Outbox meter.
     /// </summary>
     public const string MeterName = "EricksonLopez.Outbox";
 
@@ -137,8 +137,8 @@ public sealed class OutboxMetrics : IDisposable
     /// <param name="meterFactory">An optional meter factory to resolve the meter instance.</param>
     public OutboxMetrics(IMeterFactory? meterFactory = null)
     {
-        Meter = meterFactory?.Create(new MeterOptions(MeterName) { Version = "2.0.0" })
-                ?? new Meter(MeterName, "2.0.0");
+        Meter = meterFactory?.Create(new MeterOptions(MeterName) { Version = "3.0.0" })
+                ?? new Meter(MeterName, "3.0.0");
 
         MessagesDispatched = Meter.CreateCounter<long>("messaging.outbox.messages.dispatched", "{message}", "Total messages successfully dispatched to the broker.");
         DispatchFailures = Meter.CreateCounter<long>("messaging.outbox.dispatch.errors", "{message}", "Total dispatch failures. Tag 'error.type' = 'transient' | 'fatal'.");

@@ -16,7 +16,7 @@ public static class BrighterOutboxServiceCollectionExtensions
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <returns>The modified service collection.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="services"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="services"/> is <see langword="null"/></exception>
     public static IServiceCollection AddOutboxBrighterProducer(this IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);

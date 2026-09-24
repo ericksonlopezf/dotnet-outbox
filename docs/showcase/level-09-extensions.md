@@ -181,27 +181,27 @@ builder.Services.AddScoped<IDeadLetterRepository, PostgreSqlDeadLetterRepository
 #### SQL Server
 
 ```csharp
+using EricksonLopez.Outbox;
 using EricksonLopez.Outbox.Storage.SqlServer;
 using Microsoft.Data.SqlClient;
 
-builder.Services.AddSingleton(_ => new SqlConnection(connectionString));
-
-builder.Services.AddScoped<IOutboxRepository, SqlServerOutboxRepository>();
-builder.Services.AddScoped<IIdempotencyRepository, SqlServerIdempotencyRepository>();
-builder.Services.AddScoped<IDeadLetterRepository, SqlServerDeadLetterRepository>();
+builder.Services.AddOutbox(options =>
+{
+    options.UseSqlServer(sp => new SqlConnection(connectionString));
+});
 ```
 
 #### MySQL
 
 ```csharp
+using EricksonLopez.Outbox;
 using EricksonLopez.Outbox.Storage.MySql;
 using MySqlConnector;
 
-builder.Services.AddSingleton(_ => new MySqlDataSource(connectionString));
-
-builder.Services.AddScoped<IOutboxRepository, MySqlOutboxRepository>();
-builder.Services.AddScoped<IIdempotencyRepository, MySqlIdempotencyRepository>();
-builder.Services.AddScoped<IDeadLetterRepository, MySqlDeadLetterRepository>();
+builder.Services.AddOutbox(options =>
+{
+    options.UseMySql(sp => new MySqlConnection(connectionString));
+});
 ```
 
 ### Provider Comparison

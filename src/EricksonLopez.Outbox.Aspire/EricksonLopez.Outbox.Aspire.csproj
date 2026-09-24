@@ -3,7 +3,7 @@
 
   <PropertyGroup>
     <Description>.NET Aspire integration component for EricksonLopez.Outbox. Provides seamless registration, OpenTelemetry telemetry wiring, and health checks for Aspire applications.</Description>
-    <PackageTags>$(CommonPackageTags);aspire;cloud-native;opentelemetry;health-checks;native-aot</PackageTags>
+    <PackageTags>$(CommonPackageTags);outbox;transactional-outbox;aspire;cloud-native;opentelemetry;health-checks;native-aot</PackageTags>
     <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
     <Nullable>enable</Nullable>
   </PropertyGroup>

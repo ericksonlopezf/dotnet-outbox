@@ -43,7 +43,7 @@ public partial class NativeAotJsonSerializerTests
 
         var msg = new TestDto { Value = "HelloBuffer" };
         var buffer = new System.Buffers.ArrayBufferWriter<byte>();
-        
+
         serializer.Serialize(msg, buffer);
 
         buffer.WrittenCount.Should().BeGreaterThan(0);

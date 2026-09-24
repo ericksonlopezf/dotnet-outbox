@@ -23,11 +23,11 @@ public class FakeOutboxDispatcherTests
     {
         var broker = new FakeBrokerPublisher();
         var dispatcher = new FakeOutboxDispatcher(broker);
-        
+
         var msgs = new[] { CreateMessage() };
-        
+
         var count = await dispatcher.DispatchAsync(msgs);
-        
+
         count.Should().Be(1);
         dispatcher.DispatchedMessages.Count.Should().Be(1);
     }
@@ -38,12 +38,12 @@ public class FakeOutboxDispatcherTests
         var repo = Substitute.For<IOutboxRepository>();
         var msgs = new[] { CreateMessage() };
         repo.FetchPendingAsync(Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(msgs);
-        
+
         var broker = new FakeBrokerPublisher();
         var dispatcher = new FakeOutboxDispatcher(broker, repo);
-        
+
         var count = await dispatcher.DispatchAsync();
-        
+
         count.Should().Be(1);
         await repo.Received(1).MarkAsDispatchedAsync(
             Arg.Is<IReadOnlyList<OutboxMessage>>(b => b.Count == 1 && b[0].Id == msgs[0].Id),
@@ -55,14 +55,14 @@ public class FakeOutboxDispatcherTests
     {
         var broker = new FakeBrokerPublisher();
         var dispatcher = new FakeOutboxDispatcher(broker);
-        
+
         var msgs = new[] { CreateMessage() };
-        
+
         var cts = new CancellationTokenSource();
         cts.Cancel();
-        
+
         var count = await dispatcher.DispatchAsync(msgs, cts.Token);
-        
+
         count.Should().Be(0);
         dispatcher.DispatchedMessages.Count.Should().Be(0);
     }
@@ -72,11 +72,11 @@ public class FakeOutboxDispatcherTests
     {
         var broker = new FakeBrokerPublisher().WithFailure();
         var dispatcher = new FakeOutboxDispatcher(broker);
-        
+
         var msgs = new[] { CreateMessage() };
-        
+
         var count = await dispatcher.DispatchAsync(msgs);
-        
+
         count.Should().Be(0);
         dispatcher.DispatchedMessages.Count.Should().Be(0);
     }
@@ -86,9 +86,9 @@ public class FakeOutboxDispatcherTests
     {
         var broker = new FakeBrokerPublisher();
         var dispatcher = new FakeOutboxDispatcher(broker);
-        
+
         var count = await dispatcher.DispatchAsync(Array.Empty<OutboxMessage>());
-        
+
         count.Should().Be(0);
     }
 
@@ -99,7 +99,7 @@ public class FakeOutboxDispatcherTests
         var dispatcher = new FakeOutboxDispatcher(broker);
         var msgs = new[] { CreateMessage() };
         await dispatcher.DispatchAsync(msgs);
-        
+
         dispatcher.Reset();
         dispatcher.DispatchedMessages.Count.Should().Be(0);
     }
@@ -111,7 +111,7 @@ public class FakeOutboxDispatcherTests
         var dispatcher = new FakeOutboxDispatcher(broker);
         var msgs = new[] { CreateMessage() };
         await dispatcher.DispatchAsync(msgs);
-        
+
         dispatcher.ShouldHaveDispatched(1);
     }
 
@@ -120,7 +120,7 @@ public class FakeOutboxDispatcherTests
     {
         var broker = new FakeBrokerPublisher();
         var dispatcher = new FakeOutboxDispatcher(broker);
-        
+
         Assert.Throws<InvalidOperationException>(() => dispatcher.ShouldHaveDispatched(1));
     }
 
@@ -129,7 +129,7 @@ public class FakeOutboxDispatcherTests
     {
         var broker = new FakeBrokerPublisher();
         var dispatcher = new FakeOutboxDispatcher(broker);
-        
+
         dispatcher.ShouldHaveDispatchedNothing();
     }
 
@@ -158,7 +158,7 @@ public class FakeOutboxDispatcherTests
         var dispatcher = new FakeOutboxDispatcher(broker);
         var msgs = new[] { CreateMessage() };
         await dispatcher.DispatchAsync(msgs);
-        
+
         Assert.Throws<InvalidOperationException>(() => dispatcher.ShouldHaveDispatchedNothing());
     }
 }

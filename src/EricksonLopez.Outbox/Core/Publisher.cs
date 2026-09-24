@@ -7,8 +7,8 @@ namespace EricksonLopez.Outbox;
 /// Represents a logical publisher identity within the outbox ecosystem.
 /// </summary>
 /// <remarks>
-/// This record is used in multi-publisher scenarios to identify which specific publisher instance
-/// or node is responsible for dispatching a given batch of messages.
+/// Identifies which specific publisher instance or node is responsible for dispatching
+/// a given batch of messages in multi-publisher scenarios.
 /// </remarks>
 /// <param name="Id">The unique identifier of the publisher instance.</param>
 /// <param name="Name">The human-readable name or role of the publisher.</param>
@@ -23,7 +23,7 @@ public readonly record struct Publisher(
     /// </summary>
     /// <param name="name">The human-readable name of the publisher.</param>
     /// <returns>A new <see cref="Publisher"/> instance with an auto-generated unique ID.</returns>
-    /// <exception cref="ArgumentException"><paramref name="name"/> is <see langword="null"/> or empty.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is <see langword="null"/> or empty</exception>
     public static Publisher Create(string name)
     {
         if (string.IsNullOrWhiteSpace(name))

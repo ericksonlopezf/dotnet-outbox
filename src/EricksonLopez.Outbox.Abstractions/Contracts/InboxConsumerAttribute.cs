@@ -24,7 +24,7 @@ public sealed class InboxConsumerAttribute : Attribute
     /// Initializes a new instance of the <see cref="InboxConsumerAttribute"/> class.
     /// </summary>
     /// <param name="eventAlias">The stable string alias identifying the event type this consumer handles.</param>
-    /// <exception cref="ArgumentException"><paramref name="eventAlias"/> is <see langword="null"/> or white space.</exception>
+    /// <exception cref="ArgumentException"><paramref name="eventAlias"/> is <see langword="null"/> or white space</exception>
     public InboxConsumerAttribute(string eventAlias)
     {
         if (string.IsNullOrWhiteSpace(eventAlias))
@@ -38,7 +38,7 @@ public sealed class InboxConsumerAttribute : Attribute
     /// </summary>
     /// <param name="eventAlias">The stable string alias identifying the event type this consumer handles.</param>
     /// <param name="maxAgeMinutes">The maximum retention duration in minutes for deduplication records.</param>
-    /// <exception cref="ArgumentException"><paramref name="eventAlias"/> is <see langword="null"/> or white space.</exception>
+    /// <exception cref="ArgumentException"><paramref name="eventAlias"/> is <see langword="null"/> or white space</exception>
     public InboxConsumerAttribute(string eventAlias, int maxAgeMinutes)
         : this(eventAlias)
     {

@@ -3,8 +3,10 @@
 # ADR-032 — Dashboard & Operations UI Strategy
 
 ## Status
-
 Accepted
+
+## Date
+2026-09-04
 
 ## Context
 

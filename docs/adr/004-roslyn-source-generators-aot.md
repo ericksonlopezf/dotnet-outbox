@@ -1,6 +1,10 @@
-<!-- Copyright © Erickson Lopez. MIT License. -->
-
 # ADR-004: Metaprogramming with Incremental Source Generators
+
+## Status
+Accepted
+
+## Date
+2026-09-04
 
 ## 1. Title and Status
 **Attribute Scanning (`[OutboxMessage]`) at Compile-Time without Reflection**

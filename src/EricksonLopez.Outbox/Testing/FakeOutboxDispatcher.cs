@@ -30,7 +30,7 @@ public sealed class FakeOutboxDispatcher
     /// </summary>
     /// <param name="broker">The fake broker publisher that captures published messages.</param>
     /// <param name="repository">An optional repository that fetches pending messages and mark them as dispatched.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="broker"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="broker"/> is <see langword="null"/></exception>
     public FakeOutboxDispatcher(
         FakeBrokerPublisher broker,
         IOutboxRepository? repository = null)
@@ -107,7 +107,7 @@ public sealed class FakeOutboxDispatcher
     /// Asserts that exactly the specified number of messages were successfully dispatched.
     /// </summary>
     /// <param name="count">The exact number of messages expected to have been dispatched.</param>
-    /// <exception cref="InvalidOperationException">Thrown when the actual number of dispatched messages does not match the expected count.</exception>
+    /// <exception cref="InvalidOperationException">Thrown when the actual number of dispatched messages does not match the expected count</exception>
     public void ShouldHaveDispatched(int count)
     {
         if (_dispatchedMessages.Count != count)
@@ -118,7 +118,7 @@ public sealed class FakeOutboxDispatcher
     /// <summary>
     /// Asserts that no messages were dispatched during the test.
     /// </summary>
-    /// <exception cref="InvalidOperationException">Thrown when one or more messages were dispatched.</exception>
+    /// <exception cref="InvalidOperationException">Thrown when one or more messages were dispatched</exception>
     public void ShouldHaveDispatchedNothing()
     {
         if (_dispatchedMessages.Count > 0)

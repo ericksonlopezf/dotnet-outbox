@@ -22,7 +22,7 @@ public class PostgreSqlVersionValidatorTests : IAsyncLifetime
     {
         _container = new PostgreSqlBuilder("postgres:15-alpine")
             .Build();
-            
+
         await _container.StartAsync();
         _dataSource = NpgsqlDataSource.Create(_container.GetConnectionString());
     }
@@ -38,7 +38,7 @@ public class PostgreSqlVersionValidatorTests : IAsyncLifetime
     {
         var validator = new PostgreSqlVersionValidator(_dataSource!, NullLogger<PostgreSqlVersionValidator>.Instance);
         var act = () => validator.StartAsync(CancellationToken.None);
-        
+
         await act.Should().NotThrowAsync();
     }
 
@@ -47,7 +47,7 @@ public class PostgreSqlVersionValidatorTests : IAsyncLifetime
     {
         var validator = new PostgreSqlVersionValidator(_dataSource!, NullLogger<PostgreSqlVersionValidator>.Instance);
         var act = () => validator.StopAsync(CancellationToken.None);
-        
+
         await act.Should().NotThrowAsync();
     }
 
@@ -56,13 +56,13 @@ public class PostgreSqlVersionValidatorTests : IAsyncLifetime
     {
         await using var pg14 = new PostgreSqlBuilder("postgres:14-alpine")
             .Build();
-        
+
         await pg14.StartAsync();
         await using var ds14 = NpgsqlDataSource.Create(pg14.GetConnectionString());
-        
+
         var validator = new PostgreSqlVersionValidator(ds14, NullLogger<PostgreSqlVersionValidator>.Instance);
         var act = () => validator.StartAsync(CancellationToken.None);
-        
+
         var ex = await act.Should().ThrowAsync<NotSupportedException>();
         ex.WithMessage("*PostgreSQL 15 or higher*");
     }
@@ -72,12 +72,12 @@ public class PostgreSqlVersionValidatorTests : IAsyncLifetime
     {
         // Bad connection string will throw NpgsqlException or similar, which should be caught and not thrown
         await using var badDs = NpgsqlDataSource.Create("Host=localhost;Port=1234;Username=test;Password=test;Timeout=1");
-        
+
         var validator = new PostgreSqlVersionValidator(badDs, NullLogger<PostgreSqlVersionValidator>.Instance);
-        
+
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
         var act = () => validator.StartAsync(cts.Token);
-        
+
         // It shouldn't throw NotSupportedException or anything, it should just swallow the exception.
         await act.Should().NotThrowAsync();
     }

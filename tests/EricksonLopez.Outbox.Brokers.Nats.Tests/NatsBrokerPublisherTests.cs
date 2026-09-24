@@ -56,7 +56,7 @@ public class NatsBrokerPublisherTests
         var result = await publisher.PublishAsync(msg, new DispatchContext(CancellationToken.None, 1));
 
         result.Success.Should().BeTrue();
-        await connection.Received(1).PublishAsync("type", Arg.Any<MessageEnvelope<string>>(), Arg.Is<NatsHeaders>(h => 
+        await connection.Received(1).PublishAsync("type", Arg.Any<MessageEnvelope<string>>(), Arg.Is<NatsHeaders>(h =>
             h.ContainsKey("X-Correlation-Id") && h["X-Correlation-Id"].ToString() == "corr" &&
             h.ContainsKey("X-Causation-Id") && h["X-Causation-Id"].ToString() == "caus" &&
             h.ContainsKey("k") && h["k"].ToString() == "v"
@@ -130,7 +130,7 @@ public class NatsBrokerPublisherTests
         var result = await publisher.PublishRawAsync(msg, meta, new DispatchContext(CancellationToken.None, 1));
 
         result.Success.Should().BeTrue();
-        await connection.Received(1).PublishAsync("alias", Arg.Is<byte[]>(b => b.Length == 3), Arg.Is<NatsHeaders>(h => 
+        await connection.Received(1).PublishAsync("alias", Arg.Is<byte[]>(b => b.Length == 3), Arg.Is<NatsHeaders>(h =>
             h.ContainsKey("X-Correlation-Id") && h["X-Correlation-Id"].ToString() == "corr" &&
             h.ContainsKey("X-Causation-Id") && h["X-Causation-Id"].ToString() == "caus" &&
             h.ContainsKey("k") && h["k"].ToString() == "v"
@@ -144,7 +144,7 @@ public class NatsBrokerPublisherTests
         var expectedEx = new InvalidOperationException("NATS server unavailable");
         _ = connection.PublishAsync(Arg.Any<string>(), Arg.Any<byte[]>(), Arg.Any<NatsHeaders>(), Arg.Any<string>(), Arg.Any<INatsSerialize<byte[]>>(), Arg.Any<NatsPubOpts>(), Arg.Any<CancellationToken>())
             .Returns(ValueTask.FromException(expectedEx));
-        
+
         var publisher = new NatsBrokerPublisher(connection);
 
         var msg = new OutboxMessage(Guid.NewGuid(), "alias", Array.Empty<byte>(), null, null, System.Text.Encoding.UTF8.GetBytes("{}"), DateTimeOffset.UtcNow, null, null, 0, 0, null);

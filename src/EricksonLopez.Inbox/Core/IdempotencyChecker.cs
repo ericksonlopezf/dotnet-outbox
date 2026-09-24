@@ -18,7 +18,7 @@ public sealed class IdempotencyChecker : IIdempotencyChecker
     /// </summary>
     /// <param name="inboxStore">The inbox persistence store.</param>
     /// <param name="consumerFilter">The consumer filter.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="inboxStore"/> or <paramref name="consumerFilter"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="inboxStore"/> or <paramref name="consumerFilter"/> is <see langword="null"/></exception>
     public IdempotencyChecker(
         IInboxStore inboxStore,
         IInboxConsumerFilter consumerFilter)

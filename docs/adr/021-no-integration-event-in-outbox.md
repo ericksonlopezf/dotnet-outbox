@@ -3,8 +3,10 @@
 # ADR-021 — IIntegrationEvent Is Not An Outbox Contract
 
 ## Status
-
 Accepted — Pending Implementation
+
+## Date
+2026-09-04
 
 ## Context
 

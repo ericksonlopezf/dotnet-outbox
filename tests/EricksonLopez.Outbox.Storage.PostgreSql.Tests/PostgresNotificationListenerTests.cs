@@ -32,19 +32,19 @@ public class PostgresNotificationListenerTests
     {
         var services = new ServiceCollection();
         var sp = services.BuildServiceProvider();
-        
+
         var optionsMock = Options.Create(new OutboxDispatcherOptions());
         var outboxOptions = Options.Create(new OutboxRuntimeOptions());
-        
+
         var metrics = new EricksonLopez.Outbox.Diagnostics.OutboxMetrics();
 
         outboxChannel = new OutboxChannel(
-            NullLogger<OutboxChannel>.Instance, 
-            Substitute.For<IBrokerPublisher>(), 
+            NullLogger<OutboxChannel>.Instance,
+            Substitute.For<IBrokerPublisher>(),
             optionsMock,
             outboxOptions,
             metrics,
-            Substitute.For<Microsoft.Extensions.DependencyInjection.IServiceScopeFactory>(), 
+            Substitute.For<Microsoft.Extensions.DependencyInjection.IServiceScopeFactory>(),
             NSubstitute.Substitute.For<EricksonLopez.Outbox.Diagnostics.IErrorSanitizer>(),
             TimeProvider.System);
 
@@ -61,8 +61,8 @@ public class PostgresNotificationListenerTests
     {
         var poller = CreatePoller(out var outboxChannel);
         var listener = new PostgresNotificationListener(
-            _dataSource, 
-            NullLogger<PostgresNotificationListener>.Instance, 
+            _dataSource,
+            NullLogger<PostgresNotificationListener>.Instance,
             TimeProvider.System,
             poller);
 
@@ -106,8 +106,8 @@ public class PostgresNotificationListenerTests
     {
         var poller = CreatePoller(out var outboxChannel);
         var listener = new PostgresNotificationListener(
-            _dataSource, 
-            NullLogger<PostgresNotificationListener>.Instance, 
+            _dataSource,
+            NullLogger<PostgresNotificationListener>.Instance,
             TimeProvider.System,
             poller);
 
@@ -136,8 +136,8 @@ public class PostgresNotificationListenerTests
     {
         var poller = CreatePoller(out var outboxChannel);
         var listener = new PostgresNotificationListener(
-            _dataSource, 
-            NullLogger<PostgresNotificationListener>.Instance, 
+            _dataSource,
+            NullLogger<PostgresNotificationListener>.Instance,
             TimeProvider.System,
             poller);
 
@@ -146,11 +146,11 @@ public class PostgresNotificationListenerTests
 
         using var cts = new CancellationTokenSource();
         await listener.StartAsync(cts.Token);
-        
+
         await startedTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
-        
+
         cts.Cancel(); // Should cancel WaitAsync cleanly
-        
+
         var exception = await Record.ExceptionAsync(() => listener.ExecuteTask ?? Task.CompletedTask);
         Assert.Null(exception); // The OperationCanceledException should be caught and loop broken
         listener.ExecuteTask?.IsCompletedSuccessfully.Should().BeTrue();
@@ -162,21 +162,21 @@ public class PostgresNotificationListenerTests
         var poller = CreatePoller(out var outboxChannel);
         // Bad connection string to force exception without DNS delay
         var badDataSource = NpgsqlDataSource.Create("Host=127.0.0.1;Port=59999;Username=test;Password=wrong;Timeout=1;CommandTimeout=1");
-        
+
         var listener = new PostgresNotificationListener(
-            badDataSource, 
-            NullLogger<PostgresNotificationListener>.Instance, 
+            badDataSource,
+            NullLogger<PostgresNotificationListener>.Instance,
             TimeProvider.System,
             poller);
 
         using var cts = new CancellationTokenSource();
         var listenerTask = listener.StartAsync(cts.Token);
-        
+
         // Wait long enough for it to hit the catch block and Task.Delay
         await Task.Delay(200);
-        
+
         cts.Cancel(); // Should cancel Task.Delay cleanly
-        
+
         var exception = await Record.ExceptionAsync(() => listener.ExecuteTask ?? Task.CompletedTask);
         Assert.Null(exception); // Clean exit
     }
@@ -185,14 +185,14 @@ public class PostgresNotificationListenerTests
     public async Task StartAsync_Should_Return_If_PollerWakeup_Is_Null()
     {
         var listener = new PostgresNotificationListener(
-            _dataSource, 
-            NullLogger<PostgresNotificationListener>.Instance, 
+            _dataSource,
+            NullLogger<PostgresNotificationListener>.Instance,
             TimeProvider.System,
             null); // null poller
 
         using var cts = new CancellationTokenSource();
         await listener.StartAsync(cts.Token);
-        
+
         var exception = await Record.ExceptionAsync(() => listener.ExecuteTask ?? Task.CompletedTask);
         Assert.Null(exception); // Should return immediately
         listener.ExecuteTask.Should().NotBeNull();
@@ -203,7 +203,7 @@ public class PostgresNotificationListenerTests
     public void Constructor_NullParameters_ThrowsArgumentNullException()
     {
         var poller = Substitute.For<IPollerWakeup>();
-        
+
         Action act1 = () => _ = new PostgresNotificationListener(null!, NullLogger<PostgresNotificationListener>.Instance, TimeProvider.System, poller);
         act1.Should().Throw<ArgumentNullException>().WithParameterName("dataSource");
 
@@ -219,8 +219,8 @@ public class PostgresNotificationListenerTests
     {
         var pollerMock = Substitute.For<IPollerWakeup>();
         var listener = new PostgresNotificationListener(
-            _dataSource, 
-            NullLogger<PostgresNotificationListener>.Instance, 
+            _dataSource,
+            NullLogger<PostgresNotificationListener>.Instance,
             TimeProvider.System,
             pollerMock);
 
@@ -256,7 +256,7 @@ public class PostgresNotificationListenerTests
     {
         var pollerMock = Substitute.For<IPollerWakeup>();
         await using var faultyDataSource = NpgsqlDataSource.Create("Host=127.0.0.1;Port=59999;Database=test;Username=u;Password=p;Timeout=1;CommandTimeout=1");
-        
+
         var listener = new PostgresNotificationListener(
             faultyDataSource,
             NullLogger<PostgresNotificationListener>.Instance,

@@ -42,7 +42,7 @@ public sealed class CircuitBreakerState
     /// </summary>
     /// <param name="failureThreshold">The number of consecutive failures before opening the circuit.</param>
     /// <param name="openDuration">The duration the circuit stays open. Defaults to 30 seconds.</param>
-    /// <exception cref="ArgumentOutOfRangeException"><paramref name="failureThreshold"/> is less than or equal to 0.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="failureThreshold"/> is less than or equal to 0</exception>
     public CircuitBreakerState(int failureThreshold = 5, TimeSpan? openDuration = null)
         : this(failureThreshold, openDuration, TimeProvider.System)
     {
@@ -54,7 +54,7 @@ public sealed class CircuitBreakerState
     /// <param name="failureThreshold">The number of consecutive failures before opening the circuit.</param>
     /// <param name="openDuration">The duration the circuit stays open. Defaults to 30 seconds.</param>
     /// <param name="timeProvider">The time provider to use for time measurements.</param>
-    /// <exception cref="ArgumentOutOfRangeException"><paramref name="failureThreshold"/> is less than or equal to 0.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="failureThreshold"/> is less than or equal to 0</exception>
     public CircuitBreakerState(int failureThreshold, TimeSpan? openDuration, TimeProvider? timeProvider)
     {
         if (failureThreshold <= 0)

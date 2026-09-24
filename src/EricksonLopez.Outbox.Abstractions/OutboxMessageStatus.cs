@@ -9,28 +9,28 @@ namespace EricksonLopez.Outbox;
 public enum OutboxMessageStatus
 {
     /// <summary>
-    /// The message is queued and ready to be dispatched.
+    /// Indicates that the message is queued and ready to be dispatched.
     /// </summary>
     Pending = 0,
 
     /// <summary>
-    /// The message has been claimed by a dispatcher and is currently being processed.
+    /// Indicates that the message has been claimed by a dispatcher and is currently being processed.
     /// This state prevents duplicate processing across concurrent dispatcher instances.
     /// </summary>
     InFlight = 1,
 
     /// <summary>
-    /// The message was successfully dispatched to the broker.
+    /// Indicates that the message was successfully dispatched to the broker.
     /// </summary>
     Dispatched = 2,
 
     /// <summary>
-    /// The message failed to dispatch and is scheduled for retry.
+    /// Indicates that the message failed to dispatch and is scheduled for retry.
     /// </summary>
     Failed = 3,
 
     /// <summary>
-    /// The message has exhausted all retry attempts and has been moved to the dead-letter queue.
+    /// Indicates that the message has exhausted all retry attempts and has been moved to the dead-letter queue.
     /// </summary>
     DeadLettered = 4
 }

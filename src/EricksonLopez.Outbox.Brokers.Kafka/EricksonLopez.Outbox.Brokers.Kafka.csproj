@@ -3,7 +3,7 @@
 
   <PropertyGroup>
     <Description>Kafka message broker transport for EricksonLopez.Outbox. Delivers high-performance, Zero-Reflection, NativeAOT-ready event publishing to Apache Kafka.</Description>
-    <PackageTags>$(CommonPackageTags);kafka;apache-kafka;message-broker;event-streaming;native-aot</PackageTags>
+    <PackageTags>$(CommonPackageTags);outbox;transactional-outbox;kafka;apache-kafka;message-broker;event-streaming;native-aot</PackageTags>
     <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
     <Nullable>enable</Nullable>
   </PropertyGroup>

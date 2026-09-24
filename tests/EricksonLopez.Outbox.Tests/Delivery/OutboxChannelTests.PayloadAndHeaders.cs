@@ -67,7 +67,7 @@ public partial class OutboxChannelTests
                 .WithPayload(ReadOnlyMemory<byte>.Empty)
                 .WithHeaders(JsonSerializer.SerializeToUtf8Bytes(JsonDocument.Parse(jsonHeaders).RootElement))
                 .Build();
-            
+
             _publisher.PublishRawAsync(Arg.Any<OutboxMessage>(), Arg.Any<OutboxMessageMetadata>(), Arg.Any<DispatchContext>())
                 .Returns(DispatchResult.Ok());
 
@@ -88,7 +88,7 @@ public partial class OutboxChannelTests
                 .WithPayload(ReadOnlyMemory<byte>.Empty)
                 .WithHeaders(System.Text.Encoding.UTF8.GetBytes(jsonHeaders))
                 .Build();
-            
+
             await _channel.WriteAsync(msg, CancellationToken.None);
             _channel.Complete();
 
@@ -106,7 +106,7 @@ public partial class OutboxChannelTests
                 .WithPayload(ReadOnlyMemory<byte>.Empty)
                 .WithHeaders(System.Text.Encoding.UTF8.GetBytes(jsonHeaders))
                 .Build();
-            
+
             _publisher.PublishRawAsync(Arg.Any<OutboxMessage>(), Arg.Any<OutboxMessageMetadata>(), Arg.Any<DispatchContext>())
                 .Returns(DispatchResult.Ok());
 
@@ -127,7 +127,7 @@ public partial class OutboxChannelTests
                 .WithPayload(ReadOnlyMemory<byte>.Empty)
                 .WithHeaders(System.Text.Encoding.UTF8.GetBytes(jsonHeaders))
                 .Build();
-            
+
             _publisher.PublishRawAsync(Arg.Any<OutboxMessage>(), Arg.Any<OutboxMessageMetadata>(), Arg.Any<DispatchContext>())
                 .Returns(DispatchResult.Ok());
 
@@ -344,7 +344,8 @@ public partial class OutboxChannelTests
 
             OutboxMessageMetadata? capturedMeta = null;
             _publisher.PublishRawAsync(Arg.Any<OutboxMessage>(), Arg.Any<OutboxMessageMetadata>(), Arg.Any<DispatchContext>())
-                .Returns(call => {
+                .Returns(call =>
+                {
                     capturedMeta = call.Arg<OutboxMessageMetadata>();
                     return DispatchResult.Ok();
                 });
@@ -367,7 +368,8 @@ public partial class OutboxChannelTests
 
             OutboxMessageMetadata? capturedMeta = null;
             _publisher.PublishRawAsync(Arg.Any<OutboxMessage>(), Arg.Any<OutboxMessageMetadata>(), Arg.Any<DispatchContext>())
-                .Returns(call => {
+                .Returns(call =>
+                {
                     capturedMeta = call.Arg<OutboxMessageMetadata>();
                     return DispatchResult.Ok();
                 });
@@ -419,7 +421,8 @@ public partial class OutboxChannelTests
 
             var metas = new List<OutboxMessageMetadata>();
             _publisher.PublishRawAsync(Arg.Any<OutboxMessage>(), Arg.Any<OutboxMessageMetadata>(), Arg.Any<DispatchContext>())
-                .Returns(call => {
+                .Returns(call =>
+                {
                     metas.Add(call.Arg<OutboxMessageMetadata>());
                     return DispatchResult.Ok();
                 });
@@ -454,7 +457,8 @@ public partial class OutboxChannelTests
 
             var received = new List<OutboxMessageMetadata>();
             _publisher.PublishRawAsync(Arg.Any<OutboxMessage>(), Arg.Any<OutboxMessageMetadata>(), Arg.Any<DispatchContext>())
-                .Returns(call => {
+                .Returns(call =>
+                {
                     received.Add(call.Arg<OutboxMessageMetadata>());
                     return DispatchResult.Ok();
                 });
@@ -547,7 +551,8 @@ public partial class OutboxChannelTests
 
             var captured = new List<string?>();
             _publisher.PublishRawAsync(Arg.Any<OutboxMessage>(), Arg.Any<OutboxMessageMetadata>(), Arg.Any<DispatchContext>())
-                .Returns(call => {
+                .Returns(call =>
+                {
                     lock (captured)
                     {
                         captured.Add(call.Arg<OutboxMessageMetadata>().GetValue("k"));

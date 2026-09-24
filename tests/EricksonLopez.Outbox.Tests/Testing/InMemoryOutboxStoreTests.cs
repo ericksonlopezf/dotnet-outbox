@@ -19,7 +19,7 @@ public class InMemoryOutboxStoreTests
         var store = new InMemoryOutboxStore();
         var tx = Substitute.For<EricksonLopez.Outbox.Persistence.IOutboxTransactionContext>();
         await store.StoreAsync("test1", tx);
-        
+
         var msgs = store.GetPublishedMessages<string>();
         msgs.Count.Should().Be(1);
         msgs[0].Should().Be("test1");
@@ -32,7 +32,7 @@ public class InMemoryOutboxStoreTests
         var tx = Substitute.For<EricksonLopez.Outbox.Persistence.IOutboxTransactionContext>();
         var items = new[] { "test1", "test2" };
         await store.StoreAsync<string>(items, tx);
-        
+
         var msgs = store.GetPublishedMessages<string>();
         msgs.Count.Should().Be(2);
     }
@@ -43,7 +43,7 @@ public class InMemoryOutboxStoreTests
         var store = new InMemoryOutboxStore();
         var tx = Substitute.For<EricksonLopez.Outbox.Persistence.IOutboxTransactionContext>();
         await store.StoreAsync("test1", tx, new OutboxMessageMetadata(null, null, null), null);
-        
+
         var msgs = store.GetPublishedMessages<string>();
         msgs.Count.Should().Be(1);
     }
@@ -61,7 +61,7 @@ public class InMemoryOutboxStoreTests
         var store = new InMemoryOutboxStore();
         var tx = Substitute.For<EricksonLopez.Outbox.Persistence.IOutboxTransactionContext>();
         await store.StoreAsync("test1", tx);
-        
+
         store.Reset();
         store.GetPublishedMessages<string>().Count.Should().Be(0);
     }

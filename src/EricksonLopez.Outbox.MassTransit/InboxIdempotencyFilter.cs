@@ -22,7 +22,7 @@ public sealed class InboxIdempotencyFilter<T> : IFilter<ConsumeContext<T>> where
     {
         var messageId = context.MessageId?.ToString();
         var consumerId = context.ReceiveContext.InputAddress?.ToString() ?? "UnknownQueue";
-        
+
         if (string.IsNullOrEmpty(messageId))
         {
             // Without MessageId we cannot ensure idempotency safely, let it pass
