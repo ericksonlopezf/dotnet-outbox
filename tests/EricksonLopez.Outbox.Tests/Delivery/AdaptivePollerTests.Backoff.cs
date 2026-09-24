@@ -55,7 +55,7 @@ public partial class AdaptivePollerTests
             tasks[i] = Task.Run(() => poller.WakeUp());
         }
         await Task.WhenAll(tasks);
-        
+
         var act = () => poller.WakeUp();
         act.Should().NotThrow();
     }
@@ -67,19 +67,19 @@ public partial class AdaptivePollerTests
         var provider = services.BuildServiceProvider();
         var publisher = Substitute.For<IBrokerPublisher>();
         var channel = new OutboxChannel(
-            Microsoft.Extensions.Logging.Abstractions.NullLogger<OutboxChannel>.Instance, 
-            publisher, 
-            Microsoft.Extensions.Options.Options.Create(new OutboxDispatcherOptions()), 
-            Microsoft.Extensions.Options.Options.Create(new OutboxRuntimeOptions()), 
-            new EricksonLopez.Outbox.Diagnostics.OutboxMetrics(), 
-            Substitute.For<Microsoft.Extensions.DependencyInjection.IServiceScopeFactory>(), 
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<OutboxChannel>.Instance,
+            publisher,
+            Microsoft.Extensions.Options.Options.Create(new OutboxDispatcherOptions()),
+            Microsoft.Extensions.Options.Options.Create(new OutboxRuntimeOptions()),
+            new EricksonLopez.Outbox.Diagnostics.OutboxMetrics(),
+            Substitute.For<Microsoft.Extensions.DependencyInjection.IServiceScopeFactory>(),
             Substitute.For<EricksonLopez.Outbox.Diagnostics.IErrorSanitizer>(), TimeProvider.System);
         var options = Microsoft.Extensions.Options.Options.Create(new OutboxDispatcherOptions());
         var metrics = new EricksonLopez.Outbox.Diagnostics.OutboxMetrics();
         var logger = Microsoft.Extensions.Logging.Abstractions.NullLogger<AdaptivePoller>.Instance;
-        
+
         var poller = new AdaptivePoller(provider, channel, options, logger, metrics, TimeProvider.System);
-        
+
         // Calling WakeUp multiple times fills the semaphore (capacity 1) and safely triggers SemaphoreFullException catch
         var act = () =>
         {
@@ -98,17 +98,17 @@ public partial class AdaptivePollerTests
         var provider = services.BuildServiceProvider();
         var publisher = Substitute.For<IBrokerPublisher>();
         var channel = new OutboxChannel(
-            Microsoft.Extensions.Logging.Abstractions.NullLogger<OutboxChannel>.Instance, 
-            publisher, 
-            Microsoft.Extensions.Options.Options.Create(new OutboxDispatcherOptions()), 
-            Microsoft.Extensions.Options.Options.Create(new OutboxRuntimeOptions()), 
-            new EricksonLopez.Outbox.Diagnostics.OutboxMetrics(), 
-            Substitute.For<Microsoft.Extensions.DependencyInjection.IServiceScopeFactory>(), 
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<OutboxChannel>.Instance,
+            publisher,
+            Microsoft.Extensions.Options.Options.Create(new OutboxDispatcherOptions()),
+            Microsoft.Extensions.Options.Options.Create(new OutboxRuntimeOptions()),
+            new EricksonLopez.Outbox.Diagnostics.OutboxMetrics(),
+            Substitute.For<Microsoft.Extensions.DependencyInjection.IServiceScopeFactory>(),
             Substitute.For<EricksonLopez.Outbox.Diagnostics.IErrorSanitizer>(), TimeProvider.System);
         var options = Microsoft.Extensions.Options.Options.Create(new OutboxDispatcherOptions());
         var metrics = new EricksonLopez.Outbox.Diagnostics.OutboxMetrics();
         var logger = Microsoft.Extensions.Logging.Abstractions.NullLogger<AdaptivePoller>.Instance;
-        
+
         var poller = new AdaptivePoller(provider, channel, options, logger, metrics, TimeProvider.System);
         poller.Dispose();
 
@@ -124,7 +124,7 @@ public partial class AdaptivePollerTests
     {
         var services = new ServiceCollection();
         var repo = Substitute.For<IOutboxRepository>();
-        
+
         var options = new OutboxDispatcherOptions
         {
             UseAdaptivePolling = true,
@@ -133,18 +133,18 @@ public partial class AdaptivePollerTests
         };
 
         var message = new OutboxMessage(Guid.NewGuid(), "Test", default, null, null, System.Text.Encoding.UTF8.GetBytes("{}"), DateTimeOffset.UtcNow, null, null, 0, 0, null);
-        
-        var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5)); 
+
+        var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
         int callCount = 0;
         repo.FetchPendingAsync(Arg.Any<int>(), Arg.Any<CancellationToken>())
-            .Returns(x => 
+            .Returns(x =>
             {
                 callCount++;
                 if (callCount == 1) return new ValueTask<IReadOnlyList<OutboxMessage>>(new List<OutboxMessage> { message });
                 cts.Cancel();
                 return new ValueTask<IReadOnlyList<OutboxMessage>>(Array.Empty<OutboxMessage>());
             });
-            
+
         services.AddScoped(_ => repo);
         var provider = services.BuildServiceProvider();
 
@@ -171,7 +171,8 @@ public partial class AdaptivePollerTests
         var message = new OutboxMessage(Guid.NewGuid(), "Test", default, null, null, System.Text.Encoding.UTF8.GetBytes("{}"), DateTimeOffset.UtcNow, null, null, 0, 0, null);
         using var cts = new CancellationTokenSource();
         repo.FetchPendingAsync(Arg.Any<int>(), Arg.Any<CancellationToken>())
-            .Returns(_ => {
+            .Returns(_ =>
+            {
                 cts.Cancel();
                 return new ValueTask<IReadOnlyList<OutboxMessage>>(new List<OutboxMessage> { message });
             });
@@ -211,7 +212,8 @@ public partial class AdaptivePollerTests
         var message = new OutboxMessage(Guid.NewGuid(), "Test", default, null, null, System.Text.Encoding.UTF8.GetBytes("{}"), DateTimeOffset.UtcNow, null, null, 0, 0, null);
         using var cts = new CancellationTokenSource();
         repo.FetchPendingAsync(Arg.Any<int>(), Arg.Any<CancellationToken>())
-            .Returns(_ => {
+            .Returns(_ =>
+            {
                 cts.Cancel();
                 return new ValueTask<IReadOnlyList<OutboxMessage>>(new List<OutboxMessage> { message });
             });
@@ -315,7 +317,8 @@ public partial class AdaptivePollerTests
         int fetchCount = 0;
         var firstFetchTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         repo.FetchPendingAsync(Arg.Any<int>(), Arg.Any<CancellationToken>())
-            .Returns(_ => {
+            .Returns(_ =>
+            {
                 if (Interlocked.Increment(ref fetchCount) == 1) firstFetchTcs.TrySetResult();
                 return ValueTask.FromResult<IReadOnlyList<OutboxMessage>>(Array.Empty<OutboxMessage>());
             });

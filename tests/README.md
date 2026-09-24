@@ -53,11 +53,11 @@ dotnet test --nologo
 To verify mutation score and catch surviving mutants:
 
 ```bash
-# Run unit tests mutation analysis
-dotnet stryker -c stryker-config-unit.json
-
-# Run complete mutation suite
+# Run core outbox mutation analysis
 dotnet stryker -c stryker-config.json
+
+# Run specific package mutation analysis (e.g., PostgreSQL)
+dotnet stryker -c stryker-postgresql-config.json
 ```
 
 ### Thresholds & Exclusion Policy

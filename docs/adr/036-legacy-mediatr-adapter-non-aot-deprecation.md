@@ -5,6 +5,9 @@
 ## Status
 Accepted — August 2026
 
+## Date
+2026-09-04
+
 ## Context
 `EricksonLopez.Outbox.MediatR` provides an adapter enabling `MediatR` notification publishing to route events into the transactional Outbox table.
 
@@ -19,8 +22,8 @@ Because third-party `MediatR` relies on runtime reflection and dynamic type acti
 
 | Version | Status | Architectural Action |
 |---|---|---|
-| **v1.x (Current)** | Legacy Supported | Maintained for bugfixes; explicitly marked as non-AOT. Documentation recommends migration to `EricksonLopez.Outbox.Mediator` + `EricksonLopez.Mediator`. |
-| **v2.0** | Final Migration Window | Enhanced migration guides and documentation warnings. No compile-time `[Obsolete]` to avoid noise in existing stable builds. |
+| **v1.x** | Legacy Supported | Maintained for bugfixes; explicitly marked as non-AOT. Documentation recommends migration to `EricksonLopez.Outbox.Mediator` + `EricksonLopez.Mediator`. |
+| **v2.0 (Current)** | Final Migration Window | Enhanced migration guides and documentation warnings. No compile-time `[Obsolete]` to avoid noise in existing stable builds. |
 | **v3.0.0** | Deprecated (`[Obsolete]`) | Public APIs decorated with `[Obsolete]` attribute (`IsError = false`, `DiagnosticId = "ELMED002"`). Non-breaking compiler warning. |
 | **v4.0.0** | End of Life / Removal | Package officially removed from supported ecosystem releases (breaking change). |
 

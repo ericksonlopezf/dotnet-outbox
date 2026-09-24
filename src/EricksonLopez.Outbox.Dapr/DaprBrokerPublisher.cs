@@ -22,7 +22,7 @@ public sealed class DaprBrokerPublisher : IBrokerPublisher
     /// </summary>
     /// <param name="daprClient">The Dapr client instance.</param>
     /// <param name="pubsubName">The name of the configured Dapr Pub/Sub component (default: "pubsub").</param>
-    /// <exception cref="ArgumentNullException"><paramref name="daprClient"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="daprClient"/> is <see langword="null"/></exception>
     public DaprBrokerPublisher(DaprClient daprClient, string pubsubName = "pubsub")
     {
         _daprClient = daprClient ?? throw new ArgumentNullException(nameof(daprClient));

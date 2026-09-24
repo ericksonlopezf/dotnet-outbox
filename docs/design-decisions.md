@@ -29,7 +29,7 @@ The full ADR documents live in [`docs/adr/`](adr/).
 | [ADR-005](adr/005-idempotency-optimistic-inbox.md) | Optimistic Inbox Idempotency | Approved | `INSERT ... ON CONFLICT DO NOTHING` for deduplication |
 | [ADR-006](adr/006-bounded-channels-dispatcher.md) | Bounded Channels Dispatcher | Approved | `System.Threading.Channels` for backpressure-aware dispatch |
 | [ADR-007](adr/007-outboxmessage-readonly-record-struct.md) | `OutboxMessage` as `readonly record struct` | Approved | Stack-based, immutable, value-equality for the core data type |
-| [ADR-008](adr/008-ref-struct-builder.md) | `ref struct OutboxMessageBuilder` | Approved | Zero-allocation fluent builder guaranteed to stay on the stack |
+| [ADR-008](adr/008-ref-struct-builder.md) | `ref struct OutboxMessageBuilder` | **Superseded** by ADR-037 | Zero-allocation fluent builder guaranteed to stay on the stack |
 | [ADR-009](adr/009-package-consolidation-strategy.md) | Package Consolidation Strategy | Approved | Per-provider packages (17 projects) instead of consolidated |
 | [ADR-010](adr/010-remove-dapper-raw-adonet.md) | Remove Dapper, Adopt Raw ADO.NET | Approved | Zero-allocation storage via raw `DbCommand`/`DbDataReader` |
 | [ADR-011](adr/011-source-generator-json-context.md) | Source Generator JSON Context Limitation | Approved | Consumer-declared `JsonSerializerContext` with Analyzer validation |
@@ -58,6 +58,9 @@ The full ADR documents live in [`docs/adr/`](adr/).
 | [ADR-034](adr/034-azure-event-hubs-strategy.md) | Azure Event Hubs High-Throughput Streaming Publisher | Approved | `EricksonLopez.Outbox.Brokers.AzureEventHubs` with zero-reflection payload streaming |
 | [ADR-035](adr/035-messagemetadata-persistence-boundary-vs-messaging.md) | `OutboxMessageMetadata` Persistence Boundary vs Messaging Record | Approved | Retain `OutboxMessageMetadata` as zero-allocation struct for raw storage independent of messaging transports |
 | [ADR-036](adr/036-legacy-mediatr-adapter-non-aot-deprecation.md) | Legacy MediatR Adapter Deprecation Strategy | Approved | Explicit non-AOT marking and staged deprecation path toward `EricksonLopez.Outbox.Mediator` |
+| [ADR-037](adr/037-outboxmessagebuilder-sealed-class-rationale.md) | `OutboxMessageBuilder<T>` as `sealed class : IDisposable` | Approved | Resolves async/await across suspension points and ArrayPool cleanup (supersedes ADR-008) |
+| [ADR-038](adr/038-benchmark-regression-quality-gate.md) | Benchmark Regression Quality Gate in CI/CD | Approved | Automated CI gate enforcing zero-allocation hot paths and <5% latency delta |
+| [ADR-039](adr/039-error-sanitizer-credential-redaction.md) | Error Sanitizer Credential and Token Redaction | Approved | Source-generated regex redaction of connection string secrets and bearer tokens |
 | [REJECT-005](adr/reject-005-inbox-outbox-merging.md) | Rejection: Merging Inbox and Outbox into Monolithic Package | Rejected | Retain clean segregation between publishing outbox and consuming inbox concerns |
 
 ---

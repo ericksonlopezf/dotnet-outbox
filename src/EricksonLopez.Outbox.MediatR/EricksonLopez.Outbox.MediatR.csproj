@@ -3,7 +3,7 @@
 
   <PropertyGroup>
     <Description>[INTEROP / COMPATIBILITY BRIDGE] MediatR integration for EricksonLopez.Outbox. Enables transparent out-of-process durability for INotification publishers.</Description>
-    <PackageTags>$(CommonPackageTags);mediatr;cqrs;notification-publisher;domain-events;event-driven</PackageTags>
+    <PackageTags>$(CommonPackageTags);outbox;transactional-outbox;mediatr;cqrs;domain-events;event-driven</PackageTags>
     <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
     <Nullable>enable</Nullable>
     <!-- MediatR relies on runtime reflection; AOT and Trimming are not supported -->

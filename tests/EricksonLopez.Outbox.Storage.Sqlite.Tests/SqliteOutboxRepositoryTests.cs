@@ -26,7 +26,7 @@ public class SqliteOutboxRepositoryTests : IDisposable
     public SqliteOutboxRepositoryTests()
     {
         _connectionString = $"Data Source=outbox_{Guid.NewGuid():N};Mode=Memory;Cache=Shared";
-        
+
         // In-memory sqlite shared cache per test instance so connections to _connectionString share DB.
         _connection = new SqliteConnection(_connectionString);
         _connection.Open();
@@ -46,11 +46,11 @@ public class SqliteOutboxRepositoryTests : IDisposable
     }
 
     private static OutboxMessage CreateMessage(
-        int state = 0, 
-        DateTimeOffset? deliverAt = null, 
-        DateTimeOffset? createdAt = null, 
-        int retryCount = 0, 
-        string? correlationId = null, 
+        int state = 0,
+        DateTimeOffset? deliverAt = null,
+        DateTimeOffset? createdAt = null,
+        int retryCount = 0,
+        string? correlationId = null,
         string? causationId = null)
     {
         var builder = new OutboxMessageTestDataBuilder()
@@ -125,14 +125,14 @@ public class SqliteOutboxRepositoryTests : IDisposable
         await using var connection = new SqliteConnection(_connectionString);
         await connection.OpenAsync();
         await using var tx = await connection.BeginTransactionAsync();
-        
+
         await sut.InsertAsync(msg, new EricksonLopez.Outbox.Persistence.DbTransactionContext(tx));
         await tx.CommitAsync();
 
         var row = await connection.QuerySingleAsync(
-            "SELECT correlation_id as CorrelationId, causation_id as CausationId, deliver_at as DeliverAt FROM messages WHERE id = @Id", 
+            "SELECT correlation_id as CorrelationId, causation_id as CausationId, deliver_at as DeliverAt FROM messages WHERE id = @Id",
             new { Id = msg.Id.ToString() });
-            
+
         ((string?)row.CorrelationId).Should().Be(msg.CorrelationId);
         ((string?)row.CausationId).Should().Be(msg.CausationId);
         if (msg.DeliverAt.HasValue)
@@ -141,7 +141,7 @@ public class SqliteOutboxRepositoryTests : IDisposable
             parsedDate.Should().BeCloseTo(msg.DeliverAt.Value.UtcDateTime, TimeSpan.FromMilliseconds(1));
         }
     }
-    
+
     [Fact]
     public async Task FetchPendingAsync_WhenMessagesPresent_ReturnsOnlyPendingReadyToDeliver()
     {
@@ -157,18 +157,18 @@ public class SqliteOutboxRepositoryTests : IDisposable
 
         await using var connection = new SqliteConnection(_connectionString);
         await connection.OpenAsync();
-        
-        foreach(var m in new[] { pendingReady, pendingNotReady, dispatched, retryingReady })
+
+        foreach (var m in new[] { pendingReady, pendingNotReady, dispatched, retryingReady })
         {
             await connection.ExecuteAsync(
-            "INSERT INTO messages (id, type, correlation_id, causation_id, payload, headers_json, created_at, updated_at, deliver_at, state) VALUES (@Id, @MessageType, @CorrelationId, @CausationId, @PayloadBytes, @HeadersBytes, @CreatedAt, @UpdatedAt, @DeliverAt, @State)", 
+            "INSERT INTO messages (id, type, correlation_id, causation_id, payload, headers_json, created_at, updated_at, deliver_at, state) VALUES (@Id, @MessageType, @CorrelationId, @CausationId, @PayloadBytes, @HeadersBytes, @CreatedAt, @UpdatedAt, @DeliverAt, @State)",
             new { Id = m.Id, m.MessageType, m.CorrelationId, m.CausationId, PayloadBytes = m.Payload.ToArray(), HeadersBytes = m.Headers.ToArray(), CreatedAt = m.CreatedAt.ToString("O"), UpdatedAt = DateTimeOffset.UtcNow.ToString("O"), DeliverAt = m.DeliverAt?.ToString("O"), State = m.Status });
         }
 
         var fetched = await sut.FetchPendingAsync(10);
         fetched.Should().HaveCount(2);
     }
-    
+
     [Fact]
     public async Task BatchOperations_WhenCollectionsEmpty_CompletesWithoutModifyingDatabase()
     {
@@ -199,7 +199,7 @@ public class SqliteOutboxRepositoryTests : IDisposable
 
         await using var connection = new SqliteConnection(_connectionString);
         await connection.OpenAsync();
-        
+
         await connection.ExecuteAsync("INSERT INTO messages (id, type, payload, headers_json, created_at, updated_at, state) VALUES (@Id, @MessageType, @P, @H, @CreatedAt, @UpdatedAt, @State)", new { Id = staleMsg.Id.ToString(), staleMsg.MessageType, P = Array.Empty<byte>(), H = Array.Empty<byte>(), CreatedAt = staleMsg.CreatedAt.ToString("O"), UpdatedAt = DateTimeOffset.UtcNow.AddHours(-2).ToString("O"), State = (int)staleMsg.Status });
         await connection.ExecuteAsync("INSERT INTO messages (id, type, payload, headers_json, created_at, updated_at, state) VALUES (@Id, @MessageType, @P, @H, @CreatedAt, @UpdatedAt, @State)", new { Id = freshMsg.Id.ToString(), freshMsg.MessageType, P = Array.Empty<byte>(), H = Array.Empty<byte>(), CreatedAt = freshMsg.CreatedAt.ToString("O"), UpdatedAt = DateTimeOffset.UtcNow.ToString("O"), State = (int)freshMsg.Status });
 
@@ -303,7 +303,7 @@ public class SqliteOutboxRepositoryTests : IDisposable
         await using var connection = new SqliteConnection(_connectionString);
         await connection.OpenAsync();
         await using var tx = connection.BeginTransaction();
-        
+
         await sut.InsertBatchAsync(messages, new EricksonLopez.Outbox.Persistence.DbTransactionContext(tx));
         await tx.CommitAsync();
 
@@ -313,7 +313,7 @@ public class SqliteOutboxRepositoryTests : IDisposable
         var db1 = list.Single(x => Guid.Parse(x.Id) == msg1.Id);
         db1.CorrelationId.Should().Be("c1");
         db1.CausationId.Should().Be("c2");
-        
+
         var parsedDate = DateTimeOffset.Parse(db1.DeliverAt!, null, System.Globalization.DateTimeStyles.RoundtripKind);
         parsedDate.Should().BeCloseTo(msg1.DeliverAt!.Value, TimeSpan.FromMilliseconds(1));
     }
@@ -333,7 +333,7 @@ public class SqliteOutboxRepositoryTests : IDisposable
         var count = await sut.GetPendingCountAsync(CancellationToken.None);
         count.Should().Be(0);
     }
-    
+
     [Fact]
     public async Task InsertBatchAsync_WhenCancelled_ThrowsOperationCanceledException()
     {
@@ -381,18 +381,18 @@ public class SqliteOutboxRepositoryTests : IDisposable
         await using var connection = new SqliteConnection(_connectionString);
         await connection.OpenAsync();
         await connection.ExecuteAsync(
-            "INSERT INTO messages (id, type, correlation_id, causation_id, payload, headers_json, created_at, updated_at, processed_at, deliver_at, state, owner_id, error) VALUES (@Id, @MessageType, NULL, NULL, @PayloadBytes, @HeadersBytes, @CreatedAt, @UpdatedAt, NULL, NULL, @State, NULL, NULL)", 
+            "INSERT INTO messages (id, type, correlation_id, causation_id, payload, headers_json, created_at, updated_at, processed_at, deliver_at, state, owner_id, error) VALUES (@Id, @MessageType, NULL, NULL, @PayloadBytes, @HeadersBytes, @CreatedAt, @UpdatedAt, NULL, NULL, @State, NULL, NULL)",
             new { Id = msg.Id.ToString(), msg.MessageType, PayloadBytes = msg.Payload.ToArray(), HeadersBytes = msg.Headers.ToArray(), CreatedAt = msg.CreatedAt.ToString("O"), UpdatedAt = DateTimeOffset.UtcNow.ToString("O"), State = msg.Status });
 
         var fetched = await sut.FetchPendingAsync(10);
-        
+
         fetched.Should().HaveCount(1);
         var f = fetched[0];
         f.CorrelationId.Should().BeNull();
         f.CausationId.Should().BeNull();
         f.DeliverAt.Should().BeNull();
     }
-    
+
     [Fact]
     public async Task FetchPendingAsync_WhenFieldsNonNull_MapsAllPropertiesCorrectly()
     {
@@ -402,11 +402,11 @@ public class SqliteOutboxRepositoryTests : IDisposable
         await using var connection = new SqliteConnection(_connectionString);
         await connection.OpenAsync();
         await connection.ExecuteAsync(
-            "INSERT INTO messages (id, type, correlation_id, causation_id, payload, headers_json, created_at, updated_at, processed_at, deliver_at, state, owner_id, error) VALUES (@Id, @MessageType, @CorrelationId, @CausationId, @PayloadBytes, @HeadersBytes, @CreatedAt, @UpdatedAt, @ProcessedAt, @DeliverAt, @State, @OwnerId, @Error)", 
+            "INSERT INTO messages (id, type, correlation_id, causation_id, payload, headers_json, created_at, updated_at, processed_at, deliver_at, state, owner_id, error) VALUES (@Id, @MessageType, @CorrelationId, @CausationId, @PayloadBytes, @HeadersBytes, @CreatedAt, @UpdatedAt, @ProcessedAt, @DeliverAt, @State, @OwnerId, @Error)",
             new { Id = msg.Id.ToString(), msg.MessageType, msg.CorrelationId, msg.CausationId, PayloadBytes = msg.Payload.ToArray(), HeadersBytes = msg.Headers.ToArray(), CreatedAt = msg.CreatedAt.ToString("O"), UpdatedAt = DateTimeOffset.UtcNow.ToString("O"), ProcessedAt = DateTimeOffset.UtcNow.ToString("O"), DeliverAt = msg.DeliverAt!.Value.ToString("O"), State = msg.Status, OwnerId = "owner1", Error = "some error" });
 
         var fetched = await sut.FetchPendingAsync(10);
-        
+
         fetched.Should().HaveCount(1);
         var f = fetched[0];
         f.CorrelationId.Should().Be("c1");

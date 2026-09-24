@@ -24,7 +24,7 @@ public sealed class RabbitMQBrokerPublisher : IBrokerPublisher
     /// <param name="channel">The RabbitMQ communication channel.</param>
     /// <param name="serializer">The serializer that encodes the message payload.</param>
     /// <param name="exchangeName">The target exchange name for publishing messages.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="channel"/> or <paramref name="serializer"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="channel"/> or <paramref name="serializer"/> is <see langword="null"/></exception>
     public RabbitMQBrokerPublisher(IChannel channel, IOutboxSerializer serializer, string exchangeName = "outbox.exchange")
     {
         _channel = channel ?? throw new ArgumentNullException(nameof(channel));
@@ -34,7 +34,7 @@ public sealed class RabbitMQBrokerPublisher : IBrokerPublisher
 
     /// <inheritdoc/>
     public async ValueTask<DispatchResult> PublishAsync<T>(
-        MessageEnvelope<T> message, 
+        MessageEnvelope<T> message,
         DispatchContext context) where T : notnull
     {
         try
@@ -44,7 +44,7 @@ public sealed class RabbitMQBrokerPublisher : IBrokerPublisher
                 CorrelationId = message.Metadata.CorrelationId,
                 Headers = new Dictionary<string, object?>()
             };
-            
+
             foreach (var header in message.Metadata.Entries.Span)
             {
                 properties.Headers[header.Key] = header.Value;
@@ -54,11 +54,11 @@ public sealed class RabbitMQBrokerPublisher : IBrokerPublisher
 
             // Client v7 is fully async and accepts ReadOnlyMemory directly, avoiding allocations
             await _channel.BasicPublishAsync(
-                exchange: _exchangeName, 
-                routingKey: message.Metadata.MessageType ?? "", 
-                mandatory: true, 
-                basicProperties: properties, 
-                body: payloadBytes, 
+                exchange: _exchangeName,
+                routingKey: message.Metadata.MessageType ?? "",
+                mandatory: true,
+                basicProperties: properties,
+                body: payloadBytes,
                 cancellationToken: context.CancellationToken);
 
             return DispatchResult.Ok();
@@ -71,7 +71,7 @@ public sealed class RabbitMQBrokerPublisher : IBrokerPublisher
 
     /// <inheritdoc/>
     public async ValueTask<IReadOnlyList<DispatchResult>> PublishBatchAsync<T>(
-        IReadOnlyList<MessageEnvelope<T>> messages, 
+        IReadOnlyList<MessageEnvelope<T>> messages,
         DispatchContext context) where T : notnull
     {
         var results = new List<DispatchResult>(messages.Count);

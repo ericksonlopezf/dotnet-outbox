@@ -81,7 +81,7 @@ public class TypeResolverTests
 
         resolver.Resolve("unknown").Should().BeNull();
     }
-    
+
     [Fact]
     public void Generic_Interface_Methods_Should_Delegate_To_Type_Methods()
     {
@@ -90,7 +90,7 @@ public class TypeResolverTests
 
         interfaceResolver.TryGetAlias<TestType>(out var alias).Should().BeTrue();
         alias.Should().Be("test");
-        
+
         interfaceResolver.GetAlias<TestType>().Should().Be("test");
     }
 

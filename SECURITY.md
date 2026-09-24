@@ -10,7 +10,9 @@ We follow Semantic Versioning. Security updates are actively backported to suppo
 
 | Version | Supported          | Security Patch SLA |
 | ------- | ------------------ | ------------------ |
-| 1.0.x   | :white_check_mark: | 72 Hours           |
+| 3.0.x   | :white_check_mark: | 72 Hours (Active)  |
+| 2.0.x   | :white_check_mark: | Critical Fixes Only|
+| 1.0.x   | :white_check_mark: | Critical Fixes Only|
 | < 1.0   | :x:                | None (Pre-release) |
 
 ## Reporting a Vulnerability
@@ -47,5 +49,5 @@ We take active measures to secure our supply chain against malicious actors:
 `EricksonLopez.Outbox` explicitly does **not** protect against:
 - **SQL Injection via custom payloads**: If you deserialize user-input directly into an outbox payload without sanitization, you are responsible for the validation.
 - **Broker Authorization**: The library assumes that the connection string provided in `options.UseRabbitMq(connString)` has the proper ACLs to publish to the specified topics. We do not manage broker-level authentication.
-- **Sensitive Data in Error Logs**: The library persists dispatch exceptions to the `error` column in the database (truncated to 4000 characters). If your broker publisher or middleware throws exceptions containing sensitive data (e.g., connection strings in stack traces), use `IErrorSanitizer` (see [docs/error-sanitization.md](docs/error-sanitization.md)) to sanitize exception details before writing to the Dead Letter Queue.
+- **Sensitive Data in Error Logs**: The library persists dispatch exceptions to the `error` column in the database (truncated to 4000 characters). By default, `DefaultErrorSanitizer` automatically redacts connection string passwords/secrets and Bearer tokens. For domain-specific or PII redactions, implement a custom `IErrorSanitizer` (see [docs/error-sanitization.md](docs/error-sanitization.md)) to sanitize exception details before writing to the Dead Letter Queue.
 

@@ -3,8 +3,10 @@
 # ADR-018 — Outbox Does Not Own Domain Events
 
 ## Status
-
 Accepted
+
+## Date
+2026-09-04
 
 ## Context
 

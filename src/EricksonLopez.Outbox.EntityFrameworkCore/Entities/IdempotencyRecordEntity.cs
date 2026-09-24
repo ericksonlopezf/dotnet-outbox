@@ -10,10 +10,10 @@ public class IdempotencyRecordEntity
 {
     /// <summary>Gets or sets the message identifier.</summary>
     public string MessageId { get; set; } = string.Empty;
-    
+
     /// <summary>Gets or sets the consumer identifier.</summary>
     public string ConsumerId { get; set; } = string.Empty;
-    
+
     /// <summary>Gets or sets the timestamp when the message was processed.</summary>
     public DateTimeOffset ProcessedAt { get; set; }
 

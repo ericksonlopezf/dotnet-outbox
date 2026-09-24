@@ -22,7 +22,7 @@ public static class OutboxExtensions
     /// <param name="transaction">The transaction context that scopes this operation.</param>
     /// <param name="cancellationToken">A token that can be used to cancel the asynchronous operation.</param>
     /// <returns>A task representing the asynchronous batch storage operation.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="outbox"/> or <paramref name="messages"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="outbox"/> or <paramref name="messages"/> is <see langword="null"/></exception>
     public static ValueTask StoreAsync<TMessage>(
         this IOutbox outbox,
         IEnumerable<TMessage> messages,

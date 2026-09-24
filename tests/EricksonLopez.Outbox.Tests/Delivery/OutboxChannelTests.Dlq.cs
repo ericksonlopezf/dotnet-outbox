@@ -65,7 +65,7 @@ public partial class OutboxChannelTests
                 .WithPayload(ReadOnlyMemory<byte>.Empty)
                 .WithHeaders(ReadOnlyMemory<byte>.Empty)
                 .Build();
-            
+
             _publisher.PublishRawAsync(Arg.Any<OutboxMessage>(), Arg.Any<OutboxMessageMetadata>(), Arg.Any<DispatchContext>())
                 .Returns(DispatchResult.FailFatal(new InvalidOperationException("Fatal error")));
 
@@ -90,7 +90,7 @@ public partial class OutboxChannelTests
                 .WithHeaders(ReadOnlyMemory<byte>.Empty)
                 .WithRetryCount(9)
                 .Build();
-            
+
             _publisher.PublishRawAsync(Arg.Any<OutboxMessage>(), Arg.Any<OutboxMessageMetadata>(), Arg.Any<DispatchContext>())
                 .Returns(DispatchResult.FailAndRetry(new InvalidOperationException("Transient error")));
 
@@ -115,7 +115,7 @@ public partial class OutboxChannelTests
                 .WithHeaders(ReadOnlyMemory<byte>.Empty)
                 .WithRetryCount(1)
                 .Build();
-            
+
             _publisher.PublishRawAsync(Arg.Any<OutboxMessage>(), Arg.Any<OutboxMessageMetadata>(), Arg.Any<DispatchContext>())
                 .Returns(DispatchResult.FailAndRetry(new InvalidOperationException("Transient error")));
 
@@ -310,7 +310,8 @@ public partial class OutboxChannelTests
         {
             var middleware = Substitute.For<IOutboxMiddleware>();
             middleware.InvokeAsync(Arg.Any<OutboxMessage>(), Arg.Any<OutboxMessageMetadata>(), Arg.Any<OutboxPipelineDelegate>(), Arg.Any<CancellationToken>())
-                .Returns(call => {
+                .Returns(call =>
+                {
                     var m = call.Arg<OutboxMessage>();
                     var meta = call.Arg<OutboxMessageMetadata>();
                     var next = call.Arg<OutboxPipelineDelegate>();
@@ -353,7 +354,8 @@ public partial class OutboxChannelTests
         {
             var middleware = Substitute.For<IOutboxMiddleware>();
             middleware.InvokeAsync(Arg.Any<OutboxMessage>(), Arg.Any<OutboxMessageMetadata>(), Arg.Any<OutboxPipelineDelegate>(), Arg.Any<CancellationToken>())
-                .Returns(call => {
+                .Returns(call =>
+                {
                     var m = call.Arg<OutboxMessage>();
                     var meta = call.Arg<OutboxMessageMetadata>();
                     var next = call.Arg<OutboxPipelineDelegate>();
@@ -417,19 +419,22 @@ public partial class OutboxChannelTests
             var batch2FailedTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
             _repository.MarkAsDispatchedAsync(Arg.Any<IReadOnlyList<OutboxMessage>>(), Arg.Any<CancellationToken>())
-                .Returns(_ => {
+                .Returns(_ =>
+                {
                     batch1DispatchedTcs.TrySetResult();
                     return ValueTask.CompletedTask;
                 });
 
             _repository.MarkAsFailedAsync(Arg.Any<IReadOnlyList<OutboxMessage>>(), Arg.Any<string>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
-                .Returns(_ => {
+                .Returns(_ =>
+                {
                     batch2FailedTcs.TrySetResult();
                     return ValueTask.CompletedTask;
                 });
 
             _publisher.PublishRawAsync(Arg.Any<OutboxMessage>(), Arg.Any<OutboxMessageMetadata>(), Arg.Any<DispatchContext>())
-                .Returns(call => {
+                .Returns(call =>
+                {
                     var m = call.Arg<OutboxMessage>();
                     if (m.Id == msg1.Id) return ValueTask.FromResult(DispatchResult.Ok());
                     return ValueTask.FromResult(DispatchResult.FailAndRetry(new InvalidOperationException("Fail")));
@@ -464,7 +469,8 @@ public partial class OutboxChannelTests
             var method = ReflectionTestHelper.GetMethodOrThrow(typeof(OutboxChannel), "ExecuteDbWithRetryAsync");
 
             int attempts = 0;
-            Func<CancellationToken, ValueTask> failingOp = ct => {
+            Func<CancellationToken, ValueTask> failingOp = ct =>
+            {
                 attempts++;
                 throw new InvalidOperationException("DB failed");
             };
@@ -480,7 +486,8 @@ public partial class OutboxChannelTests
                 new DefaultErrorSanitizer(), TimeProvider.System
             );
 
-            Func<Task> act = async () => {
+            Func<Task> act = async () =>
+            {
                 try
                 {
                     var vt = (ValueTask)method.Invoke(channel, new object[] { failingOp, CancellationToken.None })!;

@@ -232,7 +232,113 @@ catch (BrokerFatalException ex)               // Fatal: schema mismatch, auth de
 
 ---
 
+## 2.1. `DispatchResult` — Complete Factory Method Reference
+
+`DispatchResult` is a `readonly record struct` with **five** factory methods. Your `IBrokerPublisher.PublishRawAsync` implementation must return exactly one of these — **never throw** and **never return `default(DispatchResult)`**.
+
+| Method | State | ShouldRetry | IncrementRetryCount | Use Case |
+|--------|-------|-------------|---------------------|----------|
+| `DispatchResult.Ok()` | Success | No | No | Broker accepted the message |
+| `DispatchResult.FailAndRetry(Exception ex)` | Failure | Yes | **Yes** | Transient failure — retry with backoff |
+| `DispatchResult.FailAndRetry(Exception ex, false)` | Failure | Yes | **No** | Rate-limit — retry without burning retry budget |
+| `DispatchResult.FailFatal(Exception ex)` | Fatal | No | No | Permanent failure — go to DLQ |
+| `DispatchResult.FailFatal(string reason)` | Fatal | No | No | Fatal failure without original exception |
+| `DispatchResult.FailFatal(Guid messageId, int retryCount, string reason)` | Fatal | No | No | Fatal with full message context embedded |
+
+```csharp
+using EricksonLopez.Outbox;
+
+// Overload 1: DispatchResult.Ok() — success, message will be removed from outbox
+return DispatchResult.Ok();
+
+// Overload 2: DispatchResult.FailAndRetry(ex) — transient failure, retry with backoff
+return DispatchResult.FailAndRetry(new BrokerConnectionException("Connection reset"));
+
+// Overload 3: DispatchResult.FailAndRetry(ex, incrementRetryCount: false)
+// Use for rate-limiting: the message will retry but the retry counter will NOT increment.
+// This prevents the message from being dead-lettered while under a temporary rate limit.
+return DispatchResult.FailAndRetry(
+    new RateLimitException("429 Too Many Requests"),
+    incrementRetryCount: false);
+
+// Overload 4: DispatchResult.FailFatal(Exception ex) — permanent failure → DLQ
+return DispatchResult.FailFatal(new SchemaValidationException("Incompatible payload schema v3"));
+
+// Overload 5: DispatchResult.FailFatal(string reason) — no exception object available
+return DispatchResult.FailFatal("Payload exceeds broker's 256 KB per-message limit");
+
+// Overload 6: DispatchResult.FailFatal(Guid messageId, int retryCount, string reason)
+// Used by dispatcher infrastructure when it needs full message context in the exception.
+// The dispatcher creates an OutboxDispatchException embedding messageId + retryCount.
+return DispatchResult.FailFatal(
+    messageId: message.Id,
+    retryCount: message.RetryCount,
+    reason: "Type resolver returned null — message type alias not registered");
+```
+
+> [!CAUTION]
+> **Never** call `ThrowIfInvalid()` in production code — it exists only for unit tests to validate that a custom publisher returns a valid `DispatchResult`. **Never** return `default(DispatchResult)` — it is an incoherent state that dead-letters the message silently.
+
+---
+
+## 2.2. `IRetryPolicy` — Custom Retry Policy Implementation
+
+See the Showcase endpoint `GET /api/level6/custom-retry-policy` for a live, runnable demo.
+
+The `IRetryPolicy` interface allows implementing retry behavior that is more complex than the four built-in policies cover:
+
+```csharp
+using EricksonLopez.Outbox.Retry;
+
+// Custom policy: exception-type-aware retry (e.g., only retry transient exceptions)
+public sealed class ExceptionAwareRetryPolicy : IRetryPolicy
+{
+    private readonly int _maxAttempts;
+
+    public ExceptionAwareRetryPolicy(int maxAttempts = 5) => _maxAttempts = maxAttempts;
+
+    // ShouldRetry is checked BEFORE GetNextDelay.
+    // Return false to stop retrying and let the dispatcher dead-letter the message.
+    public bool ShouldRetry(int currentAttempt, Exception exception)
+    {
+        if (currentAttempt >= _maxAttempts) return false;
+        // Only retry transient failures — never retry authorization or schema errors
+        return exception is TimeoutException or HttpRequestException
+            || exception.Message.Contains("connection refused", StringComparison.OrdinalIgnoreCase);
+    }
+
+    // GetNextDelay is called when ShouldRetry returned true.
+    // Return the TimeSpan to wait before the next attempt.
+    public TimeSpan GetNextDelay(int currentAttempt)
+        => currentAttempt switch
+        {
+            1 => TimeSpan.FromSeconds(1),
+            2 => TimeSpan.FromSeconds(5),
+            3 => TimeSpan.FromSeconds(15),
+            _ => TimeSpan.FromSeconds(30),
+        };
+}
+
+// Registration:
+builder.Services.AddOutbox(options =>
+{
+    options.UseBroker<MyBrokerPublisher>(new ExceptionAwareRetryPolicy(maxAttempts: 4));
+});
+```
+
+**When to use `IRetryPolicy` vs `RetryPolicy` (abstract record)?**
+
+| | `RetryPolicy` record | `IRetryPolicy` interface |
+|---|---|---|
+| Extends | `abstract record RetryPolicy` | Directly implements interface |
+| Override method | `TimeSpan? GetNextDelay(int attempt)` | `GetNextDelay` + `ShouldRetry` |
+| Exception awareness | No (pure delay calculation) | Yes (can inspect exception type) |
+| When to choose | Fixed/exponential/jitter strategies | When retry depends on exception type |
+
+---
+
 ## 3. Dead Letter Queue (DLQ)
+
 
 Messages that exhaust all retry attempts are moved to the `outbox.dead_letters` table via `IDeadLetterRepository`:
 
@@ -286,9 +392,11 @@ DELETE FROM outbox.dead_letters WHERE id = '<message-id>';
 
 ## 4. Error Sanitization (`IErrorSanitizer`)
 
-The `IErrorSanitizer` interface controls how exception messages are persisted to the `last_error` column. The default implementation (`DefaultErrorSanitizer`) truncates to 4,000 characters.
+The `IErrorSanitizer` interface controls how exception messages are persisted to the `last_error` column. The default implementation (`DefaultErrorSanitizer`) automatically redacts common sensitive patterns (passwords, connection strings, API keys, and Bearer tokens) using high-performance compiled source-generated regexes (see [ADR-039](../../adr/039-error-sanitizer-credential-redaction.md)).
 
 ### Custom Sanitizer Example
+
+If your application logs proprietary identifiers (e.g., credit card numbers, national IDs, or custom auth headers), you can implement a custom `IErrorSanitizer`:
 
 ```csharp
 using EricksonLopez.Outbox.Diagnostics;
@@ -297,15 +405,15 @@ public sealed class CustomErrorSanitizer : IErrorSanitizer
 {
     public string Sanitize(Exception exception)
     {
-        // Redact connection strings that may appear in SQL exception messages
-        if (exception.Message.Contains("Password=", StringComparison.OrdinalIgnoreCase) ||
-            exception.Message.Contains("pwd=", StringComparison.OrdinalIgnoreCase))
+        var message = exception.Message;
+
+        // Custom domain redaction: e.g. Customer PII
+        if (message.Contains("SSN=", StringComparison.OrdinalIgnoreCase))
         {
-            return $"[REDACTED — {exception.GetType().Name}] A database error occurred.";
+            return "[REDACTED PII] A data validation error occurred.";
         }
 
         // Truncate at 4000 characters to match the column limit
-        var message = exception.ToString();
         return message.Length > 4000 ? message[..4000] : message;
     }
 }
@@ -317,10 +425,8 @@ Register it as a singleton:
 services.AddSingleton<IErrorSanitizer, CustomErrorSanitizer>();
 ```
 
-> [!CAUTION]
-> If your broker publisher or middleware throws exceptions containing sensitive
-> data (e.g., connection strings in stack traces), that data will be stored in
-> the database. Always implement a custom `IErrorSanitizer` in production.
+> [!TIP]
+> `DefaultErrorSanitizer` already protects passwords, connection strings, and bearer tokens out of the box. Implement a custom `IErrorSanitizer` only when you need domain-specific PII redaction or custom truncation formats.
 
 ---
 

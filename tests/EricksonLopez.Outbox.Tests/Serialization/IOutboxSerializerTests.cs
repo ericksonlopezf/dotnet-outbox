@@ -25,7 +25,7 @@ public class IOutboxSerializerTests
     {
         IOutboxSerializer sut = new DummySerializer();
         var buffer = new ArrayBufferWriter<byte>();
-        
+
         sut.Serialize("test", buffer);
 
         buffer.WrittenSpan.ToArray().Should().BeEquivalentTo(new byte[] { 1, 2, 3 });

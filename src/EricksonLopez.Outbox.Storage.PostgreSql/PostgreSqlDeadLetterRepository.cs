@@ -32,7 +32,7 @@ public sealed class PostgreSqlDeadLetterRepository : IDeadLetterRepository
     /// </summary>
     /// <param name="dataSource">The PostgreSQL data source.</param>
     /// <param name="options">The outbox runtime options.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="dataSource"/> or <paramref name="options"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="dataSource"/> or <paramref name="options"/> is <see langword="null"/></exception>
     [CLSCompliant(false)]
 
     public PostgreSqlDeadLetterRepository(NpgsqlDataSource dataSource, IOptionsMonitor<OutboxRuntimeOptions> options)
@@ -85,7 +85,7 @@ public sealed class PostgreSqlDeadLetterRepository : IDeadLetterRepository
         try
         {
             await using var cmd = new NpgsqlCommand(_insertSql, conn, transaction?.Transaction as NpgsqlTransaction);
-            
+
             var payloadArray = message.Payload.ToByteArray();
 
             cmd.Parameters.Add(new NpgsqlParameter("Id", NpgsqlTypes.NpgsqlDbType.Uuid) { Value = message.Id });
@@ -94,10 +94,10 @@ public sealed class PostgreSqlDeadLetterRepository : IDeadLetterRepository
             cmd.Parameters.Add(new NpgsqlParameter("Payload", NpgsqlTypes.NpgsqlDbType.Jsonb) { Value = payloadArray });
             cmd.Parameters.Add(new NpgsqlParameter("CorrelationId", NpgsqlTypes.NpgsqlDbType.Varchar) { Value = (object?)message.CorrelationId ?? DBNull.Value });
             cmd.Parameters.Add(new NpgsqlParameter("CausationId", NpgsqlTypes.NpgsqlDbType.Varchar) { Value = (object?)message.CausationId ?? DBNull.Value });
-            
+
             var headersArray = message.Headers.ToByteArray();
             cmd.Parameters.Add(new NpgsqlParameter("HeadersJson", NpgsqlTypes.NpgsqlDbType.Jsonb) { Value = headersArray });
-            
+
             cmd.Parameters.Add(new NpgsqlParameter("CreatedAt", NpgsqlTypes.NpgsqlDbType.TimestampTz) { Value = message.CreatedAt });
             cmd.Parameters.Add(new NpgsqlParameter("DeadLetteredAt", NpgsqlTypes.NpgsqlDbType.TimestampTz) { Value = message.DeadLetteredAt });
             cmd.Parameters.Add(new NpgsqlParameter("RetryCount", NpgsqlTypes.NpgsqlDbType.Integer) { Value = message.RetryCount });

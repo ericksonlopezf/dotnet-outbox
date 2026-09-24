@@ -20,7 +20,16 @@ public interface IOutbox
     /// <param name="message">The message payload to store in the outbox.</param>
     /// <param name="transaction">The transaction context that scopes this operation.</param>
     /// <param name="cancellationToken">A token that can be used to cancel the asynchronous operation.</param>
-    /// <returns>A task representing the asynchronous storage operation.</returns>
+    /// <returns>A <see cref="ValueTask"/> representing the asynchronous store operation.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="transaction"/> is <see langword="null"/>.</exception>
+    /// <exception cref="System.InvalidOperationException">Thrown if the message type alias is not registered and <c>OutboxRuntimeOptions.ThrowOnUnregisteredType</c> is <see langword="true"/> (<c>OutboxTypeNotRegisteredException</c>, a subtype of <c>OutboxException</c>).</exception>
+    /// <remarks>
+    /// Payload and header size limits are enforced at serialization time. If the serialized payload exceeds
+    /// <c>OutboxRuntimeOptions.MaxPayloadSizeInBytes</c>, an <c>OutboxPayloadTooLargeException</c> is thrown.
+    /// If serialized headers exceed <c>OutboxRuntimeOptions.MaxHeaderSizeInBytes</c>, an
+    /// <c>OutboxHeadersTooLargeException</c> is thrown. Both exception types are defined in
+    /// <c>EricksonLopez.Outbox.dll</c>.
+    /// </remarks>
     ValueTask StoreAsync<TMessage>(
         TMessage message,
         IOutboxTransactionContext transaction,
@@ -34,6 +43,7 @@ public interface IOutbox
     /// <param name="transaction">The transaction context that scopes this operation.</param>
     /// <param name="cancellationToken">A token that can be used to cancel the asynchronous operation.</param>
     /// <returns>A task representing the asynchronous batch storage operation.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="transaction"/> is <see langword="null"/>.</exception>
     ValueTask StoreAsync<TMessage>(
         ReadOnlyMemory<TMessage> messages,
         IOutboxTransactionContext transaction,
@@ -48,7 +58,15 @@ public interface IOutbox
     /// <param name="metadata">The metadata associated with the message, such as correlation or causation IDs.</param>
     /// <param name="deliverAt">An optional future timestamp indicating when the message should become visible for dispatching.</param>
     /// <param name="cancellationToken">A token that can be used to cancel the asynchronous operation.</param>
-    /// <returns>A task representing the asynchronous storage operation.</returns>
+    /// <returns>A <see cref="ValueTask"/> representing the asynchronous storage operation.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="transaction"/> is <see langword="null"/>.</exception>
+    /// <remarks>
+    /// Payload and header size limits are enforced at serialization time. If the serialized payload exceeds
+    /// <c>OutboxRuntimeOptions.MaxPayloadSizeInBytes</c>, an <c>OutboxPayloadTooLargeException</c> is thrown.
+    /// If serialized headers exceed <c>OutboxRuntimeOptions.MaxHeaderSizeInBytes</c>, an
+    /// <c>OutboxHeadersTooLargeException</c> is thrown. Both exception types are defined in
+    /// <c>EricksonLopez.Outbox.dll</c>.
+    /// </remarks>
     ValueTask StoreAsync<TMessage>(
         TMessage message,
         IOutboxTransactionContext transaction,

@@ -128,7 +128,8 @@ public class InboxCleanupServiceTests
 
         var purgeTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         repo.PurgeExpiredRecordsAsync(Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>())
-            .Returns(_ => {
+            .Returns(_ =>
+            {
                 purgeTcs.TrySetResult();
                 return ValueTask.CompletedTask;
             });

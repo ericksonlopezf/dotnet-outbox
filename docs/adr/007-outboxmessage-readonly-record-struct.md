@@ -1,6 +1,10 @@
-<!-- Copyright © Erickson Lopez. MIT License. -->
-
 # ADR-007: Use `readonly record struct` as the base type for `OutboxMessage`
+
+## Status
+Superseded by ADR-012
+
+## Date
+2026-09-04
 
 ## 1. Title and Status
 **Immutable Base Type for Outbox Messages (HISTORICAL)**

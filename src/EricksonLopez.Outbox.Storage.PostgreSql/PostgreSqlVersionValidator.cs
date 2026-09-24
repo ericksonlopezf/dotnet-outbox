@@ -36,14 +36,14 @@ internal sealed class PostgreSqlVersionValidator : IHostedService
     /// </summary>
     /// <param name="cancellationToken">A cancellation token that signals when the operation should be aborted.</param>
     /// <returns>A task that represents the asynchronous startup validation.</returns>
-    /// <exception cref="NotSupportedException">Thrown if the PostgreSQL server version is strictly less than 15.</exception>
+    /// <exception cref="NotSupportedException">Thrown if the PostgreSQL server version is strictly less than 15</exception>
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         try
         {
             await using var conn = await _dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
             await using var cmd = new NpgsqlCommand("SHOW server_version_num;", conn);
-            
+
             var result = await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
             if (result != null && int.TryParse(result.ToString(), out var versionNum))
             {

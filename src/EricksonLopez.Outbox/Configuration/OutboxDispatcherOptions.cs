@@ -38,6 +38,12 @@ public sealed class OutboxDispatcherOptions
     /// Configures the number of parallel consumer worker tasks spawned by the dispatcher.
     /// </para>
     /// <para>
+    /// <b>Ordering Guarantee:</b> Strict global FIFO publishing order across all messages is only guaranteed
+    /// when <see cref="MaxDegreeOfParallelism"/> is set to 1 and in the absence of transient retries.
+    /// When parallelism is greater than 1, concurrent dispatch workers may interleave message deliveries
+    /// to the underlying broker. For aggregate-level causal ordering, ensure consumer-side partition key routing.
+    /// </para>
+    /// <para>
     /// Default: <c>min(ProcessorCount, 8)</c>.
     /// </para>
     /// </remarks>

@@ -3,8 +3,10 @@
 # ADR-033 — .NET Aspire Integration Strategy
 
 ## Status
-
 Accepted
+
+## Date
+2026-09-04
 
 ## Context
 

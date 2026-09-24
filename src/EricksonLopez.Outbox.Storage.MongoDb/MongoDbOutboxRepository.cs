@@ -28,7 +28,7 @@ public sealed class MongoDbOutboxRepository : IOutboxRepository
     /// </summary>
     /// <param name="database">The MongoDB database instance.</param>
     /// <param name="options">Optional outbox runtime options.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="database"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="database"/> is <see langword="null"/></exception>
     public MongoDbOutboxRepository(IMongoDatabase database, IOptions<OutboxRuntimeOptions>? options = null)
     {
         ArgumentNullException.ThrowIfNull(database);

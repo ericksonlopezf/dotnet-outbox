@@ -3,8 +3,10 @@
 # ADR-015: STJ `JsonSerializerContext` Auto-Generation — Roslyn Single-Pass Limitation
 
 ## Status
-
 Accepted
+
+## Date
+2026-09-04
 
 ## Context
 

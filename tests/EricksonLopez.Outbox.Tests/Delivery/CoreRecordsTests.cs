@@ -78,7 +78,7 @@ public class CoreRecordsTests
         failed.RetryCount.Should().Be(2);
         failed.NextRetryAt.Should().Be(failed.FailedAt.AddMinutes(5));
     }
-    
+
     [Fact]
     public void FailedMessage_FromOutboxMessage_Should_Map_Fields_Correctly_Without_RetryAfter()
     {
@@ -101,7 +101,7 @@ public class CoreRecordsTests
 
         failed.NextRetryAt.Should().BeNull();
     }
-    
+
     [Fact]
     public void MessageMetadata_GetValue_Should_Return_Correct_Value_When_Exists()
     {
@@ -111,26 +111,26 @@ public class CoreRecordsTests
             new MetadataEntry("AKey", "AValue"),
             new MetadataEntry("MKey", "MValue")
         };
-        
+
         var metadata = new OutboxMessageMetadata("corr-1", "caus-1", "type-1", entries);
-        
+
         metadata.CorrelationId.Should().Be("corr-1");
         metadata.CausationId.Should().Be("caus-1");
         metadata.MessageType.Should().Be("type-1");
-        
+
         metadata.GetValue("AKey").Should().Be("AValue");
         metadata.GetValue("MKey").Should().Be("MValue");
         metadata.GetValue("ZKey").Should().Be("ZValue");
     }
-    
+
     [Fact]
     public void MessageMetadata_GetValue_Should_Return_Null_When_Not_Exists_Or_Empty()
     {
         var metadata = new OutboxMessageMetadata("corr-1", "caus-1", "type-1");
-        
+
         metadata.GetValue("AnyKey").Should().BeNull();
         metadata.Entries.Length.Should().Be(0);
-        
+
         var metadataWithEntries = new OutboxMessageMetadata("corr-1", "caus-1", "type-1", new[] { new MetadataEntry("A", "B") });
         metadataWithEntries.GetValue("MissingKey").Should().BeNull();
     }
@@ -141,7 +141,7 @@ public class CoreRecordsTests
         var idempotency = new IdempotencyRecord("msg-1", "consumer-1", DateTimeOffset.UtcNow);
         idempotency.MessageId.Should().Be("msg-1");
         idempotency.ConsumerId.Should().Be("consumer-1");
-        
+
         var inboxMsg = new InboxMessage(Guid.NewGuid(), "type-1", default, null, null, System.Text.Encoding.UTF8.GetBytes("{}"), DateTimeOffset.UtcNow, null, 0, null);
         inboxMsg.MessageType.Should().Be("type-1");
         inboxMsg.Status.Should().Be(0);
@@ -151,7 +151,7 @@ public class CoreRecordsTests
 
         var lockObj = new EricksonLopez.Outbox.Lock("lock-key", "owner-1");
         lockObj.ResourceId.Should().Be("lock-key");
-        
+
         var publisher = Publisher.Create("pub-name");
         publisher.Name.Should().Be("pub-name");
     }
@@ -191,7 +191,7 @@ public class CoreRecordsTests
         in1.Equals((object)in2).Should().BeTrue();
         in1.GetHashCode().Should().Be(in2.GetHashCode());
         in1.ToString().Should().NotBeNullOrWhiteSpace();
-        
+
         // DeadLetterMessage
         var d1 = new DeadLetterMessage(msg1.Id, msg1.Id, "T", default, null, null, headers, DateTimeOffset.MinValue, DateTimeOffset.MinValue, 0, "R", null);
         var d2 = new DeadLetterMessage(msg1.Id, msg1.Id, "T", default, null, null, headers, DateTimeOffset.MinValue, DateTimeOffset.MinValue, 0, "R", null);
@@ -201,7 +201,7 @@ public class CoreRecordsTests
         d1.Equals((object)d2).Should().BeTrue();
         d1.GetHashCode().Should().Be(d2.GetHashCode());
         d1.ToString().Should().NotBeNullOrWhiteSpace();
-        
+
         // FailedMessage
         var f1 = new FailedMessage(msg1.Id, msg1.Id, "T", default, null, null, headers, DateTimeOffset.MinValue, DateTimeOffset.MinValue, null, 0, null);
         var f2 = new FailedMessage(msg1.Id, msg1.Id, "T", default, null, null, headers, DateTimeOffset.MinValue, DateTimeOffset.MinValue, null, 0, null);
@@ -211,7 +211,7 @@ public class CoreRecordsTests
         f1.Equals((object)f2).Should().BeTrue();
         f1.GetHashCode().Should().Be(f2.GetHashCode());
         f1.ToString().Should().NotBeNullOrWhiteSpace();
-        
+
         // IdempotencyRecord
         var id1 = new IdempotencyRecord("m1", "c1", DateTimeOffset.MinValue);
         var id2 = new IdempotencyRecord("m1", "c1", DateTimeOffset.MinValue);
@@ -221,7 +221,7 @@ public class CoreRecordsTests
         id1.Equals((object)id2).Should().BeTrue();
         id1.GetHashCode().Should().Be(id2.GetHashCode());
         id1.ToString().Should().NotBeNullOrWhiteSpace();
-        
+
         // Lease
         var expiry = new DateTimeOffset(2026, 8, 16, 12, 0, 0, TimeSpan.Zero);
         var l1 = new Lease("o1", "node1", expiry);
@@ -235,7 +235,7 @@ public class CoreRecordsTests
         l1.IsExpired(expiry.AddSeconds(-1)).Should().BeFalse();
         l1.IsExpired(expiry).Should().BeTrue();
         l1.IsExpired(expiry.AddSeconds(1)).Should().BeTrue();
-        
+
         // Lock
         var lk1 = new EricksonLopez.Outbox.Lock("k1", "o1");
         var lk2 = new EricksonLopez.Outbox.Lock("k1", "o1");
@@ -245,7 +245,7 @@ public class CoreRecordsTests
         lk1.Equals((object)lk2).Should().BeTrue();
         lk1.GetHashCode().Should().Be(lk2.GetHashCode());
         lk1.ToString().Should().NotBeNullOrWhiteSpace();
-        
+
         // Publisher
         var p1 = Publisher.Create("n1");
         var p2 = new Publisher(p1.Id, "n1", p1.RegisteredAt);
@@ -256,7 +256,7 @@ public class CoreRecordsTests
         p1.GetHashCode().Should().Be(p2.GetHashCode());
         p1.ToString().Should().NotBeNullOrWhiteSpace();
         Publisher.None.Id.Should().Be("00000000000000000000000000000000");
-        
+
         // DispatchContext
         var dc1 = new DispatchContext(default, 1);
         var dc2 = new DispatchContext(default, 1);
@@ -264,7 +264,7 @@ public class CoreRecordsTests
         dc1.Equals((object)dc2).Should().BeTrue();
         dc1.GetHashCode().Should().Be(dc2.GetHashCode());
         dc1.ToString().Should().NotBeNullOrWhiteSpace();
-        
+
         // DispatchResult
         var dr1 = DispatchResult.Ok();
         var dr2 = new DispatchResult(true, false, null, false);
@@ -274,7 +274,7 @@ public class CoreRecordsTests
         dr1.Equals((object)dr2).Should().BeTrue();
         dr1.GetHashCode().Should().Be(dr2.GetHashCode());
         dr1.ToString().Should().NotBeNullOrWhiteSpace();
-        
+
         DispatchResult.FailAndRetry(new InvalidOperationException()).ShouldRetry.Should().BeTrue();
         DispatchResult.FailFatal(new InvalidOperationException()).ShouldRetry.Should().BeFalse();
 
@@ -287,7 +287,7 @@ public class CoreRecordsTests
         me1.Equals((object)me2).Should().BeTrue();
         me1.GetHashCode().Should().Be(me2.GetHashCode());
         me1.ToString().Should().NotBeNullOrWhiteSpace();
-        
+
         // MetadataEntry
         var mde1 = new MetadataEntry("k", "v");
         var mde2 = new MetadataEntry("k", "v");

@@ -27,7 +27,7 @@ public sealed class OutboxTransactionContext<TConnection, TTransaction> : IOutbo
     /// </summary>
     /// <param name="connection">The underlying connection or database client.</param>
     /// <param name="transaction">The underlying active transaction or session.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="transaction"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="transaction"/> is <see langword="null"/></exception>
     public OutboxTransactionContext(TConnection? connection, TTransaction transaction)
     {
         Connection = connection;

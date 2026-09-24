@@ -3,8 +3,10 @@
 # ADR-026 — Outbox Does Not Use Reflection-Based Handler Discovery
 
 ## Status
-
 Accepted
+
+## Date
+2026-09-04
 
 ## Context
 

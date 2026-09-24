@@ -3,8 +3,10 @@
 # ADR-030 — Osherove Test Naming Standard and IDE1006 Suppression
 
 ## Status
-
 Accepted
+
+## Date
+2026-09-04
 
 ## Context
 

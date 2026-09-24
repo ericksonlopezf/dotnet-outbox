@@ -20,7 +20,7 @@ public sealed class OutboxOutgoingStep : IOutgoingStep
     /// Initializes a new instance of the <see cref="OutboxOutgoingStep"/> class.
     /// </summary>
     /// <param name="outbox">The outbox instance.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="outbox"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="outbox"/> is <see langword="null"/></exception>
     public OutboxOutgoingStep(IOutbox outbox)
     {
         _outbox = outbox ?? throw new ArgumentNullException(nameof(outbox));

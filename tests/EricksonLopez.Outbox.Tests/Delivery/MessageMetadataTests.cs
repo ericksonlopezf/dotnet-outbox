@@ -12,9 +12,9 @@ public class MessageMetadataTests
     public void Default_Struct_Should_Handle_GetValue_Gracefully()
     {
         var sut = default(OutboxMessageMetadata);
-        
+
         var value = sut.GetValue("AnyKey");
-        
+
         value.Should().BeNull();
         sut.Entries.Length.Should().Be(0);
     }

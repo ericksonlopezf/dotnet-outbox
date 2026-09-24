@@ -35,7 +35,7 @@ public sealed class ManualOutboxDispatcher
     /// <param name="serviceProvider">The dependency injection service provider.</param>
     /// <param name="publisher">The broker publisher responsible for transmitting messages.</param>
     /// <param name="typeResolver">The resolver used to map message aliases to concrete CLR types.</param>
-    /// <exception cref="ArgumentNullException">Any of the provided arguments is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException">Any of the provided arguments is <see langword="null"/></exception>
     public ManualOutboxDispatcher(
         IServiceProvider serviceProvider,
         IBrokerPublisher publisher,
@@ -53,8 +53,8 @@ public sealed class ManualOutboxDispatcher
     /// <param name="batchSize">The maximum number of messages to fetch and dispatch in this run.</param>
     /// <param name="cancellationToken">A token that can be used to cancel the asynchronous operation.</param>
     /// <returns>A task that represents the asynchronous operation. The task result contains the number of messages successfully dispatched.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="repository"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ArgumentOutOfRangeException"><paramref name="batchSize"/> is zero or negative.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="repository"/> is <see langword="null"/></exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="batchSize"/> is zero or negative</exception>
     public async Task<int> DispatchPendingAsync(
         IOutboxRepository repository,
         int batchSize = 50,

@@ -3,7 +3,7 @@
 
   <PropertyGroup>
     <Description>Source Generators for EricksonLopez.Outbox. Delivers high-performance, Zero-Reflection, NativeAOT-ready compile-time code generation for the transactional outbox pattern.</Description>
-    <PackageTags>$(CommonPackageTags);source-generator;source-generators;roslyn;codegen;native-aot</PackageTags>
+    <PackageTags>$(CommonPackageTags);outbox;transactional-outbox;source-generator;roslyn;code-generation;codegen;native-aot</PackageTags>
     <TargetFramework>netstandard2.0</TargetFramework>
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
     <!-- CS8622: Known Roslyn nullability quirk with IncrementalValuesProvider Collect()

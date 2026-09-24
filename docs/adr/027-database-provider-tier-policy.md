@@ -3,8 +3,10 @@
 # ADR-027 — Database Provider Tier Policy
 
 ## Status
-
 Accepted
+
+## Date
+2026-09-04
 
 ## Context
 

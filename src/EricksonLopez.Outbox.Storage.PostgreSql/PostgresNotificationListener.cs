@@ -75,7 +75,7 @@ public sealed class PostgresNotificationListener : BackgroundService
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error in PostgreSQL notification listener. Retrying in 5 seconds...");
-                
+
                 try
                 {
                     await Task.Delay(TimeSpan.FromSeconds(5), _timeProvider, stoppingToken).ConfigureAwait(false);
@@ -93,7 +93,7 @@ public sealed class PostgresNotificationListener : BackgroundService
     private async Task ListenLoopAsync(CancellationToken stoppingToken)
     {
         await using var connection = _dataSource.CreateConnection();
-        
+
         connection.Notification += (o, e) =>
         {
             _logger.LogDebug("Received notification on {Channel}: {Payload}", e.Channel, e.Payload);

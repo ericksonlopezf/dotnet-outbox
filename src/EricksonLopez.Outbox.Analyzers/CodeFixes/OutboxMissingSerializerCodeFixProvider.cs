@@ -63,7 +63,7 @@ public sealed class OutboxMissingSerializerCodeFixProvider : CodeFixProvider
         if (args.Count == 0) return document;
 
         var lambdaArg = args[0].Expression;
-        
+
         string paramName = "opts";
         BlockSyntax? newBlock = null;
 
@@ -91,7 +91,7 @@ public sealed class OutboxMissingSerializerCodeFixProvider : CodeFixProvider
                     )
                 )
             );
-            
+
             if (simpleLambda.Block != null)
             {
                 newBlock = simpleLambda.Block.AddStatements(serializerInvocation);
@@ -121,7 +121,7 @@ public sealed class OutboxMissingSerializerCodeFixProvider : CodeFixProvider
                     )
                 );
             }
-            
+
             if (parenLambda.Block != null)
             {
                 newBlock = parenLambda.Block.AddStatements(serializerInvocation);

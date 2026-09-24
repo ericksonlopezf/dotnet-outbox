@@ -24,8 +24,8 @@ public sealed class PublishDomainEventsInterceptor : SaveChangesInterceptor
     }
 
     public override async ValueTask<InterceptionResult<int>> SavingChangesAsync(
-        DbContextEventData eventData, 
-        InterceptionResult<int> result, 
+        DbContextEventData eventData,
+        InterceptionResult<int> result,
         CancellationToken cancellationToken = default)
     {
         var dbContext = eventData.Context;
@@ -47,7 +47,7 @@ public sealed class PublishDomainEventsInterceptor : SaveChangesInterceptor
         foreach (var domainEvent in domainEvents)
         {
             var transaction = dbContext.Database.CurrentTransaction?.GetDbTransaction();
-            
+
             if (transaction != null)
             {
                 await _outbox.StoreAsync(domainEvent, transaction.ToOutboxContext(), cancellationToken);

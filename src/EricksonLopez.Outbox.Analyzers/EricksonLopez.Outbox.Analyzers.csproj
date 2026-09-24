@@ -2,7 +2,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <Description>Roslyn Analyzers for EricksonLopez.Outbox. Provides compile-time validation, diagnostics, and code fixes to ensure correct usage of the transactional outbox pattern.</Description>
-    <PackageTags>$(CommonPackageTags);roslyn;analyzers;code-analysis;diagnostics;code-fix</PackageTags>
+    <PackageTags>$(CommonPackageTags);outbox;transactional-outbox;roslyn;analyzers;code-analysis;diagnostics;code-fix</PackageTags>
     <TargetFramework>netstandard2.0</TargetFramework>
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
     <!-- RS1032: Suppress false-positive about DiagnosticDescriptor constructor overloads.

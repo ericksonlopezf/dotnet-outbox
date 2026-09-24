@@ -11,7 +11,7 @@
 
   <PropertyGroup>
     <Description>[INTEROP / COMPATIBILITY BRIDGE] MassTransit integration for EricksonLopez.Outbox. Enables reliable event publishing through MassTransit pipelines.</Description>
-    <PackageTags>$(CommonPackageTags);masstransit;message-bus;messaging;event-driven;publish-subscribe</PackageTags>
+    <PackageTags>$(CommonPackageTags);outbox;transactional-outbox;masstransit;message-bus;publish-subscribe;event-driven</PackageTags>
     <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
     <Nullable>enable</Nullable>
     <!-- MassTransit relies on runtime reflection, dynamic dispatch, and Expression trees; AOT is not supported -->

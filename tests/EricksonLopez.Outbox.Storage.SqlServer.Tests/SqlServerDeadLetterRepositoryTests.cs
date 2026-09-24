@@ -94,7 +94,8 @@ public class SqlServerDeadLetterRepositoryTests : IAsyncLifetime
     public async Task InsertAsync_Should_Persist_DeadLetterMessage()
     {
         var sut = CreateSut();
-        var msg = _autoFixture.Create<DeadLetterMessage>() with { 
+        var msg = _autoFixture.Create<DeadLetterMessage>() with
+        {
             Payload = "{}"u8.ToArray(),
             Headers = "{}"u8.ToArray()
         };
@@ -110,7 +111,8 @@ public class SqlServerDeadLetterRepositoryTests : IAsyncLifetime
     public async Task InsertAsync_Should_Not_Throw_If_Already_Exists()
     {
         var sut = CreateSut();
-        var msg = _autoFixture.Create<DeadLetterMessage>() with { 
+        var msg = _autoFixture.Create<DeadLetterMessage>() with
+        {
             Payload = "{}"u8.ToArray(),
             Headers = "{}"u8.ToArray()
         };
@@ -127,7 +129,8 @@ public class SqlServerDeadLetterRepositoryTests : IAsyncLifetime
     public async Task InsertAsync_WithTransaction_Should_Use_Transaction()
     {
         var sut = CreateSut();
-        var msg = _autoFixture.Create<DeadLetterMessage>() with { 
+        var msg = _autoFixture.Create<DeadLetterMessage>() with
+        {
             Payload = "{}"u8.ToArray(),
             Headers = "{}"u8.ToArray()
         };
@@ -149,7 +152,8 @@ public class SqlServerDeadLetterRepositoryTests : IAsyncLifetime
     public async Task InsertAsync_WithInvalidTransactionConnection_ThrowsInvalidOperationException()
     {
         var sut = CreateSut();
-        var msg = _autoFixture.Create<DeadLetterMessage>() with {
+        var msg = _autoFixture.Create<DeadLetterMessage>() with
+        {
             Payload = "{}"u8.ToArray(),
             Headers = "{}"u8.ToArray()
         };
@@ -166,14 +170,15 @@ public class SqlServerDeadLetterRepositoryTests : IAsyncLifetime
     public async Task InsertAsync_WithoutTransaction_Should_Open_Connection_And_Dispose()
     {
         var sut = CreateSut();
-        var msg = _autoFixture.Create<DeadLetterMessage>() with { 
+        var msg = _autoFixture.Create<DeadLetterMessage>() with
+        {
             Payload = "{}"u8.ToArray(),
             Headers = "{}"u8.ToArray()
         };
 
         // No transaction provided
         await sut.InsertAsync(msg);
-        
+
         await using var connection = new SqlConnection(_fixture.Container.GetConnectionString());
         var count = await connection.ExecuteScalarAsync<int>("SELECT COUNT(1) FROM [outbox].[messages_dead_letters] WHERE id = @Id", new { msg.Id });
         count.Should().Be(1);
@@ -183,7 +188,8 @@ public class SqlServerDeadLetterRepositoryTests : IAsyncLifetime
     public async Task InsertAsync_WithNullReason_StoresUnknown()
     {
         var sut = CreateSut();
-        var msg = default(DeadLetterMessage) with {
+        var msg = default(DeadLetterMessage) with
+        {
             Id = Guid.NewGuid(),
             OriginalMessageId = Guid.NewGuid(),
             MessageType = "test.type",
@@ -203,7 +209,8 @@ public class SqlServerDeadLetterRepositoryTests : IAsyncLifetime
     public async Task GetAsync_Should_Return_Messages_With_Null_Mapping()
     {
         var sut = CreateSut();
-        var msg1 = _autoFixture.Create<DeadLetterMessage>() with { 
+        var msg1 = _autoFixture.Create<DeadLetterMessage>() with
+        {
             Payload = "{}"u8.ToArray(),
             Headers = "{}"u8.ToArray(),
             CorrelationId = null,
@@ -211,7 +218,8 @@ public class SqlServerDeadLetterRepositoryTests : IAsyncLifetime
             LastError = null,
             Reason = "ExplicitReason"
         };
-        var msg2 = _autoFixture.Create<DeadLetterMessage>() with { 
+        var msg2 = _autoFixture.Create<DeadLetterMessage>() with
+        {
             Payload = System.Text.Encoding.UTF8.GetBytes("{\"custom\":\"payload123\"}"),
             Headers = System.Text.Encoding.UTF8.GetBytes("{\"custom\":\"headers456\"}"),
             CorrelationId = "corr",
@@ -225,7 +233,7 @@ public class SqlServerDeadLetterRepositoryTests : IAsyncLifetime
 
         // Act
         var results = await sut.GetAsync(10);
-        
+
         results.Should().Contain(m => m.Id == msg1.Id);
         results.Should().Contain(m => m.Id == msg2.Id);
 
@@ -252,7 +260,8 @@ public class SqlServerDeadLetterRepositoryTests : IAsyncLifetime
     {
         var custom = new OutboxRuntimeOptions { SchemaName = schema!, TableName = "messages" };
         var sut = CreateSut(custom);
-        var msg = _autoFixture.Create<DeadLetterMessage>() with {
+        var msg = _autoFixture.Create<DeadLetterMessage>() with
+        {
             Payload = "{}"u8.ToArray(),
             Headers = "{}"u8.ToArray()
         };
@@ -287,7 +296,8 @@ public class SqlServerDeadLetterRepositoryTests : IAsyncLifetime
     public async Task GetAsync_Should_Filter_By_After_Date()
     {
         var sut = CreateSut();
-        var msg = _autoFixture.Create<DeadLetterMessage>() with { 
+        var msg = _autoFixture.Create<DeadLetterMessage>() with
+        {
             Payload = "{}"u8.ToArray(),
             Headers = "{}"u8.ToArray()
         };
@@ -295,7 +305,7 @@ public class SqlServerDeadLetterRepositoryTests : IAsyncLifetime
 
         // Fetch using a date far in the future
         var results = await sut.GetAsync(after: DateTimeOffset.UtcNow.AddDays(1));
-        
+
         // Should not contain the message we just inserted
         results.Should().NotContain(m => m.Id == msg.Id);
     }
@@ -304,7 +314,8 @@ public class SqlServerDeadLetterRepositoryTests : IAsyncLifetime
     public async Task DeleteAsync_Should_Remove_Message()
     {
         var sut = CreateSut();
-        var msg = _autoFixture.Create<DeadLetterMessage>() with { 
+        var msg = _autoFixture.Create<DeadLetterMessage>() with
+        {
             Payload = "{}"u8.ToArray(),
             Headers = "{}"u8.ToArray()
         };
@@ -320,7 +331,8 @@ public class SqlServerDeadLetterRepositoryTests : IAsyncLifetime
     public async Task PurgeAsync_Should_Remove_Old_Messages()
     {
         var sut = CreateSut();
-        var msg = _autoFixture.Create<DeadLetterMessage>() with { 
+        var msg = _autoFixture.Create<DeadLetterMessage>() with
+        {
             Payload = "{}"u8.ToArray(),
             Headers = "{}"u8.ToArray()
         };
@@ -351,7 +363,8 @@ public class SqlServerDeadLetterRepositoryTests : IAsyncLifetime
 
         for (int i = 0; i < 5; i++)
         {
-            var msg = _autoFixture.Create<DeadLetterMessage>() with {
+            var msg = _autoFixture.Create<DeadLetterMessage>() with
+            {
                 Payload = "{}"u8.ToArray(),
                 Headers = "{}"u8.ToArray()
             };

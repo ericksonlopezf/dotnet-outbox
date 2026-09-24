@@ -24,7 +24,7 @@ public class OutboxTransactionContextTests
     public void Constructor_Should_Throw_When_Connection_Is_Null()
     {
         var transaction = new object();
-        
+
         var act = () => new OutboxTransactionContext(null!, transaction);
 
         act.Should().Throw<ArgumentNullException>().WithParameterName("connection");
@@ -34,7 +34,7 @@ public class OutboxTransactionContextTests
     public void Constructor_Should_Throw_When_Transaction_Is_Null()
     {
         var connection = new object();
-        
+
         var act = () => new OutboxTransactionContext(connection, null!);
 
         act.Should().Throw<ArgumentNullException>().WithParameterName("transaction");

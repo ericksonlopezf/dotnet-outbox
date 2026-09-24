@@ -134,8 +134,8 @@ public class EntityFrameworkCoreOutboxTests
             var repo = scope.ServiceProvider.GetRequiredService<IOutboxRepository>();
             var fetched = await repo.FetchPendingAsync(10);
 
-        fetched.Should().HaveCount(1);
-        fetched[0].MessageType.Should().Be("EventA");
+            fetched.Should().HaveCount(1);
+            fetched[0].MessageType.Should().Be("EventA");
             fetched[0].Status.Should().Be((EricksonLopez.Outbox.OutboxMessageStatus)1); // Claimed as InFlight
         }
     }
@@ -194,7 +194,7 @@ public class EntityFrameworkCoreOutboxTests
             updated!.State.Should().Be(2);
             updated.ProcessedAt.Should().NotBeNull();
         }
-        
+
         Func<Task> act = async () => await repo.MarkAsDispatchedAsync(null!);
         await act.Should().ThrowAsync<ArgumentNullException>();
     }
@@ -256,9 +256,9 @@ public class EntityFrameworkCoreOutboxTests
         // Test empty
         await repo.MarkAsFailedAsync(Array.Empty<OutboxMessage>(), "err");
 
-            var dbContext = scope.ServiceProvider.GetRequiredService<TestDbContext>();
-            dbContext.Messages.Add(new OutboxMessageEntity { Id = msgId, MessageType = "A", Payload = Array.Empty<byte>(), HeadersJson = "{}", CreatedAt = DateTimeOffset.UtcNow, State = 1 });
-            await dbContext.SaveChangesAsync();
+        var dbContext = scope.ServiceProvider.GetRequiredService<TestDbContext>();
+        dbContext.Messages.Add(new OutboxMessageEntity { Id = msgId, MessageType = "A", Payload = Array.Empty<byte>(), HeadersJson = "{}", CreatedAt = DateTimeOffset.UtcNow, State = 1 });
+        await dbContext.SaveChangesAsync();
 
 
         await repo.MarkAsFailedAsync(new[] { new OutboxMessage(msgId, "", Array.Empty<byte>(), null, null, Array.Empty<byte>(), DateTimeOffset.UtcNow, null, null, 0, 0, null) }, "err", isDeadLetter: false);
@@ -280,7 +280,7 @@ public class EntityFrameworkCoreOutboxTests
             updated2!.State.Should().Be(4);
             updated2.Error.Should().Be("fatal");
         }
-        
+
         Func<Task> act = async () => await repo.MarkAsFailedAsync(null!, "err");
         await act.Should().ThrowAsync<ArgumentNullException>();
     }
@@ -310,7 +310,7 @@ public class EntityFrameworkCoreOutboxTests
             var updated = await dbContext.Messages.FindAsync(msgId);
             updated!.State.Should().Be(0);
         }
-        
+
         // Zero stale messages
         var zero = await repo.ReclaimStaleMessagesAsync(TimeSpan.FromHours(1));
         zero.Should().Be(0);
@@ -362,14 +362,14 @@ public class EntityFrameworkCoreOutboxTests
         var repo = new EntityFrameworkCoreDeadLetterRepository<TestDbContext>(sp);
 
         var dlq = new DeadLetterMessage(Guid.NewGuid(), Guid.NewGuid(), "type", Array.Empty<byte>(), "corr", "caus", Array.Empty<byte>(), DateTimeOffset.UtcNow.AddDays(-2), DateTimeOffset.UtcNow.AddDays(-2), 5, "reason", "error");
-        
+
         // Insert with transaction
         using (var scope = sp.CreateScope())
         {
             var dbContext = scope.ServiceProvider.GetRequiredService<TestDbContext>();
             await repo.InsertAsync(dlq, null!);
         }
-        
+
         // Insert without transaction
         var dlq2 = new DeadLetterMessage(Guid.NewGuid(), Guid.NewGuid(), "type", Array.Empty<byte>(), "corr", "caus", Array.Empty<byte>(), DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, 5, "reason", "error2");
         await repo.InsertAsync(dlq2, null);
@@ -377,16 +377,16 @@ public class EntityFrameworkCoreOutboxTests
         // Get (include exactly equal to After)
         var items = await repo.GetAsync(100, DateTimeOffset.UtcNow.AddDays(-3));
         items.Should().HaveCount(2);
-        
+
         var afterExact = await repo.GetAsync(100, dlq.DeadLetteredAt);
         afterExact.Should().HaveCount(1); // Since the query uses > after.Value, it excludes dlq
 
         // Delete
         await repo.DeleteAsync(dlq.Id);
-        
+
         var itemsAfterDelete = await repo.GetAsync();
         itemsAfterDelete.Should().HaveCount(1);
-        
+
         // Purge
         await repo.PurgeAsync(DateTimeOffset.UtcNow.AddDays(1));
         var itemsAfterPurge = await repo.GetAsync();
@@ -422,7 +422,7 @@ public class EntityFrameworkCoreOutboxTests
         outboxEntity.FindProperty("State")!.GetColumnName().Should().Be("state");
         outboxEntity.FindProperty("RetryCount")!.GetColumnName().Should().Be("retry_count");
         outboxEntity.FindProperty("Error")!.GetColumnName().Should().Be("error");
-        
+
         var stateIndex = outboxEntity.GetIndexes().FirstOrDefault(i => i.Properties.Count == 2 && i.Properties[0].Name == "State" && i.Properties[1].Name == "CreatedAt");
         stateIndex.Should().NotBeNull();
         stateIndex!.GetDatabaseName().Should().Be("idx_outbox_messages_state_created");
@@ -462,7 +462,7 @@ public class EntityFrameworkCoreOutboxTests
         var services = new ServiceCollection();
         services.AddDbContext<TestDbContext>(opts => opts.UseInMemoryDatabase(Guid.NewGuid().ToString()));
         services.AddOutboxEntityFrameworkCore<TestDbContext>();
-        
+
         var sp = services.BuildServiceProvider();
         sp.GetRequiredService<IOutboxRepository>().Should().BeOfType<EntityFrameworkCoreOutboxRepository<TestDbContext>>();
         sp.GetRequiredService<IIdempotencyRepository>().Should().BeOfType<EntityFrameworkCoreIdempotencyRepository<TestDbContext>>();
@@ -479,7 +479,7 @@ public class EntityFrameworkCoreOutboxTests
         var dbName = Guid.NewGuid().ToString();
         var sp = CreateServiceProvider(dbName);
         var repo = sp.GetRequiredService<IOutboxRepository>();
-        
+
         var count = await repo.GetPendingCountAsync();
         count.Should().Be(0);
 
@@ -491,7 +491,7 @@ public class EntityFrameworkCoreOutboxTests
             dbContext.Messages.Add(new OutboxMessageEntity { Id = Guid.NewGuid(), MessageType = "A", Payload = Array.Empty<byte>(), HeadersJson = "{}", CreatedAt = DateTimeOffset.UtcNow, State = 1 }); // processing
             await dbContext.SaveChangesAsync();
         }
-        
+
         count = await repo.GetPendingCountAsync();
         count.Should().Be(2);
     }
@@ -526,36 +526,36 @@ public class EntityFrameworkCoreOutboxTests
         {
             var dbContext = scope.ServiceProvider.GetRequiredService<TestDbContext>();
             // Dispatched and older than cutoff -> Should be purged
-            dbContext.Messages.Add(new OutboxMessageEntity 
-            { 
-                Id = Guid.NewGuid(), 
-                MessageType = "A", 
-                Payload = Array.Empty<byte>(), 
-                HeadersJson = "{}", 
+            dbContext.Messages.Add(new OutboxMessageEntity
+            {
+                Id = Guid.NewGuid(),
+                MessageType = "A",
+                Payload = Array.Empty<byte>(),
+                HeadersJson = "{}",
                 CreatedAt = cutoff.AddDays(-2),
                 ProcessedAt = cutoff.AddDays(-1),
-                State = 2 
+                State = 2
             });
             // Dispatched but newer than cutoff -> Should NOT be purged
-            dbContext.Messages.Add(new OutboxMessageEntity 
-            { 
-                Id = Guid.NewGuid(), 
-                MessageType = "B", 
-                Payload = Array.Empty<byte>(), 
-                HeadersJson = "{}", 
+            dbContext.Messages.Add(new OutboxMessageEntity
+            {
+                Id = Guid.NewGuid(),
+                MessageType = "B",
+                Payload = Array.Empty<byte>(),
+                HeadersJson = "{}",
                 CreatedAt = cutoff.AddDays(1),
                 ProcessedAt = cutoff.AddDays(2),
-                State = 2 
+                State = 2
             });
             // Pending and older than cutoff -> Should NOT be purged
-            dbContext.Messages.Add(new OutboxMessageEntity 
-            { 
-                Id = Guid.NewGuid(), 
-                MessageType = "C", 
-                Payload = Array.Empty<byte>(), 
-                HeadersJson = "{}", 
+            dbContext.Messages.Add(new OutboxMessageEntity
+            {
+                Id = Guid.NewGuid(),
+                MessageType = "C",
+                Payload = Array.Empty<byte>(),
+                HeadersJson = "{}",
                 CreatedAt = cutoff.AddDays(-2),
-                State = 0 
+                State = 0
             });
             await dbContext.SaveChangesAsync();
         }
@@ -864,7 +864,7 @@ public class EntityFrameworkCoreOutboxTests
         var interceptor = new TestSaveChangesInterceptor();
         var sp = CreateServiceProvider(Guid.NewGuid().ToString(), interceptor);
         var repo = sp.GetRequiredService<IOutboxRepository>();
-        
+
         var fetched = await repo.FetchPendingAsync(10);
         fetched.Should().BeEmpty();
         interceptor.SaveChangesCount.Should().Be(0);

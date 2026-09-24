@@ -43,7 +43,7 @@ public sealed class MariaDbOutboxRepository : IOutboxRepository
     /// </summary>
     /// <param name="connectionFactory">The factory that creates MariaDB connections.</param>
     /// <param name="options">The runtime options containing thresholds and configurations.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="connectionFactory"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="connectionFactory"/> is <see langword="null"/></exception>
 
     public MariaDbOutboxRepository(Func<IDbConnection> connectionFactory, IOptions<OutboxRuntimeOptions>? options = null)
     {
@@ -99,7 +99,7 @@ public sealed class MariaDbOutboxRepository : IOutboxRepository
 
         _updateClaimedSql = $@"
             UPDATE {_fullTableName} 
-            SET state = 1, updated_at = UTC_TIMESTAMP(), owner_id = '{_options.InstanceId}' 
+            SET state = 1, updated_at = UTC_TIMESTAMP(), owner_id = @OwnerId 
             WHERE id IN ({{0}});";
 
         _hydrateSql = $@"
@@ -235,6 +235,10 @@ public sealed class MariaDbOutboxRepository : IOutboxRepository
             }
             var paramInClause = string.Join(",", paramNames);
             updateCmd.CommandText = _updateClaimedSql.Replace("{0}", paramInClause, StringComparison.Ordinal);
+            var ownerParam = updateCmd.CreateParameter();
+            ownerParam.ParameterName = "@OwnerId";
+            ownerParam.Value = _options.InstanceId;
+            updateCmd.Parameters.Add(ownerParam);
             await updateCmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         }
 
@@ -303,18 +307,23 @@ public sealed class MariaDbOutboxRepository : IOutboxRepository
     public async ValueTask MarkAsDispatchedAsync(IReadOnlyList<OutboxMessage> messages, CancellationToken cancellationToken = default)
     {
         if (messages.Count == 0) return;
-        var inClauseBuilder = new StringBuilder();
-        for (int i = 0; i < messages.Count; i++)
-        {
-            if (i > 0) inClauseBuilder.Append(',');
-            inClauseBuilder.Append('\'').Append(messages[i].Id.ToString()).Append('\'');
-        }
-        var inClause = inClauseBuilder.ToString();
 
         using var conn = (System.Data.Common.DbConnection)_connectionFactory();
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
         using var cmd = conn.CreateCommand();
-        cmd.CommandText = _markDispatchedSql.Replace("@Ids", $"({inClause})", StringComparison.Ordinal);
+
+        var paramNames = new string[messages.Count];
+        for (int i = 0; i < messages.Count; i++)
+        {
+            var pName = $"@p{i}";
+            paramNames[i] = pName;
+            var p = cmd.CreateParameter();
+            p.ParameterName = pName;
+            p.Value = messages[i].Id.ToString();
+            cmd.Parameters.Add(p);
+        }
+
+        cmd.CommandText = _markDispatchedSql.Replace("@Ids", $"({string.Join(",", paramNames)})", StringComparison.Ordinal);
         await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
@@ -323,19 +332,24 @@ public sealed class MariaDbOutboxRepository : IOutboxRepository
     public async ValueTask MarkAsFailedAsync(IReadOnlyList<OutboxMessage> messages, string error, bool isDeadLetter = false, CancellationToken cancellationToken = default)
     {
         if (messages.Count == 0) return;
-        var inClauseBuilder = new StringBuilder();
-        for (int i = 0; i < messages.Count; i++)
-        {
-            if (i > 0) inClauseBuilder.Append(',');
-            inClauseBuilder.Append('\'').Append(messages[i].Id.ToString()).Append('\'');
-        }
-        var inClause = inClauseBuilder.ToString();
 
         using var conn = (System.Data.Common.DbConnection)_connectionFactory();
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
 
         using var cmd = conn.CreateCommand();
-        cmd.CommandText = _markFailedSql.Replace("@Ids", $"({inClause})", StringComparison.Ordinal);
+
+        var paramNames = new string[messages.Count];
+        for (int i = 0; i < messages.Count; i++)
+        {
+            var pName = $"@p{i}";
+            paramNames[i] = pName;
+            var p = cmd.CreateParameter();
+            p.ParameterName = pName;
+            p.Value = messages[i].Id.ToString();
+            cmd.Parameters.Add(p);
+        }
+
+        cmd.CommandText = _markFailedSql.Replace("@Ids", $"({string.Join(",", paramNames)})", StringComparison.Ordinal);
         cmd.Parameters.Add(new MySqlParameter("@State", isDeadLetter ? 4 : 3));
         cmd.Parameters.Add(new MySqlParameter("@Error", error ?? (object)DBNull.Value));
 

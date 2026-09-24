@@ -18,7 +18,7 @@ public static class PostgreSqlTestDatabase
     public static async Task EnsureSchemaAsync(NpgsqlDataSource dataSource)
     {
         await using var connection = await dataSource.OpenConnectionAsync();
-        
+
         const string sql = @"
             CREATE SCHEMA IF NOT EXISTS outbox;
 

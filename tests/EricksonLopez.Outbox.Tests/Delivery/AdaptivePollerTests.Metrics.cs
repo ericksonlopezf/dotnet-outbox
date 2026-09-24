@@ -67,15 +67,16 @@ public partial class AdaptivePollerTests
         var services = new ServiceCollection();
         var repo = Substitute.For<IOutboxRepository>();
         using var cts = new CancellationTokenSource();
-        
+
         repo.FetchPendingAsync(Arg.Any<int>(), Arg.Any<CancellationToken>())
-            .Returns(_ => {
+            .Returns(_ =>
+            {
                 cts.Cancel();
                 return new ValueTask<IReadOnlyList<OutboxMessage>>(Array.Empty<OutboxMessage>());
             });
         repo.GetPendingCountAsync(Arg.Any<CancellationToken>())
             .Returns(ValueTask.FromResult(42L));
-            
+
         services.AddScoped(_ => repo);
         var provider = services.BuildServiceProvider();
 
@@ -99,7 +100,7 @@ public partial class AdaptivePollerTests
 
         // The metric interval logic should have executed
         await repo.Received(1).GetPendingCountAsync(Arg.Any<CancellationToken>());
-        
+
         // Assert the gauge metric was updated
         long pendingCount = ReflectionTestHelper.GetFieldValue<long>(poller, "_pendingCount");
         pendingCount.Should().Be(42);
@@ -111,13 +112,14 @@ public partial class AdaptivePollerTests
         var services = new ServiceCollection();
         var repo = Substitute.For<IOutboxRepository>();
         using var cts2 = new CancellationTokenSource();
-        
+
         repo.FetchPendingAsync(Arg.Any<int>(), Arg.Any<CancellationToken>())
-            .Returns(_ => {
+            .Returns(_ =>
+            {
                 cts2.Cancel();
                 return new ValueTask<IReadOnlyList<OutboxMessage>>(Array.Empty<OutboxMessage>());
             });
-            
+
         services.AddScoped(_ => repo);
         var provider = services.BuildServiceProvider();
 
@@ -363,12 +365,14 @@ public partial class AdaptivePollerTests
         int getPendingCalls = 0;
         int fetchCalls = 0;
         repo.GetPendingCountAsync(Arg.Any<CancellationToken>())
-            .Returns(_ => {
+            .Returns(_ =>
+            {
                 Interlocked.Increment(ref getPendingCalls);
                 return ValueTask.FromResult(42L);
             });
         repo.FetchPendingAsync(Arg.Any<int>(), Arg.Any<CancellationToken>())
-            .Returns(_ => {
+            .Returns(_ =>
+            {
                 Interlocked.Increment(ref fetchCalls);
                 return ValueTask.FromResult<IReadOnlyList<OutboxMessage>>(Array.Empty<OutboxMessage>());
             });

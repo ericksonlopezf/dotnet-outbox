@@ -20,7 +20,7 @@ public static class InboxServiceCollectionExtensions
     /// <param name="services">The service collection.</param>
     /// <param name="configure">Optional configuration action for <see cref="InboxOptions"/>.</param>
     /// <returns>The service collection for chaining.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="services"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="services"/> is <see langword="null"/></exception>
     public static IServiceCollection AddInbox(
         this IServiceCollection services,
         Action<InboxOptions>? configure = null)
@@ -47,7 +47,7 @@ public static class InboxServiceCollectionExtensions
     /// <param name="services">The service collection.</param>
     /// <param name="configure">Optional configuration action for <see cref="InboxOptions"/>.</param>
     /// <returns>The service collection for chaining.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="services"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="services"/> is <see langword="null"/></exception>
     public static IServiceCollection AddInMemoryInbox(
         this IServiceCollection services,
         Action<InboxOptions>? configure = null)

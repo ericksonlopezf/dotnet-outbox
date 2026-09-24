@@ -13,7 +13,7 @@ public interface IBrokerSelector
     /// </summary>
     /// <param name="message">The outbox message being dispatched.</param>
     /// <returns>The <see cref="IBrokerPublisher"/> responsible for publishing the message.</returns>
-    /// <exception cref="InvalidOperationException">Thrown when no suitable publisher is found.</exception>
+    /// <exception cref="InvalidOperationException">Thrown when no suitable publisher is found</exception>
     IBrokerPublisher GetPublisher(OutboxMessage message);
 }
 

@@ -36,15 +36,15 @@ public sealed class SqliteOutboxRepository : IOutboxRepository
     /// </summary>
     /// <param name="connectionFactory">The factory that creates SQLite connections.</param>
     /// <param name="options">The runtime options containing thresholds and configurations.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="connectionFactory"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="connectionFactory"/> is <see langword="null"/></exception>
 
     public SqliteOutboxRepository(Func<IDbConnection> connectionFactory, IOptions<OutboxRuntimeOptions>? options = null)
     {
         _connectionFactory = connectionFactory ?? throw new ArgumentNullException(nameof(connectionFactory));
         _options = options?.Value ?? new OutboxRuntimeOptions();
-        
+
         var table = _options.TableName;
-        
+
         if (!System.Text.RegularExpressions.Regex.IsMatch(table, "^[a-zA-Z0-9_]+$", System.Text.RegularExpressions.RegexOptions.None, TimeSpan.FromSeconds(1)))
             throw new ArgumentException("Table name contains invalid characters.", nameof(options));
 
@@ -127,7 +127,7 @@ public sealed class SqliteOutboxRepository : IOutboxRepository
         cmd.Parameters.Add(new SqliteParameter("@HeadersJson", record.Headers.ToArray()));
         cmd.Parameters.Add(new SqliteParameter("@CreatedAt", record.CreatedAt.UtcDateTime.ToString("O")));
         cmd.Parameters.Add(new SqliteParameter("@DeliverAt", record.DeliverAt?.UtcDateTime.ToString("O") ?? (object)DBNull.Value));
-        
+
         await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
@@ -137,11 +137,11 @@ public sealed class SqliteOutboxRepository : IOutboxRepository
     {
         if (records.IsEmpty) return;
         var conn = (transaction.Connection as System.Data.Common.DbConnection) ?? throw new InvalidOperationException("Transaction connection is null.");
-        
+
         var span = records.Span;
         using var cmd = conn.CreateCommand();
         cmd.Transaction = (transaction.Transaction as System.Data.Common.DbTransaction);
-        
+
         var sb = new System.Text.StringBuilder();
         sb.Append("INSERT INTO ").Append(_fullTableName).Append(" (id, type, payload, correlation_id, causation_id, headers_json, state, created_at, updated_at, deliver_at, retry_count) VALUES ");
 
@@ -150,7 +150,7 @@ public sealed class SqliteOutboxRepository : IOutboxRepository
             var r = span[i];
             sb.AppendFormat(System.Globalization.CultureInfo.InvariantCulture, "(@Id{0}, @Type{0}, @Payload{0}, @CorrelationId{0}, @CausationId{0}, @HeadersJson{0}, 0, @CreatedAt{0}, @CreatedAt{0}, @DeliverAt{0}, 0)", i);
             if (i < span.Length - 1) sb.Append(", ");
-            
+
             cmd.Parameters.Add(new SqliteParameter($"@Id{i}", r.Id.ToString()));
             cmd.Parameters.Add(new SqliteParameter($"@Type{i}", r.MessageType));
             cmd.Parameters.Add(new SqliteParameter($"@Payload{i}", r.Payload.ToArray()));
@@ -160,10 +160,10 @@ public sealed class SqliteOutboxRepository : IOutboxRepository
             cmd.Parameters.Add(new SqliteParameter($"@CreatedAt{i}", r.CreatedAt.UtcDateTime.ToString("O")));
             cmd.Parameters.Add(new SqliteParameter($"@DeliverAt{i}", r.DeliverAt?.UtcDateTime.ToString("O") ?? (object)DBNull.Value));
         }
-        
+
         sb.Append(" ON CONFLICT (id) DO NOTHING;");
         cmd.CommandText = sb.ToString();
-        
+
         await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
@@ -172,17 +172,17 @@ public sealed class SqliteOutboxRepository : IOutboxRepository
     {
         using var conn = (System.Data.Common.DbConnection)_connectionFactory();
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
-        
+
         using var cmd = conn.CreateCommand();
         cmd.CommandText = _fetchPendingSql;
         cmd.Parameters.Add(new SqliteParameter("@BatchSize", batchSize));
         cmd.Parameters.Add(new SqliteParameter("@Now", DateTimeOffset.UtcNow.ToString("O")));
-        
+
         using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         var result = new List<OutboxMessage>(batchSize);
-        
+
         if (!reader.HasRows) return result;
-        
+
         var idOrd = reader.GetOrdinal("Id");
         var messageTypeOrd = reader.GetOrdinal("MessageType");
         var payloadOrd = reader.GetOrdinal("Payload");
@@ -226,18 +226,23 @@ public sealed class SqliteOutboxRepository : IOutboxRepository
     public async ValueTask MarkAsDispatchedAsync(IReadOnlyList<OutboxMessage> messages, CancellationToken cancellationToken = default)
     {
         if (messages.Count == 0) return;
-        var inClauseBuilder = new System.Text.StringBuilder();
-        for (int i = 0; i < messages.Count; i++)
-        {
-            if (i > 0) inClauseBuilder.Append(',');
-            inClauseBuilder.Append('\'').Append(messages[i].Id.ToString()).Append('\'');
-        }
-        var inClause = inClauseBuilder.ToString();
 
         using var conn = (System.Data.Common.DbConnection)_connectionFactory();
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
         using var cmd = conn.CreateCommand();
-        cmd.CommandText = _markDispatchedSql.Replace("@Ids", $"({inClause})");
+
+        var paramNames = new string[messages.Count];
+        for (int i = 0; i < messages.Count; i++)
+        {
+            var pName = $"@p{i}";
+            paramNames[i] = pName;
+            var p = cmd.CreateParameter();
+            p.ParameterName = pName;
+            p.Value = messages[i].Id.ToString();
+            cmd.Parameters.Add(p);
+        }
+
+        cmd.CommandText = _markDispatchedSql.Replace("@Ids", $"({string.Join(",", paramNames)})", StringComparison.Ordinal);
         await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
@@ -246,22 +251,27 @@ public sealed class SqliteOutboxRepository : IOutboxRepository
     public async ValueTask MarkAsFailedAsync(IReadOnlyList<OutboxMessage> messages, string error, bool isDeadLetter = false, CancellationToken cancellationToken = default)
     {
         if (messages.Count == 0) return;
-        var inClauseBuilder = new System.Text.StringBuilder();
-        for (int i = 0; i < messages.Count; i++)
-        {
-            if (i > 0) inClauseBuilder.Append(',');
-            inClauseBuilder.Append('\'').Append(messages[i].Id.ToString()).Append('\'');
-        }
-        var inClause = inClauseBuilder.ToString();
 
         using var conn = (System.Data.Common.DbConnection)_connectionFactory();
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
-        
+
         using var cmd = conn.CreateCommand();
-        cmd.CommandText = _markFailedSql.Replace("@Ids", $"({inClause})");
+
+        var paramNames = new string[messages.Count];
+        for (int i = 0; i < messages.Count; i++)
+        {
+            var pName = $"@p{i}";
+            paramNames[i] = pName;
+            var p = cmd.CreateParameter();
+            p.ParameterName = pName;
+            p.Value = messages[i].Id.ToString();
+            cmd.Parameters.Add(p);
+        }
+
+        cmd.CommandText = _markFailedSql.Replace("@Ids", $"({string.Join(",", paramNames)})", StringComparison.Ordinal);
         cmd.Parameters.Add(new SqliteParameter("@State", isDeadLetter ? 4 : 3));
         cmd.Parameters.Add(new SqliteParameter("@Error", error ?? (object)DBNull.Value));
-        
+
         await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
@@ -271,13 +281,13 @@ public sealed class SqliteOutboxRepository : IOutboxRepository
         using var conn = (System.Data.Common.DbConnection)_connectionFactory();
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
         var now = DateTimeOffset.UtcNow;
-        
+
         using var cmd = conn.CreateCommand();
         cmd.CommandText = _reclaimSql;
         cmd.Parameters.Add(new SqliteParameter("@Now", now.ToString("O")));
         cmd.Parameters.Add(new SqliteParameter("@StaleTime", now.Subtract(staleTimeout).ToString("O")));
         cmd.Parameters.Add(new SqliteParameter("@MaxAge", now.Subtract(_options.MaxMessageAge).ToString("O")));
-        
+
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
@@ -286,7 +296,7 @@ public sealed class SqliteOutboxRepository : IOutboxRepository
     {
         using var conn = (System.Data.Common.DbConnection)_connectionFactory();
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
-        
+
         using var cmd = conn.CreateCommand();
         cmd.CommandText = _countSql;
         var result = await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);

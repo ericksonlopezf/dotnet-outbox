@@ -1,13 +1,11 @@
-# Copyright © Erickson Lopez. MIT License.
+# Copyright Â© Erickson Lopez. MIT License.
 name: Benchmark Regression Gate
 
-# ─── Purpose ─────────────────────────────────────────────────────────────────
-# Runs BenchmarkDotNet against the PR branch and compares the results against
-# the baseline captured on `main` (stored in benchmarks/results/).
-#
-# If any benchmark regresses by more than REGRESSION_THRESHOLD (default: 10%),
-# the CI gate FAILS with a detailed report showing the exact delta.
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€ Purpose â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# Runs BenchmarkDotNet against the PR branch and validates against strict gates:
+#   1. Heap Invariant: Zero-allocation on hot path combinators (0 B allocated).
+#   2. Latency Threshold: Mean latency regression must not exceed 5% vs baseline.
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 on:
   pull_request:
@@ -18,15 +16,15 @@ on:
   workflow_dispatch:
     inputs:
       threshold:
-        description: "Regression threshold in percent (e.g. 10 for +10%)"
+        description: "Regression threshold in percent (default: 5)"
         required: false
-        default: "10"
+        default: "5"
         type: string
 
 env:
   DOTNET_NOLOGO: true
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
-  REGRESSION_THRESHOLD: ${{ inputs.threshold || '10' }}
+  REGRESSION_THRESHOLD: ${{ inputs.threshold || '5' }}
 
 jobs:
   benchmark-gate:
@@ -35,12 +33,12 @@ jobs:
     timeout-minutes: 45
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
         with:
           dotnet-version: |
             8.0.x
@@ -70,99 +68,21 @@ jobs:
           --
           --filter "*"
           --job short
-          --runtimes net8.0 net10.0
           --exporters json
+          --memory
           --artifacts ./benchmarks/pr-results
 
-      - name: Check for baseline results
-        id: baseline-check
+      - name: Evaluate Benchmark Regression Gate
+        shell: pwsh
         run: |
-          if ls benchmarks/results/**/*.json 2>/dev/null | head -1 | grep -q .; then
-            echo "has_baseline=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "has_baseline=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::No benchmark baseline found in benchmarks/results/. Skipping regression check. Run the 'Weekly Benchmarks' workflow on main to establish a baseline."
-          fi
-
-      - name: Compare results vs baseline
-        if: steps.baseline-check.outputs.has_baseline == 'true'
-        run: |
-          python3 - <<'PYEOF'
-          import json, os, glob, sys
-
-          THRESHOLD = float(os.environ.get("REGRESSION_THRESHOLD", "10")) / 100.0
-          baseline_files = glob.glob("benchmarks/results/**/*.json", recursive=True)
-          pr_files = glob.glob("benchmarks/pr-results/**/*.json", recursive=True)
-
-          if not baseline_files:
-              print("No baseline JSON files found. Skipping comparison.")
-              sys.exit(0)
-          if not pr_files:
-              print("No PR benchmark JSON files found.")
-              sys.exit(1)
-
-          def load_benchmarks(files):
-              results = {}
-              for f in files:
-                  try:
-                      data = json.load(open(f))
-                      for bench in data.get("Benchmarks", []):
-                          name = bench.get("FullName", bench.get("Method", ""))
-                          mean = bench.get("Statistics", {}).get("Mean", None)
-                          if name and mean:
-                              results[name] = mean
-                  except Exception as e:
-                      print(f"Warning: Could not parse {f}: {e}")
-              return results
-
-          baseline = load_benchmarks(baseline_files)
-          pr = load_benchmarks(pr_files)
-
-          regressions = []
-          improvements = []
-          for name, pr_mean in pr.items():
-              if name in baseline:
-                  base_mean = baseline[name]
-                  if base_mean > 0:
-                      delta_pct = (pr_mean - base_mean) / base_mean * 100
-                      if delta_pct > THRESHOLD * 100:
-                          regressions.append((name, base_mean, pr_mean, delta_pct))
-                      elif delta_pct < -5:
-                          improvements.append((name, base_mean, pr_mean, delta_pct))
-
-          summary_lines = []
-          summary_lines.append(f"## Benchmark Regression Report (threshold: {THRESHOLD*100:.0f}%)\n")
-
-          if improvements:
-              summary_lines.append("### ✅ Improvements")
-              for name, base, pr_val, delta in improvements:
-                  summary_lines.append(f"- **{name}**: {base/1000000:.3f}ms → {pr_val/1000000:.3f}ms ({delta:+.1f}%)")
-              summary_lines.append("")
-
-          if regressions:
-              summary_lines.append("### ❌ Regressions (above threshold)")
-              for name, base, pr_val, delta in regressions:
-                  summary_lines.append(f"- **{name}**: {base/1000000:.3f}ms → {pr_val/1000000:.3f}ms ({delta:+.1f}%) ← REGRESSION")
-              summary_lines.append("")
-          else:
-              summary_lines.append("### ✅ No regressions detected\n")
-
-          report = "\n".join(summary_lines)
-          print(report)
-
-          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
-              f.write(report + "\n")
-
-          if regressions:
-              print(f"\n❌ {len(regressions)} benchmark(s) regressed beyond {THRESHOLD*100:.0f}% threshold. Failing build.")
-              sys.exit(1)
-          else:
-              print(f"\n✅ All benchmarks within {THRESHOLD*100:.0f}% regression threshold.")
-          PYEOF
+          ./scripts/verify-benchmark-gate.ps1 `
+            -ReportDir ./benchmarks/pr-results `
+            -BaselinePath ./benchmarks/results/baseline.json `
+            -MaxLatencyRegressionPercent ([double]$env:REGRESSION_THRESHOLD)
 
       - name: Upload PR benchmark results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: pr-benchmark-results-${{ github.run_id }}
           path: benchmarks/pr-results/
