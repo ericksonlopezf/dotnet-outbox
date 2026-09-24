@@ -13,7 +13,7 @@ namespace EricksonLopez.Outbox;
 public static class OutboxConstants
 {
     /// <summary>
-    /// The consumer identifier used internally by the outbox dispatcher to track its own
+    /// Defines the consumer identifier used internally by the outbox dispatcher to track its own
     /// idempotency records via <see cref="Idempotency.IInboxIdempotencyChecker.ShouldSkipAsync"/>.
     /// </summary>
     /// <remarks>

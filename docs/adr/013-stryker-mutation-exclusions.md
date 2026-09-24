@@ -1,6 +1,10 @@
-<!-- Copyright © Erickson Lopez. MIT License. -->
-
 # ADR 013: Stryker.NET Mutation Coverage Exclusions
+
+## Status
+Accepted
+
+## Date
+2026-09-04
 
 ## Context
 The goal of the `EricksonLopez.Outbox` project is to maintain an impeccable quality standard, aiming for 100% Code, Branch, Mutation, and Method Coverage. During the integration of **Stryker.NET** to measure the Mutation Score, we identified a subset of mutants that consistently survive due to technical limitations of the testing framework (`xUnit`), inherent .NET asynchrony, defensive design, or hardware-bound constraints. Testing these mutated edge cases is extremely fragile or outright impossible.

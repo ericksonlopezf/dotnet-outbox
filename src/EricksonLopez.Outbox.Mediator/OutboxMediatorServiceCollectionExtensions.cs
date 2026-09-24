@@ -16,13 +16,10 @@ public static class OutboxMediatorServiceCollectionExtensions
     /// <typeparam name="TNotification">The notification type.</typeparam>
     /// <param name="services">The service collection.</param>
     /// <returns>The service collection for chaining.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="services"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="services"/> is <see langword="null"/></exception>
     public static IServiceCollection AddOutboxNotificationHandler<TNotification>(this IServiceCollection services)
         where TNotification : INotification
     {
-        ArgumentNullException.ThrowIfNull(services);
-
-        services.AddTransient<INotificationHandler<TNotification>, OutboxNotificationHandler<TNotification>>();
-        return services;
+        return services.AddTransient<INotificationHandler<TNotification>, OutboxNotificationHandler<TNotification>>();
     }
 }

@@ -27,7 +27,7 @@ public sealed class InboxCleanupBackgroundService : BackgroundService
     /// <param name="options">The configured inbox options.</param>
     /// <param name="logger">Optional logger instance.</param>
     /// <param name="timeProvider">Optional time provider.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="inboxStore"/> or <paramref name="options"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="inboxStore"/> or <paramref name="options"/> is <see langword="null"/></exception>
     public InboxCleanupBackgroundService(
         IInboxStore inboxStore,
         IOptions<InboxOptions> options,

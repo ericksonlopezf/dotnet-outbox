@@ -85,12 +85,14 @@ public class OracleDeadLetterRepositoryTests : IAsyncLifetime
         OracleConnection? createdConn = null;
         var optionsMonitor = Substitute.For<IOptionsMonitor<OutboxRuntimeOptions>>();
         optionsMonitor.CurrentValue.Returns(_options);
-        var sut = new OracleDeadLetterRepository(() => {
+        var sut = new OracleDeadLetterRepository(() =>
+        {
             createdConn = new OracleConnection(_fixture.Container.GetConnectionString());
             return createdConn;
         }, optionsMonitor);
 
-        var msg = _autoFixture.Create<DeadLetterMessage>() with { 
+        var msg = _autoFixture.Create<DeadLetterMessage>() with
+        {
             Payload = "{}"u8.ToArray(),
             Headers = "{}"u8.ToArray()
         };
@@ -103,7 +105,8 @@ public class OracleDeadLetterRepositoryTests : IAsyncLifetime
     public async Task InsertAsync_Should_Persist_DeadLetterMessage()
     {
         var sut = CreateSut();
-        var msg = _autoFixture.Create<DeadLetterMessage>() with { 
+        var msg = _autoFixture.Create<DeadLetterMessage>() with
+        {
             Payload = "{}"u8.ToArray(),
             Headers = "{}"u8.ToArray()
         };
@@ -119,7 +122,8 @@ public class OracleDeadLetterRepositoryTests : IAsyncLifetime
     public async Task InsertAsync_WithNullReason_DefaultsToUnknown()
     {
         var sut = CreateSut();
-        var msg = _autoFixture.Create<DeadLetterMessage>() with { 
+        var msg = _autoFixture.Create<DeadLetterMessage>() with
+        {
             Payload = "{}"u8.ToArray(),
             Headers = "{}"u8.ToArray(),
             Reason = null!
@@ -136,7 +140,8 @@ public class OracleDeadLetterRepositoryTests : IAsyncLifetime
     public async Task InsertAsync_Should_Not_Throw_If_Already_Exists()
     {
         var sut = CreateSut();
-        var msg = _autoFixture.Create<DeadLetterMessage>() with { 
+        var msg = _autoFixture.Create<DeadLetterMessage>() with
+        {
             Payload = "{}"u8.ToArray(),
             Headers = "{}"u8.ToArray()
         };
@@ -153,7 +158,8 @@ public class OracleDeadLetterRepositoryTests : IAsyncLifetime
     public async Task InsertAsync_WithTransaction_Should_Use_Transaction()
     {
         var sut = CreateSut();
-        var msg = _autoFixture.Create<DeadLetterMessage>() with { 
+        var msg = _autoFixture.Create<DeadLetterMessage>() with
+        {
             Payload = "{}"u8.ToArray(),
             Headers = "{}"u8.ToArray()
         };
@@ -175,7 +181,8 @@ public class OracleDeadLetterRepositoryTests : IAsyncLifetime
     public async Task GetAsync_Should_Return_Messages_With_Null_Mapping()
     {
         var sut = CreateSut();
-        var msg1 = _autoFixture.Create<DeadLetterMessage>() with { 
+        var msg1 = _autoFixture.Create<DeadLetterMessage>() with
+        {
             Payload = "{}"u8.ToArray(),
             Headers = "{}"u8.ToArray(),
             CorrelationId = null,
@@ -183,7 +190,8 @@ public class OracleDeadLetterRepositoryTests : IAsyncLifetime
             LastError = null,
             Reason = "ExplicitReason"
         };
-        var msg2 = _autoFixture.Create<DeadLetterMessage>() with { 
+        var msg2 = _autoFixture.Create<DeadLetterMessage>() with
+        {
             Payload = System.Text.Encoding.UTF8.GetBytes("{\"oracle\":\"custom_data\"}"),
             Headers = System.Text.Encoding.UTF8.GetBytes("{\"oracle\":\"custom_headers\"}"),
             CorrelationId = "corr",
@@ -196,7 +204,7 @@ public class OracleDeadLetterRepositoryTests : IAsyncLifetime
         await sut.InsertAsync(msg2);
 
         var results = await sut.GetAsync(10);
-        
+
         results.Should().Contain(m => m.Id == msg1.Id);
         results.Should().Contain(m => m.Id == msg2.Id);
 
@@ -245,7 +253,8 @@ public class OracleDeadLetterRepositoryTests : IAsyncLifetime
     {
         var sut = CreateSut();
         var targetDate = DateTimeOffset.UtcNow.AddDays(-2);
-        var msg = _autoFixture.Create<DeadLetterMessage>() with { 
+        var msg = _autoFixture.Create<DeadLetterMessage>() with
+        {
             Payload = "{}"u8.ToArray(),
             Headers = "{}"u8.ToArray(),
             DeadLetteredAt = targetDate
@@ -263,7 +272,8 @@ public class OracleDeadLetterRepositoryTests : IAsyncLifetime
     public async Task DeleteAsync_Should_Remove_Message()
     {
         var sut = CreateSut();
-        var msg = _autoFixture.Create<DeadLetterMessage>() with { 
+        var msg = _autoFixture.Create<DeadLetterMessage>() with
+        {
             Payload = "{}"u8.ToArray(),
             Headers = "{}"u8.ToArray()
         };
@@ -279,7 +289,8 @@ public class OracleDeadLetterRepositoryTests : IAsyncLifetime
     public async Task PurgeAsync_Should_Remove_Old_Messages()
     {
         var sut = CreateSut();
-        var msg = _autoFixture.Create<DeadLetterMessage>() with { 
+        var msg = _autoFixture.Create<DeadLetterMessage>() with
+        {
             Payload = "{}"u8.ToArray(),
             Headers = "{}"u8.ToArray(),
             DeadLetteredAt = DateTimeOffset.UtcNow.AddDays(-2)

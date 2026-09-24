@@ -87,7 +87,7 @@ public class RabbitMQBrokerPublisherTests
         var result = await publisher.PublishAsync(msg, new DispatchContext(CancellationToken.None, 1));
 
         result.Success.Should().BeTrue();
-        await channel.Received(1).BasicPublishAsync("exchange", "type", true, Arg.Is<BasicProperties>(p => 
+        await channel.Received(1).BasicPublishAsync("exchange", "type", true, Arg.Is<BasicProperties>(p =>
             p.CorrelationId == "corr" &&
             p.Headers != null &&
             p.Headers["k"] as string == "v"
@@ -109,11 +109,11 @@ public class RabbitMQBrokerPublisherTests
 
         result.Success.Should().BeTrue();
         await channel.Received(1).BasicPublishAsync(
-            "exchange", 
-            "type", 
-            true, 
-            Arg.Is<BasicProperties>(p => p.CorrelationId == "corr"), 
-            Arg.Is<ReadOnlyMemory<byte>>(b => b.Length == 3), 
+            "exchange",
+            "type",
+            true,
+            Arg.Is<BasicProperties>(p => p.CorrelationId == "corr"),
+            Arg.Is<ReadOnlyMemory<byte>>(b => b.Length == 3),
             cts.Token);
     }
 
@@ -124,7 +124,7 @@ public class RabbitMQBrokerPublisherTests
         var expectedEx = new InvalidOperationException("Broker disconnected");
         _ = channel.BasicPublishAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>(), Arg.Any<BasicProperties>(), Arg.Any<ReadOnlyMemory<byte>>(), Arg.Any<CancellationToken>())
             .Returns(ValueTask.FromException(expectedEx));
-        
+
         var serializer = Substitute.For<IOutboxSerializer>();
         var publisher = new RabbitMQBrokerPublisher(channel, serializer, "exchange");
 
@@ -170,7 +170,7 @@ public class RabbitMQBrokerPublisherTests
         var result = await publisher.PublishRawAsync(msg, meta, new DispatchContext(CancellationToken.None, 1));
 
         result.Success.Should().BeTrue();
-        await channel.Received(1).BasicPublishAsync("exchange", "alias", true, Arg.Is<BasicProperties>(p => 
+        await channel.Received(1).BasicPublishAsync("exchange", "alias", true, Arg.Is<BasicProperties>(p =>
             p.CorrelationId == "corr" &&
             p.Headers != null &&
             p.Headers["k"] as string == "v"
@@ -184,7 +184,7 @@ public class RabbitMQBrokerPublisherTests
         var expectedEx = new InvalidOperationException("Broker disconnected");
         _ = channel.BasicPublishAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>(), Arg.Any<BasicProperties>(), Arg.Any<ReadOnlyMemory<byte>>(), Arg.Any<CancellationToken>())
             .Returns(ValueTask.FromException(expectedEx));
-        
+
         var serializer = Substitute.For<IOutboxSerializer>();
 
         var publisher = new RabbitMQBrokerPublisher(channel, serializer, "exchange");

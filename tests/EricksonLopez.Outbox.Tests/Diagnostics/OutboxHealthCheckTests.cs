@@ -11,8 +11,8 @@ using AwesomeAssertions;
 using EricksonLopez.Outbox.Dispatcher;
 using EricksonLopez.Outbox.Hosting;
 using EricksonLopez.Outbox.Persistence;
-using EricksonLopez.Result;
 using EricksonLopez.Outbox.Tests.Infrastructure;
+using EricksonLopez.Result;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
@@ -113,7 +113,7 @@ public class OutboxHealthCheckTests
         result.Description.Should().Contain("1500 pending messages");
         result.Data["pending_messages"].Should().Be(1500);
     }
-    
+
     [Fact]
     public async Task CheckHealthAsync_ReturnsDegraded_WhenDispatcherRunning_AndExactlyAtThreshold()
     {
@@ -132,7 +132,7 @@ public class OutboxHealthCheckTests
         result.Description.Should().Contain("1000 pending messages");
         result.Data["pending_messages"].Should().Be(1000);
     }
-    
+
     [Fact]
     public async Task Constructor_WithNullOptions_ShouldUseDefault()
     {
@@ -142,7 +142,7 @@ public class OutboxHealthCheckTests
         var sp = services.BuildServiceProvider();
         var repo = Substitute.For<IOutboxRepository>();
         repo.GetPendingCountAsync(Arg.Any<CancellationToken>()).Returns(ValueTask.FromResult<long>(1000));
-        
+
         // Pass null options
         var check = new OutboxHealthCheck(sp, repo, null!);
 
@@ -186,12 +186,12 @@ public class OutboxHealthCheckTests
 
         var provider = services.BuildServiceProvider();
         var healthCheckService = provider.GetService<HealthCheckService>();
-        
+
         healthCheckService.Should().NotBeNull();
 
         var registrations = provider.GetRequiredService<IOptions<HealthCheckServiceOptions>>().Value.Registrations;
         registrations.Should().Contain(r => r.Name == "MyOutboxCheck");
-        
+
         var reg = registrations.Should().ContainSingle(r => r.Name == "MyOutboxCheck").Subject;
         reg.Tags.Should().Contain("db");
     }
@@ -205,7 +205,7 @@ public class OutboxHealthCheckTests
 
         var provider = services.BuildServiceProvider();
         var opts = provider.GetRequiredService<IOptions<OutboxHealthCheckOptions>>().Value;
-        
+
         opts.WarningThreshold.Should().Be(55);
     }
 }

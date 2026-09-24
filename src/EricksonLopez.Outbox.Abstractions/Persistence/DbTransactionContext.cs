@@ -20,12 +20,9 @@ public sealed class DbTransactionContext : IRelationalOutboxTransactionContext
     /// <inheritdoc/>
     public object? Connection => DbConnection;
 
-    /// <summary>
-    /// Initializes a new instance of the <see cref="DbTransactionContext"/> class with the specified database transaction.
-    /// </summary>
-    /// <param name="dbTransaction">The ADO.NET database transaction.</param>
+    /// <exception cref="System.ArgumentNullException"><paramref name="dbTransaction"/> is <see langword="null"/></exception>
     public DbTransactionContext(DbTransaction dbTransaction)
     {
-        DbTransaction = dbTransaction;
+        DbTransaction = dbTransaction ?? throw new System.ArgumentNullException(nameof(dbTransaction));
     }
 }

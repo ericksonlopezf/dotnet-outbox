@@ -80,7 +80,7 @@ public class AzureServiceBusBrokerPublisherTests
         var result = await publisher.PublishAsync(msg, new DispatchContext(CancellationToken.None, 1));
 
         result.Success.Should().BeTrue();
-        await sender.Received(1).SendMessageAsync(Arg.Is<ServiceBusMessage>(m => 
+        await sender.Received(1).SendMessageAsync(Arg.Is<ServiceBusMessage>(m =>
             m.Subject == "type1" &&
             m.CorrelationId == "corr" &&
             m.ApplicationProperties.ContainsKey("MessageType") && m.ApplicationProperties["MessageType"].ToString() == "type1" &&
@@ -137,13 +137,13 @@ public class AzureServiceBusBrokerPublisherTests
 
         result.Count.Should().Be(1);
         result[0].Success.Should().BeTrue();
-        
+
         backingList.Should().HaveCount(1);
         backingList[0].CorrelationId.Should().Be("corr");
         backingList[0].ApplicationProperties["CausationId"].Should().Be("caus");
         backingList[0].ApplicationProperties["MessageType"].Should().Be("type1");
         backingList[0].ApplicationProperties["k"].Should().Be("v");
-        
+
         await sender.Received(1).SendMessagesAsync(batch, Arg.Any<CancellationToken>());
     }
 
@@ -197,9 +197,9 @@ public class AzureServiceBusBrokerPublisherTests
         var msg = new OutboxMessage(Guid.NewGuid(), "alias", Array.Empty<byte>(), null, null, System.Text.Encoding.UTF8.GetBytes("{}"), DateTimeOffset.UtcNow, null, null, 0, 0, null);
         var meta = new OutboxMessageMetadata("corr", "caus", "type1", new[] { new MetadataEntry("k", "v") });
         var result = await publisher.PublishRawAsync(msg, meta, new DispatchContext(CancellationToken.None, 1));
-        
+
         result.Success.Should().BeTrue();
-        await sender.Received(1).SendMessageAsync(Arg.Is<ServiceBusMessage>(m => 
+        await sender.Received(1).SendMessageAsync(Arg.Is<ServiceBusMessage>(m =>
             m.CorrelationId == "corr" &&
             (string)m.ApplicationProperties["MessageType"] == "alias" &&
             (string)m.ApplicationProperties["CausationId"] == "caus" &&

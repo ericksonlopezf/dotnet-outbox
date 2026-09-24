@@ -15,7 +15,7 @@ public static class InboxConsumerRegistrationExtensions
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <returns>The modified service collection.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="services"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="services"/> is <see langword="null"/></exception>
     public static IServiceCollection AddInboxDeduplication(this IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);

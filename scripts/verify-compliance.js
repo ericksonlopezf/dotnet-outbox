@@ -10,11 +10,11 @@ function logPass(msg) {
 }
 
 function logFail(msg) {
-    console.error(`  \x1b[31m✖ FAIL\x1b[0m: ${msg}`);
+    process.stderr.write(`  \x1b[31m✖ FAIL\x1b[0m: ${msg}\n`); // NOSONAR
     failureCount++;
 }
 
-function walk(dir, excludeDirs = ['bin', 'obj', '.git', 'StrykerOutput', 'BenchmarkDotNet.Artifacts', 'TestResults', 'coveragereport', 'node_modules']) {
+function walk(dir, excludeDirs = ['bin', 'obj', '.git', 'StrykerOutput', 'BenchmarkDotNet.Artifacts', 'TestResults', 'coveragereport', 'node_modules', 'MEGA-AUDITORIA', 'audit-reports']) {
     let results = [];
     if (!fs.existsSync(dir)) return results;
     const list = fs.readdirSync(dir);
@@ -46,6 +46,8 @@ const standardExceptions = new Set([
     'CHANGELOG.MD',
     'GOVERNANCE.MD',
     'SUPPORT.MD',
+    'ROADMAP.MD',
+    'BOUNDARY.MD',
     'PULL_REQUEST_TEMPLATE.MD',
     'CODEOWNERS',
     'BUG_REPORT.MD',
@@ -286,13 +288,182 @@ if (typeViolations === 0) {
     logPass('100% of production C# source files adhere to the One Type Per File standard.');
 }
 
+// 8. Changelog Structure & Quadruple Versioning Synchronization Audit
+console.log('\n\x1b[1m[8/10] Changelog Structure & Version Synchronization Validation\x1b[0m');
+let changelogViolations = 0;
+const changelogPath = fs.existsSync(path.join(ROOT, 'CHANGELOG.md')) ? path.join(ROOT, 'CHANGELOG.md') : (fs.existsSync(path.join(ROOT, 'changelog.md')) ? path.join(ROOT, 'changelog.md') : null);
+
+if (!changelogPath) {
+    logFail('Missing CHANGELOG.md or changelog.md in repository root.');
+    changelogViolations++;
+} else {
+    const clContent = fs.readFileSync(changelogPath, 'utf8');
+    const clLines = clContent.split('\n');
+    let hasUnreleased = false;
+    let firstReleaseVersion = null;
+    let firstReleaseDate = null;
+
+    for (let i = 0; i < clLines.Count || i < clLines.length; i++) {
+        const line = clLines[i].trim();
+        if (/^##\s*\[Unreleased\]\s*$/i.test(line)) {
+            hasUnreleased = true;
+            continue;
+        }
+        if (hasUnreleased) {
+            const m = /^##\s*\[(\d+\.\d+\.\d+)\]\s*-\s*(\d{4}-\d{2}-\d{2})\s*$/.exec(line);
+            if (m) {
+                firstReleaseVersion = m[1];
+                firstReleaseDate = m[2];
+                break;
+            }
+        }
+    }
+
+    if (!hasUnreleased) {
+        logFail("Changelog must strictly contain '## [Unreleased]' section at the top.");
+        changelogViolations++;
+    }
+
+    if (!firstReleaseVersion) {
+        logFail("Changelog first release under [Unreleased] must strictly match '## [VERSION] - AAAA-MM-DD' (e.g. '## [2.0.0] - 2026-08-30').");
+        changelogViolations++;
+    }
+
+    // Extract VersionPrefix from Directory.Build.props
+    let versionPrefix = null;
+    if (fs.existsSync(rootPropsPath)) {
+        const propsRaw = fs.readFileSync(rootPropsPath, 'utf8');
+        const vMatch = /<VersionPrefix>\s*([^<\s]+)\s*<\/VersionPrefix>/.exec(propsRaw);
+        if (vMatch) {
+            versionPrefix = vMatch[1];
+        }
+    }
+
+    if (!versionPrefix) {
+        logFail('Could not extract <VersionPrefix> from Directory.Build.props.');
+        changelogViolations++;
+    } else if (firstReleaseVersion && firstReleaseVersion !== versionPrefix) {
+        logFail(`Version mismatch: Directory.Build.props <VersionPrefix> (${versionPrefix}) does not match changelog latest version (${firstReleaseVersion}).`);
+        changelogViolations++;
+    }
+
+    // Verify .release-please-manifest.json synchronization
+    const manifestPath = path.join(ROOT, '.release-please-manifest.json');
+    if (fs.existsSync(manifestPath)) {
+        try {
+            const manifestJson = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+            const manifestVer = manifestJson['.'];
+            if (!manifestVer) {
+                logFail("Missing '.' entry in .release-please-manifest.json.");
+                changelogViolations++;
+            } else if (versionPrefix) {
+                const parseSemVer = (v) => {
+                    const parts = v.split('-')[0].split('.').map(n => parseInt(n, 10));
+                    return parts.length === 3 && parts.every(n => !isNaN(n)) ? parts : null;
+                };
+                const mParts = parseSemVer(manifestVer);
+                const vParts = parseSemVer(versionPrefix);
+                if (!mParts) {
+                    logFail(`Invalid SemVer format in .release-please-manifest.json: ${manifestVer}`);
+                    changelogViolations++;
+                } else if (!vParts) {
+                    logFail(`Invalid SemVer format in Directory.Build.props <VersionPrefix>: ${versionPrefix}`);
+                    changelogViolations++;
+                } else {
+                    const mGreater = mParts[0] > vParts[0] ||
+                        (mParts[0] === vParts[0] && mParts[1] > vParts[1]) ||
+                        (mParts[0] === vParts[0] && mParts[1] === vParts[1] && mParts[2] > vParts[2]);
+                    if (mGreater) {
+                        logFail(`Version mismatch: .release-please-manifest.json (${manifestVer}) cannot be greater than <VersionPrefix> (${versionPrefix}).`);
+                        changelogViolations++;
+                    }
+                }
+            }
+        } catch (e) {
+            logFail(`Failed to parse .release-please-manifest.json: ${e.message}`);
+            changelogViolations++;
+        }
+    } else {
+        logFail('Missing .release-please-manifest.json in repository root.');
+        changelogViolations++;
+    }
+}
+
+if (changelogViolations === 0) {
+    logPass('Changelog structure (## [Unreleased] + ## [VERSION] - AAAA-MM-DD), <VersionPrefix> parity, and release manifest synchronized.');
+}
+
+// 9. Prohibition of ./local-packages & Local Package Feeds Audit
+console.log('\n\x1b[1m[9/10] Prohibition of ./local-packages & Local Package Feeds Validation\x1b[0m');
+let feedViolations = 0;
+const localPkgDirs = walk(ROOT).filter(f => path.basename(f) === 'local-packages' && fs.statSync(f).isDirectory());
+if (localPkgDirs.length > 0) {
+    for (const d of localPkgDirs) {
+        logFail(`Prohibited directory detected: ${path.relative(ROOT, d)}`);
+        feedViolations++;
+    }
+}
+
+const nugetConfigPath = path.join(ROOT, 'nuget.config');
+if (fs.existsSync(nugetConfigPath)) {
+    const nugetContent = fs.readFileSync(nugetConfigPath, 'utf8');
+    if (/key="local-packages"/i.test(nugetContent) || /value="[.\\/]+local-packages"/i.test(nugetContent)) {
+        logFail('Prohibited local package feed "local-packages" detected in nuget.config.');
+        feedViolations++;
+    }
+    if (/<add\s+[^>]*value="(\.[\\/]|[a-zA-Z]:\\)/i.test(nugetContent) && !/https?:\/\//i.test(nugetContent)) {
+        logFail('Local directory package source found in nuget.config. Only official remote feeds allowed.');
+        feedViolations++;
+    }
+}
+
+if (feedViolations === 0) {
+    logPass('Prohibition of ./local-packages and local feeds verified. Packages resolve directly via NuGet.org.');
+}
+
+// 10. Explicit Usings & PackageProjectUrl Integrity Audit
+console.log('\n\x1b[1m[10/10] Explicit Imports (ImplicitUsings=disable) & PackageProjectUrl Validation\x1b[0m');
+let configViolations = 0;
+if (fs.existsSync(rootPropsPath)) {
+    const propsRaw = fs.readFileSync(rootPropsPath, 'utf8');
+    if (!/<ImplicitUsings>\s*disable\s*<\/ImplicitUsings>/.test(propsRaw)) {
+        logFail("Directory.Build.props must specify '<ImplicitUsings>disable</ImplicitUsings>'.");
+        configViolations++;
+    }
+    if (/<PackageProjectUrl>[^<]*dotnet-[^<]*<\/PackageProjectUrl>/.test(propsRaw)) {
+        logFail("PackageProjectUrl must NOT contain 'dotnet-' prefix. Required: https://ericksonlopez.dev/{lib}.");
+        configViolations++;
+    }
+    if (!/<PackageProjectUrl>\s*https:\/\/ericksonlopez\.dev\/outbox\s*<\/PackageProjectUrl>/.test(propsRaw)) {
+        logFail("PackageProjectUrl must be 'https://ericksonlopez.dev/outbox'.");
+        configViolations++;
+    }
+}
+
+const allCsprojs = walk(ROOT).filter(f => f.endsWith('.csproj'));
+for (const cp of allCsprojs) {
+    const content = fs.readFileSync(cp, 'utf8');
+    if (/<ImplicitUsings>\s*(enable|true)\s*<\/ImplicitUsings>/i.test(content)) {
+        logFail(`Prohibited <ImplicitUsings>enable</ImplicitUsings> in: ${path.relative(ROOT, cp)}`);
+        configViolations++;
+    }
+    if (/<PackageProjectUrl>[^<]*dotnet-[^<]*<\/PackageProjectUrl>/i.test(content)) {
+        logFail(`Prohibited 'dotnet-' prefix in PackageProjectUrl in: ${path.relative(ROOT, cp)}`);
+        configViolations++;
+    }
+}
+
+if (configViolations === 0) {
+    logPass('ImplicitUsings=disable enforced globally and PackageProjectUrl strictly free of "dotnet-" prefix.');
+}
+
 console.log('\n=============================================================');
 if (failureCount === 0) {
     console.log('  \x1b[32m\x1b[1m✨ ALL COMPLIANCE CHECKS PASSED PERFECTLY (0 FAILURES)\x1b[0m');
     console.log('=============================================================\n');
     process.exit(0);
 } else {
-    console.error(`  \x1b[31m\x1b[1m🚨 COMPLIANCE FAILED: ${failureCount} VIOLATIONS FOUND\x1b[0m`);
+    process.stderr.write(`  \x1b[31m\x1b[1m🚨 COMPLIANCE FAILED: ${failureCount} VIOLATIONS FOUND\x1b[0m\n`); // NOSONAR
     console.log('=============================================================\n');
     process.exit(1);
 }

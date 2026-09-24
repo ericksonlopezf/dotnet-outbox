@@ -64,10 +64,10 @@ public class SqlServerOutboxRepositoryTests : IAsyncLifetime
         string? causationId = null)
     {
         var msg = _autoFixture.Create<OutboxMessage>();
-        return msg with 
-        { 
-            Status = (OutboxMessageStatus)state, 
-            DeliverAt = deliverAt, 
+        return msg with
+        {
+            Status = (OutboxMessageStatus)state,
+            DeliverAt = deliverAt,
             CreatedAt = createdAt ?? DateTimeOffset.UtcNow,
             RetryCount = retryCount,
             CorrelationId = correlationId ?? msg.CorrelationId,
@@ -119,7 +119,7 @@ public class SqlServerOutboxRepositoryTests : IAsyncLifetime
         await using var connection = new SqlConnection(_fixture.Container.GetConnectionString());
         await connection.OpenAsync();
         await using var tx = await connection.BeginTransactionAsync();
-        
+
         await sut.InsertAsync(msg, new DbTransactionContext(tx));
         await tx.CommitAsync();
 
@@ -136,7 +136,7 @@ public class SqlServerOutboxRepositoryTests : IAsyncLifetime
         await using var connection = new SqlConnection(_fixture.Container.GetConnectionString());
         await connection.OpenAsync();
         await using var tx = await connection.BeginTransactionAsync();
-        
+
         await sut.InsertAsync(msg, new DbTransactionContext(tx));
         await tx.CommitAsync();
 
@@ -164,7 +164,7 @@ public class SqlServerOutboxRepositoryTests : IAsyncLifetime
     public async Task FetchPendingAsync_Should_Return_Only_Pending_Messages_Ready_To_Deliver()
     {
         var sut = CreateSut();
-        
+
         var pendingReady = CreateMessage(state: 0, deliverAt: DateTimeOffset.UtcNow.AddMinutes(-5), correlationId: "corr1", causationId: "caus1");
         var pendingFuture = CreateMessage(state: 0, deliverAt: DateTimeOffset.UtcNow.AddMinutes(5));
         var inFlight = CreateMessage(state: 1);
@@ -173,7 +173,7 @@ public class SqlServerOutboxRepositoryTests : IAsyncLifetime
         await using var connection = new SqlConnection(_fixture.Container.GetConnectionString());
         await connection.OpenAsync();
         await using var tx = await connection.BeginTransactionAsync();
-        
+
         await sut.InsertAsync(pendingReady, new DbTransactionContext(tx));
         await sut.InsertAsync(pendingFuture, new DbTransactionContext(tx));
         await sut.InsertAsync(inFlight, new DbTransactionContext(tx));
@@ -184,11 +184,11 @@ public class SqlServerOutboxRepositoryTests : IAsyncLifetime
         await connection.ExecuteAsync("UPDATE [outbox].[outbox_messages] SET state = 3 WHERE id = @Id", new { failedReady.Id });
 
         var fetched = await sut.FetchPendingAsync(10);
-        
+
         fetched.Should().HaveCount(2);
         fetched.Should().Contain(m => m.Id == pendingReady.Id);
         fetched.Should().Contain(m => m.Id == failedReady.Id);
-        
+
         var first = fetched.First(m => m.Id == pendingReady.Id);
         first.Status.Should().Be(OutboxMessageStatus.InFlight);
         first.CorrelationId.Should().Be("corr1");
@@ -208,7 +208,7 @@ public class SqlServerOutboxRepositoryTests : IAsyncLifetime
 
         await using var connection = new SqlConnection(_fixture.Container.GetConnectionString());
         await connection.OpenAsync();
-        
+
         var pBytes = System.Text.Encoding.UTF8.GetBytes("{\"custom\":\"unique_val_456\"}");
         var hBytes = System.Text.Encoding.UTF8.GetBytes("{\"custom\":\"unique_header_789\"}");
         await connection.ExecuteAsync(@"
@@ -247,7 +247,7 @@ public class SqlServerOutboxRepositoryTests : IAsyncLifetime
 
         await using var connection = new SqlConnection(_fixture.Container.GetConnectionString());
         await connection.OpenAsync();
-        
+
         // State 0 is selected by CTE, but we simulate a row that has an undefined state after CTE
         // (e.g. testing the Enum.IsDefined continue branch)
         await connection.ExecuteAsync(@"
@@ -389,7 +389,7 @@ public class SqlServerOutboxRepositoryTests : IAsyncLifetime
 
         await using var connection = new SqlConnection(_fixture.Container.GetConnectionString());
         await connection.OpenAsync();
-        
+
         await connection.ExecuteAsync("INSERT INTO [outbox].[outbox_messages] (id, type, payload, headers_json, created_at, updated_at, state, owner_id) VALUES (@Id, @MessageType, 0x7B7D, 0x7B7D, @CreatedAt, DATEADD(SECOND, -7200, SYSDATETIMEOFFSET()), @State, @OwnerId)", new { staleMsg.Id, staleMsg.MessageType, staleMsg.CreatedAt, State = staleMsg.Status, OwnerId = Guid.Parse(InstanceId) });
         await connection.ExecuteAsync("INSERT INTO [outbox].[outbox_messages] (id, type, payload, headers_json, created_at, updated_at, state, owner_id) VALUES (@Id, @MessageType, 0x7B7D, 0x7B7D, @CreatedAt, SYSDATETIMEOFFSET(), @State, @OwnerId)", new { freshMsg.Id, freshMsg.MessageType, freshMsg.CreatedAt, State = freshMsg.Status, OwnerId = Guid.Parse(InstanceId) });
 
@@ -529,25 +529,25 @@ public class SqlServerOutboxRepositoryTests : IAsyncLifetime
     {
         var msg = CreateMessage(state: 1, deliverAt: DateTimeOffset.UtcNow);
         var records = new ReadOnlyMemory<OutboxMessage>(new[] { msg });
-        
+
         var reader = new OutboxMessageDataReader(records);
-        
+
         reader.FieldCount.Should().Be(10);
         reader.RecordsAffected.Should().Be(-1);
         reader.GetOrdinal("unknown").Should().Be(-1);
-        
+
         reader.Read().Should().BeTrue();
-        
+
         var msgNullBase = CreateMessage(deliverAt: null);
         var msgNull = msgNullBase with { CorrelationId = null, CausationId = null };
         var recordsNull = new ReadOnlyMemory<OutboxMessage>(new[] { msgNull });
         var readerNull = new OutboxMessageDataReader(recordsNull);
         readerNull.Read().Should().BeTrue();
-        
+
         readerNull.IsDBNull(3).Should().BeTrue(); // correlation_id
         readerNull.IsDBNull(4).Should().BeTrue(); // causation_id
         readerNull.IsDBNull(9).Should().BeTrue(); // deliver_at
-        
+
         reader.Depth.Should().Be(0);
         reader.IsClosed.Should().BeFalse();
         reader.GetSchemaTable().Should().BeNull();
@@ -557,7 +557,7 @@ public class SqlServerOutboxRepositoryTests : IAsyncLifetime
         reader.GetValues(Array.Empty<object>()).Should().Be(0);
         reader.Close();
         reader.Dispose();
-        
+
         // Covering GetName switch
         reader.GetName(0).Should().Be("id");
         reader.GetName(1).Should().Be("type");
@@ -583,7 +583,7 @@ public class SqlServerOutboxRepositoryTests : IAsyncLifetime
         reader.GetOrdinal("created_at").Should().Be(7);
         reader.GetOrdinal("updated_at").Should().Be(8);
         reader.GetOrdinal("deliver_at").Should().Be(9);
-        
+
         Action actGetValue = () => reader.GetValue(10);
         actGetValue.Should().Throw<ArgumentOutOfRangeException>();
 
@@ -597,10 +597,10 @@ public class SqlServerOutboxRepositoryTests : IAsyncLifetime
         reader.GetValue(7).Should().Be(msg.CreatedAt);
         reader.GetValue(8).Should().Be(msg.CreatedAt);
         reader.GetValue(9).Should().Be(msg.DeliverAt);
-        
+
         reader[0].Should().Be(msg.Id);
         reader["id"].Should().Be(msg.Id);
-        
+
         Action actBool = () => reader.GetBoolean(0); actBool.Should().Throw<InvalidCastException>();
         Action actByte = () => reader.GetByte(0); actByte.Should().Throw<InvalidCastException>();
         reader.GetBytes(0, 0, null, 0, 0).Should().Be(0);
@@ -608,18 +608,18 @@ public class SqlServerOutboxRepositoryTests : IAsyncLifetime
         reader.GetChars(0, 0, null, 0, 0).Should().Be(0);
         Action actData = () => reader.GetData(0); actData.Should().Throw<NotSupportedException>();
         reader.GetDataTypeName(0).Should().Be("");
-        
+
         Action actDateTime = () => reader.GetDateTime(0); actDateTime.Should().Throw<InvalidCastException>();
         Action actDecimal = () => reader.GetDecimal(0); actDecimal.Should().Throw<InvalidCastException>();
         Action actDouble = () => reader.GetDouble(0); actDouble.Should().Throw<InvalidCastException>();
         Action actFloat = () => reader.GetFloat(0); actFloat.Should().Throw<InvalidCastException>();
-        
+
         reader.GetGuid(0).Should().Be(msg.Id);
-        
+
         Action actInt16 = () => reader.GetInt16(0); actInt16.Should().Throw<InvalidCastException>();
         Action actInt32 = () => reader.GetInt32(0); actInt32.Should().Throw<InvalidCastException>();
         Action actInt64 = () => reader.GetInt64(0); actInt64.Should().Throw<InvalidCastException>();
-        
+
         reader.GetString(1).Should().Be(msg.MessageType);
     }
 }

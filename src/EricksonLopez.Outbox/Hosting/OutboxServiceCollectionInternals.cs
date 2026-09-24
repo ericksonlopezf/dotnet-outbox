@@ -7,7 +7,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 namespace EricksonLopez.Outbox;
 
 /// <summary>
-/// Contains internal service collection helpers.
+/// Provides internal service collection helpers for outbox diagnostics.
 /// </summary>
 internal static class OutboxServiceCollectionInternals
 {

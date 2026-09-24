@@ -22,15 +22,15 @@ public class PostgreSqlOutboxSetupTests
         services.AddSingleton(Substitute.For<IBrokerPublisher>());
         var dataSource = NpgsqlDataSource.Create("Host=localhost;Username=test;Password=test");
         services.AddOutbox(options => options.UsePostgreSql(sp => dataSource));
-        
+
         var provider = services.BuildServiceProvider();
         provider.GetRequiredService<NpgsqlDataSource>().Should().NotBeNull();
         provider.GetRequiredService<IOutboxRepository>().Should().BeOfType<PostgreSqlOutboxRepository>();
         provider.GetRequiredService<IDeadLetterRepository>().Should().BeOfType<PostgreSqlDeadLetterRepository>();
-        
+
         var hostedServices = provider.GetServices<Microsoft.Extensions.Hosting.IHostedService>();
         hostedServices.Should().ContainSingle(s => s is PostgreSqlVersionValidator);
-        
+
         provider.GetRequiredService<IIdempotencyRepository>().Should().BeOfType<PostgreSqlIdempotencyRepository>();
     }
 
@@ -42,7 +42,7 @@ public class PostgreSqlOutboxSetupTests
         services.AddSingleton(Substitute.For<IBrokerPublisher>());
         var dataSource = NpgsqlDataSource.Create("Host=localhost;Username=test;Password=test");
         services.AddOutbox(options => options.UsePostgreSql(sp => dataSource).UsePostgreSqlNotifications());
-        
+
         var provider = services.BuildServiceProvider();
         var hostedServices = provider.GetServices<Microsoft.Extensions.Hosting.IHostedService>();
         hostedServices.Should().ContainSingle(s => s is PostgresNotificationListener);
@@ -55,7 +55,7 @@ public class PostgreSqlOutboxSetupTests
         services.AddLogging();
         services.AddSingleton(Substitute.For<IBrokerPublisher>());
         services.AddOutbox(options => options.UsePostgreSql("Host=localhost;Username=test;Password=test"));
-        
+
         var provider = services.BuildServiceProvider();
         provider.GetRequiredService<NpgsqlDataSource>().Should().NotBeNull();
     }

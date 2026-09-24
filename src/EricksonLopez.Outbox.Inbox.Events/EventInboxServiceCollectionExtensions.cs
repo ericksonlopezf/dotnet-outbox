@@ -28,8 +28,6 @@ public static class EventInboxServiceCollectionExtensions
         where TEvent : class, IEvent
         where THandler : class, IEventHandler<TEvent>
     {
-        ArgumentNullException.ThrowIfNull(services);
-
         services.AddScoped<THandler>();
         services.AddScoped<IEventHandler<TEvent>>(sp =>
         {

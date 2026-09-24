@@ -38,7 +38,7 @@ public class MySqlOutboxSetupTests
         services.AddLogging();
         services.AddOptions();
         services.AddOutbox(options => options.UseMySql(sp => new MySqlConnection()));
-        
+
         var provider = services.BuildServiceProvider();
         var connFactory = provider.GetRequiredService<Func<System.Data.IDbConnection>>();
         connFactory.Should().NotBeNull();

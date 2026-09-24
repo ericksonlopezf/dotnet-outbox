@@ -77,7 +77,9 @@ builder.Services.AddOutbox(options =>
 {
     // Factory overload + retry policy + circuit breaker:
     options.UseBroker(
-        factory: sp => new RabbitMqBrokerPublisher(sp.GetRequiredService<IConnection>()),
+        factory: sp => new RabbitMQBrokerPublisher(
+            sp.GetRequiredService<IChannel>(),
+            sp.GetRequiredService<IOutboxSerializer>()),
         retryPolicy: new ExponentialBackoffRetryPolicy(
             InitialDelay: TimeSpan.FromSeconds(1),
             MaxAttempts: 5,

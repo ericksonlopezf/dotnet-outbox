@@ -47,9 +47,9 @@ public class ArrayPoolBufferWriterTests
         var span = writer.GetSpan(10);
         writer.Advance(5);
         writer.WrittenCount.Should().Be(5);
-        
+
         writer.Clear();
-        
+
         writer.WrittenCount.Should().Be(0);
         writer.WrittenMemory.Length.Should().Be(0);
         writer.WrittenSpan.Length.Should().Be(0);
@@ -61,7 +61,7 @@ public class ArrayPoolBufferWriterTests
         using var writer = new ArrayPoolBufferWriter<byte>(100);
         writer.GetSpan(10);
         writer.Advance(5);
-        
+
         writer.WrittenCount.Should().Be(5);
         writer.WrittenMemory.Length.Should().Be(5);
         writer.WrittenSpan.Length.Should().Be(5);
@@ -205,9 +205,9 @@ public class ArrayPoolBufferWriterTests
     {
         using var writer = new ArrayPoolBufferWriter<byte>(10);
         int initialCapacity = writer.Capacity;
-        
+
         var mem = writer.GetMemory(initialCapacity + 50);
-        
+
         writer.Capacity.Should().BeGreaterThanOrEqualTo(initialCapacity + 50);
         mem.Length.Should().BeGreaterThanOrEqualTo(initialCapacity + 50);
     }
@@ -218,9 +218,9 @@ public class ArrayPoolBufferWriterTests
         using var writer = new ArrayPoolBufferWriter<byte>(10);
         int initialCapacity = writer.Capacity;
         int largeHint = initialCapacity * 5;
-        
+
         var span = writer.GetSpan(largeHint);
-        
+
         writer.Capacity.Should().BeGreaterThanOrEqualTo(largeHint);
         span.Length.Should().BeGreaterThanOrEqualTo(largeHint);
     }
@@ -233,10 +233,10 @@ public class ArrayPoolBufferWriterTests
         span[0] = 1;
         span[1] = 2;
         writer.Advance(2);
-        
+
         // Force resize
         var newSpan = writer.GetSpan(writer.Capacity + 100);
-        
+
         writer.WrittenSpan[0].Should().Be(1);
         writer.WrittenSpan[1].Should().Be(2);
         writer.WrittenCount.Should().Be(2);
@@ -249,7 +249,7 @@ public class ArrayPoolBufferWriterTests
         int cap = writer.Capacity;
         writer.Advance(cap);
         writer.WrittenCount.Should().Be(cap);
-        
+
         var span = writer.GetSpan(0);
         span.Length.Should().BeGreaterThanOrEqualTo(1);
         writer.Capacity.Should().BeGreaterThan(cap);
@@ -262,7 +262,7 @@ public class ArrayPoolBufferWriterTests
         int cap = writer.Capacity;
         writer.Advance(cap);
         writer.WrittenCount.Should().Be(cap);
-        
+
         var mem = writer.GetMemory(0);
         mem.Length.Should().BeGreaterThanOrEqualTo(1);
         writer.Capacity.Should().BeGreaterThan(cap);

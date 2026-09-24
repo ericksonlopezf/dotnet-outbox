@@ -35,7 +35,7 @@ public sealed class MessageFilterMiddleware : IOutboxMiddleware
     {
         if (BlockedTypes.Contains(message.MessageType))
         {
-            _logger.LogWarning("Message {MessageId} of type {Type} was blocked by filter.", 
+            _logger.LogWarning("Message {MessageId} of type {Type} was blocked by filter.",
                 message.Id, message.MessageType);
 
             return ValueTask.FromResult(DispatchResult.Ok());

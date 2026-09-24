@@ -18,7 +18,7 @@ public static class OutboxModelBuilderExtensions
     /// <param name="modelBuilder">The EF Core model builder to configure.</param>
     /// <param name="schema">The database schema that contains the outbox tables. Defaults to <c>"outbox"</c>.</param>
     /// <returns>The same <see cref="ModelBuilder"/> instance to allow further fluent configuration calls.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="modelBuilder"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="modelBuilder"/> is <see langword="null"/></exception>
     public static ModelBuilder ApplyOutboxEntityConfigurations(
         this ModelBuilder modelBuilder,
         string schema = "outbox")
@@ -69,6 +69,7 @@ public static class OutboxModelBuilderExtensions
 
             builder.Property(m => m.State)
                 .HasColumnName("state")
+                .IsConcurrencyToken()
                 .IsRequired();
 
             builder.Property(m => m.RetryCount)

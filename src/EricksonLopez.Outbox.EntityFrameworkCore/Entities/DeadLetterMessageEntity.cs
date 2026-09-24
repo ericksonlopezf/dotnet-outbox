@@ -11,37 +11,37 @@ public class DeadLetterMessageEntity
 {
     /// <summary>Gets or sets the dead letter identifier.</summary>
     public Guid Id { get; set; }
-    
+
     /// <summary>Gets or sets the original message identifier.</summary>
     public Guid OriginalMessageId { get; set; }
-    
+
     /// <summary>Gets or sets the message type.</summary>
     public string MessageType { get; set; } = string.Empty;
-    
+
     /// <summary>Gets or sets the message payload.</summary>
     public byte[] Payload { get; set; } = Array.Empty<byte>();
-    
+
     /// <summary>Gets or sets the correlation identifier.</summary>
     public string? CorrelationId { get; set; }
-    
+
     /// <summary>Gets or sets the causation identifier.</summary>
     public string? CausationId { get; set; }
-    
+
     /// <summary>Gets or sets the headers in JSON format.</summary>
     public string HeadersJson { get; set; } = "{}";
-    
+
     /// <summary>Gets or sets the timestamp when the original message was created.</summary>
     public DateTimeOffset CreatedAt { get; set; }
-    
+
     /// <summary>Gets or sets the timestamp when the message was moved to the dead letter queue.</summary>
     public DateTimeOffset DeadLetteredAt { get; set; }
-    
+
     /// <summary>Gets or sets the number of retry attempts.</summary>
     public int RetryCount { get; set; }
-    
+
     /// <summary>Gets or sets the reason the message was dead lettered.</summary>
     public string Reason { get; set; } = string.Empty;
-    
+
     /// <summary>Gets or sets the last error encountered during processing.</summary>
     public string? LastError { get; set; }
 

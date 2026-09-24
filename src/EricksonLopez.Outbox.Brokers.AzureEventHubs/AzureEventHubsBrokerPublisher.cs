@@ -27,7 +27,7 @@ public sealed class AzureEventHubsBrokerPublisher : IBrokerPublisher, ITypedBrok
     /// </summary>
     /// <param name="producerClient">The Azure Event Hubs producer client.</param>
     /// <param name="serializer">The optional serializer for strongly typed publishing.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="producerClient"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="producerClient"/> is <see langword="null"/></exception>
     public AzureEventHubsBrokerPublisher(EventHubProducerClient producerClient, IOutboxSerializer? serializer = null)
     {
         ArgumentNullException.ThrowIfNull(producerClient);

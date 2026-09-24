@@ -83,7 +83,7 @@ public class DispatcherChaosTests : IAsyncLifetime
             Upstream = $"{_dbContainer.IpAddress}:5432"
         };
         _postgresProxy = await _toxiClient.AddAsync(proxy);
-        
+
         // Workaround: Toxiproxy 2.11.0 sometimes drops connections on newly created proxies
         // until they are toggled or explicitly updated.
         _postgresProxy.Enabled = false;
@@ -148,7 +148,7 @@ public class DispatcherChaosTests : IAsyncLifetime
 
         // 3. Write a message via direct DB connection (bypasses proxy) and verify dispatch
         await WriteAndCommitMessageAsync("Recovered");
-        
+
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
         while (fakeBroker.PublishedMessages.IsEmpty && !cts.IsCancellationRequested)
         {

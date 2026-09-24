@@ -160,11 +160,15 @@ var failedMessages = messages.Where(m => m.Status == OutboxMessageStatus.Failed)
 If a dispatcher crashes while a message is `InFlight`, the message could be stuck forever. The **ReclaimStaleMessages** background job periodically detects messages that have been in `InFlight` state for longer than `ReclaimTimeout` (default: 5 minutes) and resets them to `Pending`.
 
 ```csharp
+builder.Services.AddOutbox(options =>
+{
+    options.ReclaimBatchLimit = 1000;                   // Max messages per reclaim cycle in runtime options
+});
+
 builder.Services.AddOutboxDispatcher(options =>
 {
     options.ReclaimTimeout = TimeSpan.FromMinutes(5);   // Default: 5 minutes
     options.ReclaimInterval = TimeSpan.FromMinutes(1);  // How often to run (default: 1 minute)
-    options.ReclaimBatchLimit = 1000;                   // Max messages per reclaim cycle (default: 1000)
 });
 ```
 

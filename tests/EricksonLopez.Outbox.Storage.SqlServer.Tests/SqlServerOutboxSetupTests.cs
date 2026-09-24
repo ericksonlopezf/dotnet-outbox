@@ -23,7 +23,7 @@ public class SqlServerOutboxSetupTests
         services.AddLogging();
         services.AddOptions();
         services.AddOutbox(options => options.UseSqlServer(sp => Substitute.For<IDbConnection>()));
-        
+
         var provider = services.BuildServiceProvider();
         provider.GetRequiredService<Func<IDbConnection>>().Should().NotBeNull();
         provider.GetRequiredService<IOutboxRepository>().Should().BeOfType<SqlServerOutboxRepository>();

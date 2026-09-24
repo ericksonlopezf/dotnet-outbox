@@ -50,9 +50,9 @@ public class PostgreSqlOutboxRepositoryTests : IAsyncLifetime
 
     private PostgreSqlOutboxRepository CreateSut(int? largeTableThreshold = null)
     {
-        var runtimeOpts = new EricksonLopez.Outbox.OutboxRuntimeOptions 
-        { 
-            SchemaName = _options.SchemaName, 
+        var runtimeOpts = new EricksonLopez.Outbox.OutboxRuntimeOptions
+        {
+            SchemaName = _options.SchemaName,
             TableName = _options.TableName,
             InstanceId = InstanceId
         };
@@ -61,7 +61,7 @@ public class PostgreSqlOutboxRepositoryTests : IAsyncLifetime
             runtimeOpts.LargeTableThreshold = largeTableThreshold.Value;
         }
         return new PostgreSqlOutboxRepository(
-            _dataSource!, 
+            _dataSource!,
             Microsoft.Extensions.Options.Options.Create(runtimeOpts));
     }
 
@@ -79,10 +79,10 @@ public class PostgreSqlOutboxRepositoryTests : IAsyncLifetime
     private OutboxMessage CreateMessage(int state = 0, DateTimeOffset? deliverAt = null, DateTimeOffset? createdAt = null, int retryCount = 0, string? correlationId = null, string? causationId = null)
     {
         var msg = _autoFixture.Create<OutboxMessage>();
-        return msg with 
-        { 
-            Status = (EricksonLopez.Outbox.OutboxMessageStatus)state, 
-            DeliverAt = deliverAt, 
+        return msg with
+        {
+            Status = (EricksonLopez.Outbox.OutboxMessageStatus)state,
+            DeliverAt = deliverAt,
             CreatedAt = TruncateToMicroseconds(createdAt ?? DateTimeOffset.UtcNow),
             RetryCount = retryCount,
             CorrelationId = correlationId ?? msg.CorrelationId,
@@ -99,7 +99,7 @@ public class PostgreSqlOutboxRepositoryTests : IAsyncLifetime
 
         await using var connection = await _dataSource.OpenConnectionAsync();
         await using var tx = await connection.BeginTransactionAsync();
-        
+
         await CreateSut().InsertAsync(msg, new EricksonLopez.Outbox.Persistence.DbTransactionContext(tx));
         await tx.CommitAsync();
 
@@ -114,10 +114,10 @@ public class PostgreSqlOutboxRepositoryTests : IAsyncLifetime
     public async Task FetchPendingAsync_Should_Return_Only_Pending_Messages_Ready_To_Deliver()
     {
         var sut = CreateSut();
-        
+
         // Insert various messages
         var pendingReady = CreateMessage(state: 0, deliverAt: DateTimeOffset.UtcNow.AddMinutes(-5), correlationId: "corr1", causationId: "caus1");
-        
+
         var fullPayload = new byte[10] { 0, 91, 49, 93, 0, 0, 0, 0, 0, 0 }; // "[1]"
         var slicedPayload = new ReadOnlyMemory<byte>(fullPayload, 1, 3);
         pendingReady = pendingReady with { Payload = slicedPayload, Headers = slicedPayload };
@@ -127,14 +127,14 @@ public class PostgreSqlOutboxRepositoryTests : IAsyncLifetime
         var retryingReady = CreateMessage(state: 3, deliverAt: DateTimeOffset.UtcNow.AddMinutes(-5));
 
         await using var connection = await _dataSource.OpenConnectionAsync();
-        
-        
-        foreach(var m in new[] { pendingReady, pendingNotReady, dispatched, retryingReady })
+
+
+        foreach (var m in new[] { pendingReady, pendingNotReady, dispatched, retryingReady })
         {
             var payloadStr = System.Text.Encoding.UTF8.GetString(m.Payload.Span);
             var headersStr = System.Text.Encoding.UTF8.GetString(m.Headers.Span);
             await connection.ExecuteAsync(
-            "INSERT INTO outbox.messages (id, type, correlation_id, causation_id, payload, headers_json, created_at, updated_at, deliver_at, processed_at, state, error) VALUES (@Id, @MessageType, @CorrelationId, @CausationId, @PayloadStr::jsonb, @HeadersStr::jsonb, @CreatedAt, NOW(), @DeliverAt, NOW(), @State, 'error_sample_retrying')", 
+            "INSERT INTO outbox.messages (id, type, correlation_id, causation_id, payload, headers_json, created_at, updated_at, deliver_at, processed_at, state, error) VALUES (@Id, @MessageType, @CorrelationId, @CausationId, @PayloadStr::jsonb, @HeadersStr::jsonb, @CreatedAt, NOW(), @DeliverAt, NOW(), @State, 'error_sample_retrying')",
             new { m.Id, m.MessageType, m.CorrelationId, m.CausationId, PayloadStr = payloadStr, HeadersStr = headersStr, m.CreatedAt, m.DeliverAt, State = m.Status });
         }
 
@@ -167,7 +167,7 @@ public class PostgreSqlOutboxRepositoryTests : IAsyncLifetime
         // Test with NULL payload and headers to cover fallback logic
         var nullPayloadMsg = CreateMessage(state: 0, deliverAt: DateTimeOffset.UtcNow.AddMinutes(-1));
         await connection.ExecuteAsync("INSERT INTO outbox.messages (id, type, payload, headers_json, created_at, updated_at, deliver_at, state) VALUES (@Id, @MessageType, NULL, NULL, @CreatedAt, NOW(), @DeliverAt, @State)", new { nullPayloadMsg.Id, nullPayloadMsg.MessageType, nullPayloadMsg.CreatedAt, nullPayloadMsg.DeliverAt, State = nullPayloadMsg.Status });
-        
+
         var fetchedNull = await sut.FetchPendingAsync(10);
         var fetchedNullMsg = fetchedNull.Single(x => x.Id == nullPayloadMsg.Id);
         System.Text.Encoding.UTF8.GetString(fetchedNullMsg.Payload.Span).Should().Be("{}");
@@ -183,15 +183,15 @@ public class PostgreSqlOutboxRepositoryTests : IAsyncLifetime
         var messages = new[] { msg1, msg2 };
 
         await using var connection = await _dataSource.OpenConnectionAsync();
-        
+
         await using var tx = await connection.BeginTransactionAsync();
-        
+
         await sut.InsertBatchAsync(messages, new EricksonLopez.Outbox.Persistence.DbTransactionContext(tx));
         await tx.CommitAsync();
 
         var list = (await connection.QueryAsync("SELECT id, correlation_id, causation_id, deliver_at FROM outbox.messages")).ToList();
         list.Should().HaveCount(2);
-        
+
         var db1 = list.Single(x => (Guid)x.id == msg1.Id);
         ((string)db1.correlation_id).Should().Be("c1");
         ((string)db1.causation_id).Should().Be("c2");
@@ -219,7 +219,7 @@ public class PostgreSqlOutboxRepositoryTests : IAsyncLifetime
         await using var connection = await _dataSource.OpenConnectionAsync();
         var list = (await connection.QueryAsync("SELECT id, correlation_id, causation_id, deliver_at FROM outbox.messages")).ToList();
         list.Should().HaveCount(2);
-        
+
         var db1 = list.Single(x => (Guid)x.id == msg1.Id);
         ((string)db1.correlation_id).Should().Be("c1");
         ((string)db1.causation_id).Should().Be("c2");
@@ -241,7 +241,7 @@ public class PostgreSqlOutboxRepositoryTests : IAsyncLifetime
         await sut.MarkAsDispatchedAsync(Array.Empty<OutboxMessage>());
 
         await using var connection = await _dataSource.OpenConnectionAsync();
-        
+
         await connection.ExecuteAsync("INSERT INTO outbox.messages (id, type, payload, headers_json, created_at, updated_at, state, owner_id) VALUES (@Id, @MessageType, '{}', '{}', @CreatedAt, NOW(), @State, @owner_id)", new { msg.Id, msg.MessageType, msg.CreatedAt, State = msg.Status, owner_id = Guid.Parse(InstanceId) });
 
         // Empty case should not throw
@@ -304,7 +304,7 @@ public class PostgreSqlOutboxRepositoryTests : IAsyncLifetime
         var freshMsg = CreateMessage(state: 1);
 
         await using var connection = await _dataSource.OpenConnectionAsync();
-        
+
         // Insert stale
         await connection.ExecuteAsync("INSERT INTO outbox.messages (id, type, payload, headers_json, created_at, updated_at, state) VALUES (@Id, @MessageType, '{}', '{}', @CreatedAt, NOW() - INTERVAL '2 hours', @State)", new { staleMsg.Id, staleMsg.MessageType, staleMsg.CreatedAt, State = staleMsg.Status });
         // Insert fresh
@@ -328,7 +328,7 @@ public class PostgreSqlOutboxRepositoryTests : IAsyncLifetime
         var emptyMsgs = Array.Empty<OutboxMessage>();
 
         // These should not throw and should return immediately
-        
+
         await sut.InsertBatchAsync(emptyMsgs, null!);
         await sut.MarkAsDispatchedAsync(emptyMsgs);
         await sut.MarkAsFailedAsync(emptyMsgs, "error");
@@ -338,7 +338,7 @@ public class PostgreSqlOutboxRepositoryTests : IAsyncLifetime
     {
         var sut = CreateSut();
         await CleanDatabaseAsync();
-        
+
         // Ensure there's a record so exact count is 1
         var msg = CreateMessage(state: 0);
         await using var connection = await _dataSource.OpenConnectionAsync();
@@ -369,18 +369,18 @@ public class PostgreSqlOutboxRepositoryTests : IAsyncLifetime
         var countEstimate = await sutLarge.GetPendingCountAsync(CancellationToken.None);
         countEstimate.Should().BeGreaterThanOrEqualTo(0);
     }
-    
+
     [Fact]
     public async Task GetMessageAsync_Should_Return_Message_If_Found()
     {
         var sut = CreateSut();
         var msg = CreateMessage(state: 1, deliverAt: DateTimeOffset.UtcNow);
-        
+
         await using var connection = await _dataSource.OpenConnectionAsync();
         await connection.ExecuteAsync("INSERT INTO outbox.messages (id, type, payload, correlation_id, causation_id, headers_json, created_at, updated_at, deliver_at, processed_at, state, error) VALUES (@Id, @MessageType, '{}', @CorrelationId, @CausationId, '{}', @CreatedAt, NOW(), @DeliverAt, NOW(), @State, 'sample_error_1param')", new { msg.Id, msg.MessageType, msg.CorrelationId, msg.CausationId, msg.CreatedAt, msg.DeliverAt, State = msg.Status });
 
         var fetched = await sut.GetMessageAsync(msg.Id);
-        
+
         fetched.Should().NotBeNull();
         fetched!.Id.Should().Be(msg.Id);
         fetched.MessageType.Should().Be(msg.MessageType);
@@ -390,7 +390,7 @@ public class PostgreSqlOutboxRepositoryTests : IAsyncLifetime
         fetched.DeliverAt.Should().NotBeNull();
         fetched.ProcessedAt.Should().NotBeNull();
         fetched.Error.Should().Be("sample_error_1param");
-        
+
         // Null payload/headers/fields
         var msgNull = CreateMessage(deliverAt: null) with { CorrelationId = null, CausationId = null };
         await connection.ExecuteAsync("INSERT INTO outbox.messages (id, type, payload, headers_json, created_at, updated_at, deliver_at, state) VALUES (@Id, @MessageType, NULL, NULL, @CreatedAt, NOW(), @DeliverAt, @State)", new { msgNull.Id, msgNull.MessageType, msgNull.CreatedAt, msgNull.DeliverAt, State = msgNull.Status });
@@ -868,7 +868,8 @@ public class PostgreSqlOutboxRepositoryTests : IAsyncLifetime
             (id, type, payload, correlation_id, causation_id, headers_json, created_at, updated_at, deliver_at, state, retry_count)
             VALUES 
             (@Id, @Type, @Payload::jsonb, @CorrelationId, @CausationId, @HeadersJson::jsonb, @CreatedAt, @UpdatedAt, @DeliverAt, 99, 0)",
-            new {
+            new
+            {
                 Id = msg.Id,
                 Type = msg.MessageType,
                 Payload = System.Text.Encoding.UTF8.GetString(msg.Payload.Span),

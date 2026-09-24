@@ -24,10 +24,10 @@ public class OutboxTransactionContextExtensionsTests
     {
         var transaction = Substitute.For<DbTransaction>();
         var result = transaction.ToOutboxContext();
-        
+
         result.Should().NotBeNull();
         result.Should().BeOfType<DbTransactionContext>();
-        
+
         var dbContext = (DbTransactionContext)result;
         dbContext.DbTransaction.Should().BeSameAs(transaction);
         dbContext.Transaction.Should().BeSameAs(transaction);

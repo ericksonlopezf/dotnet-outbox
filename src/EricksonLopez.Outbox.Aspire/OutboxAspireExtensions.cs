@@ -22,7 +22,7 @@ public static class OutboxAspireExtensions
     /// <param name="builder">The Aspire host application builder.</param>
     /// <param name="configure">Configuration delegate for outbox options.</param>
     /// <returns>The host application builder for chaining.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <see langword="null"/></exception>
     public static IHostApplicationBuilder AddOutbox(
         this IHostApplicationBuilder builder,
         Action<OutboxOptions>? configure = null)

@@ -22,7 +22,7 @@ public sealed class DefaultInboxConsumerFilter : IInboxConsumerFilter
     /// <param name="inboxStore">The underlying inbox store.</param>
     /// <param name="logger">Optional logger instance.</param>
     /// <param name="timeProvider">Optional time provider.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="inboxStore"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="inboxStore"/> is <see langword="null"/></exception>
     public DefaultInboxConsumerFilter(
         IInboxStore inboxStore,
         ILogger<DefaultInboxConsumerFilter>? logger = null,

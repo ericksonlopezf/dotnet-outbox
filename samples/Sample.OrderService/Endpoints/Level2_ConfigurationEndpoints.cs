@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Tasks;
 using EricksonLopez.Outbox;
 using EricksonLopez.Outbox.Persistence;
 using Microsoft.AspNetCore.Builder;
@@ -11,7 +12,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Npgsql;
 using Sample.OrderService.Domain.Aggregates.OrderAggregate;
-using System.Threading.Tasks;
 
 namespace Sample.OrderService.Endpoints;
 
@@ -35,7 +35,7 @@ public static class Level2_ConfigurationEndpoints
             await using var tx = await conn.BeginTransactionAsync(ct);
 
             var @event = new OrderCreatedEvent(Guid.NewGuid(), "CUST-1", 100m, DateTimeOffset.UtcNow);
-            
+
             // Full configuration with Message Builder (Fluent API).
             // Builder methods:
             //   WithTransaction(IOutboxTransactionContext) — REQUIRED: sets the active transaction
@@ -53,7 +53,7 @@ public static class Level2_ConfigurationEndpoints
                 .WithHeader("X-Correlation-Id", Guid.NewGuid().ToString())
                 .WithHeader("X-Source-System", "showcase")
                 .StoreAsync(ct);
-                
+
             await tx.CommitAsync(ct);
 
             return Results.Ok(new { message = "Level 2a completed.", eventId = @event.EventId });
@@ -83,7 +83,7 @@ public static class Level2_ConfigurationEndpoints
                 .WithTenantId("tenant-acme")           // → adds header "x-tenant-id" = "tenant-acme"
                 .WithCorrelationId("corr-tenant-demo")
                 .StoreAsync(ct);
-                
+
             await tx.CommitAsync(ct);
 
             return Results.Ok(new

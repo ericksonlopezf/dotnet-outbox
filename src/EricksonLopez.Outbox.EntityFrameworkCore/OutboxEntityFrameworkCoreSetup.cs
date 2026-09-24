@@ -18,7 +18,7 @@ public static class OutboxEntityFrameworkCoreSetup
     /// <typeparam name="TDbContext">The application <see cref="DbContext"/> type that owns the outbox tables.</typeparam>
     /// <param name="services">The service collection to add the repositories to.</param>
     /// <returns>The modified <see cref="IServiceCollection"/> for chaining.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="services"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="services"/> is <see langword="null"/></exception>
     public static IServiceCollection AddOutboxEntityFrameworkCore<TDbContext>(
         this IServiceCollection services)
         where TDbContext : DbContext

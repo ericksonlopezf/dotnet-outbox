@@ -37,7 +37,7 @@ public interface IOutboxMessageTypeResolver
     /// </summary>
     /// <param name="messageType">The CLR type of the message to resolve.</param>
     /// <returns>The registered alias string.</returns>
-    /// <exception cref="InvalidOperationException">The specified type has not been registered.</exception>
+    /// <exception cref="InvalidOperationException">The specified type has not been registered</exception>
     string GetAlias(Type messageType);
 
     /// <summary>
@@ -62,7 +62,7 @@ public interface IOutboxMessageTypeResolver
     /// </summary>
     /// <typeparam name="TMessage">The generic type of the message to resolve.</typeparam>
     /// <returns>The registered alias string.</returns>
-    /// <exception cref="InvalidOperationException">The specified type has not been registered.</exception>
+    /// <exception cref="InvalidOperationException">The specified type has not been registered</exception>
     string GetAlias<TMessage>() where TMessage : notnull
     {
         return GetAlias(typeof(TMessage));

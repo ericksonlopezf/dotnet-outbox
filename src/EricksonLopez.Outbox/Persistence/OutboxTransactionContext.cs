@@ -4,7 +4,7 @@ using System;
 namespace EricksonLopez.Outbox.Persistence;
 
 /// <summary>
-/// Provides a non-generic implementation of <see cref="IOutboxTransactionContext"/> used for untyped transactions.
+/// Provides a non-generic implementation of <see cref="IOutboxTransactionContext"/> for untyped transactions.
 /// </summary>
 public sealed class OutboxTransactionContext : IOutboxTransactionContext
 {
@@ -19,7 +19,7 @@ public sealed class OutboxTransactionContext : IOutboxTransactionContext
     /// </summary>
     /// <param name="connection">The generic connection object.</param>
     /// <param name="transaction">The generic transaction object.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="connection"/> or <paramref name="transaction"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="connection"/> or <paramref name="transaction"/> is <see langword="null"/></exception>
     public OutboxTransactionContext(object connection, object transaction)
     {
         Connection = connection ?? throw new ArgumentNullException(nameof(connection));

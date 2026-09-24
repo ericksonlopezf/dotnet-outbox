@@ -30,7 +30,7 @@ public sealed class OracleDeadLetterRepository : IDeadLetterRepository
     /// </summary>
     /// <param name="connectionFactory">The factory that creates Oracle connections.</param>
     /// <param name="options">The outbox runtime options.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="connectionFactory"/> or <paramref name="options"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="connectionFactory"/> or <paramref name="options"/> is <see langword="null"/></exception>
 
     public OracleDeadLetterRepository(Func<IDbConnection> connectionFactory, IOptionsMonitor<OutboxRuntimeOptions> options)
     {
@@ -100,7 +100,7 @@ public sealed class OracleDeadLetterRepository : IDeadLetterRepository
             cmd.Parameters.Add(new OracleParameter("Id", OracleDbType.Varchar2) { Value = message.Id.ToString("N") });
             cmd.Parameters.Add(new OracleParameter("OriginalMessageId", OracleDbType.Varchar2) { Value = message.OriginalMessageId.ToString("N") });
             cmd.Parameters.Add(new OracleParameter("Type", OracleDbType.Varchar2) { Value = message.MessageType });
-            
+
             // Assuming BLOB or CLOB for JSON payload depending on the table schema. We use CLOB.
             cmd.Parameters.Add(new OracleParameter("Payload", OracleDbType.Clob) { Value = System.Text.Encoding.UTF8.GetString(message.Payload.Span) });
             cmd.Parameters.Add(new OracleParameter("CorrelationId", OracleDbType.Varchar2) { Value = (object?)message.CorrelationId ?? DBNull.Value });

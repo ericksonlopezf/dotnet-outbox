@@ -14,7 +14,7 @@ namespace EricksonLopez.Outbox.Storage.PostgreSql.Tests;
 public class PostgreSqlIdempotencyIntegrationTests : IAsyncLifetime
 {
     private readonly PostgreSqlContainerFixture _fixture;
-    
+
     public PostgreSqlIdempotencyIntegrationTests(PostgreSqlContainerFixture fixture)
     {
         _fixture = fixture;
@@ -36,7 +36,7 @@ public class PostgreSqlIdempotencyIntegrationTests : IAsyncLifetime
         var optionsMonitor = NSubstitute.Substitute.For<Microsoft.Extensions.Options.IOptionsMonitor<EricksonLopez.Outbox.OutboxRuntimeOptions>>();
         optionsMonitor.CurrentValue.Returns(new EricksonLopez.Outbox.OutboxRuntimeOptions { SchemaName = "outbox", TableName = "messages" });
         var repo = new PostgreSqlIdempotencyRepository(_fixture.DataSource, optionsMonitor);
-        
+
         var record = new EricksonLopez.Outbox.IdempotencyRecord(messageId, consumerId, DateTimeOffset.UtcNow);
 
         // Act

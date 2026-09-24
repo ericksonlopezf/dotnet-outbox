@@ -58,10 +58,11 @@ public partial class AdaptivePollerTests
         var fakeTime = new Microsoft.Extensions.Time.Testing.FakeTimeProvider();
         harness.DispatcherOptions.UseAdaptivePolling = false;
         harness.DispatcherOptions.PollingInterval = TimeSpan.FromSeconds(5);
-        
+
         var fetchTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         harness.Repository.FetchPendingAsync(Arg.Any<int>(), Arg.Any<CancellationToken>())
-            .Returns(_ => {
+            .Returns(_ =>
+            {
                 fetchTcs.TrySetResult();
                 return new ValueTask<IReadOnlyList<OutboxMessage>>(Array.Empty<OutboxMessage>());
             });
@@ -71,10 +72,10 @@ public partial class AdaptivePollerTests
 
         using var cts = new CancellationTokenSource();
         var task = poller.StartPollingAsync(cts.Token);
-        
+
         await fetchTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
         cts.Cancel();
-        
+
         var act = async () => await task;
         await act.Should().NotThrowAsync();
     }
@@ -118,7 +119,8 @@ public partial class AdaptivePollerTests
 
         using var cts = new CancellationTokenSource();
         harness.Repository.FetchPendingAsync(Arg.Any<int>(), Arg.Any<CancellationToken>())
-            .Returns(_ => {
+            .Returns(_ =>
+            {
                 cts.Cancel();
                 return ValueTask.FromResult<IReadOnlyList<OutboxMessage>>(new[] { msg1, msg2 });
             });
@@ -177,7 +179,8 @@ public partial class AdaptivePollerTests
 
         var cts = new CancellationTokenSource();
         harness.Repository.FetchPendingAsync(Arg.Any<int>(), Arg.Any<CancellationToken>())
-            .Returns(call => {
+            .Returns(call =>
+            {
                 cts.Cancel();
                 return ValueTask.FromResult<IReadOnlyList<OutboxMessage>>(new[] { msg1, msg2 });
             });

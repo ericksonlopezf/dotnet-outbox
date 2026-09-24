@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using EricksonLopez.Outbox;
 using EricksonLopez.Outbox.Persistence;
 using Microsoft.AspNetCore.Builder;
@@ -11,7 +12,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Npgsql;
 using Sample.OrderService.Domain.Aggregates.OrderAggregate;
-using System.Threading.Tasks;
 
 #pragma warning disable CA1861 // Prefer static readonly fields over constant array arguments
 namespace Sample.OrderService.Endpoints;

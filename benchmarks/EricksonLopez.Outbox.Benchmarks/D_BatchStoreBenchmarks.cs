@@ -67,13 +67,13 @@ public class D_BatchStoreBenchmarks
     {
         await _store.StoreAsync(new System.ReadOnlyMemory<OrderCreatedEvent>(_batchEvents), _transaction);
     }
-    
+
     private sealed class DummyTransactionContext : IOutboxTransactionContext
     {
         public object Transaction => this;
         public object? Connection => null;
     }
-    
+
     private sealed class NullOutboxRepository : EricksonLopez.Outbox.Persistence.IOutboxRepository
     {
         public ValueTask InsertAsync(EricksonLopez.Outbox.OutboxMessage message, EricksonLopez.Outbox.Persistence.IOutboxTransactionContext? transaction, CancellationToken cancellationToken = default)
@@ -97,7 +97,7 @@ public class D_BatchStoreBenchmarks
         public ValueTask<long> GetPendingCountAsync(CancellationToken cancellationToken = default)
             => ValueTask.FromResult(0L);
     }
-    
+
     private sealed class DummyTypeResolver : EricksonLopez.Outbox.Serialization.IOutboxMessageTypeResolver
     {
         public string GetAlias(System.Type messageType) => messageType.Name;

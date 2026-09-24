@@ -3,8 +3,10 @@
 # ADR-025 — Outbox Does Not Become A Scheduler
 
 ## Status
-
 Accepted
+
+## Date
+2026-09-04
 
 ## Context
 

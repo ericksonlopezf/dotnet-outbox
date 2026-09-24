@@ -47,7 +47,7 @@ public static class TestingOutboxExtensions
     /// <typeparam name="TMessage">The type of the message to assert on.</typeparam>
     /// <param name="store">The in-memory outbox store.</param>
     /// <returns>All stored messages of that type for further inspection.</returns>
-    /// <exception cref="InvalidOperationException">Thrown when no messages of the type were found.</exception>
+    /// <exception cref="InvalidOperationException">Thrown when no messages of the type were found</exception>
     public static IReadOnlyList<TMessage> ShouldHavePublished<TMessage>(
         this InMemoryOutboxStore store)
         where TMessage : notnull
@@ -89,7 +89,7 @@ public static class TestingOutboxExtensions
     /// <typeparam name="TMessage">The type of the message to assert on.</typeparam>
     /// <param name="store">The in-memory outbox store.</param>
     /// <returns>The single published message.</returns>
-    /// <exception cref="InvalidOperationException">Thrown when the count is not exactly 1.</exception>
+    /// <exception cref="InvalidOperationException">Thrown when the count is not exactly 1</exception>
     public static TMessage ShouldHavePublishedOnce<TMessage>(
         this InMemoryOutboxStore store)
         where TMessage : notnull
@@ -150,7 +150,7 @@ public static class TestingOutboxExtensions
     /// </summary>
     /// <typeparam name="TMessage">The type of the message to assert on.</typeparam>
     /// <param name="store">The in-memory outbox store.</param>
-    /// <exception cref="InvalidOperationException">Thrown when any message of the type was found.</exception>
+    /// <exception cref="InvalidOperationException">Thrown when any message of the type was found</exception>
     public static void ShouldNotHavePublished<TMessage>(
         this InMemoryOutboxStore store)
         where TMessage : notnull

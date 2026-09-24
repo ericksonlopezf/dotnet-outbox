@@ -21,7 +21,7 @@ public sealed class InboxConsumerFilter : IInboxConsumerFilter
     /// </summary>
     /// <param name="idempotencyRepository">The repository used to record processed messages.</param>
     /// <param name="logger">The logger instance.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="idempotencyRepository"/> or <paramref name="logger"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="idempotencyRepository"/> or <paramref name="logger"/> is <see langword="null"/></exception>
     public InboxConsumerFilter(
         IIdempotencyRepository idempotencyRepository,
         ILogger<InboxConsumerFilter> logger)

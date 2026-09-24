@@ -84,7 +84,7 @@ public class DispatchResultTests
         result.Success.Should().BeFalse();
         result.ShouldRetry.Should().BeFalse();
         result.Error.Should().NotBeNull();
-        
+
         var ex = result.Error as OutboxDispatchException;
         ex.Should().NotBeNull();
         ex!.MessageId.Should().Be(id);

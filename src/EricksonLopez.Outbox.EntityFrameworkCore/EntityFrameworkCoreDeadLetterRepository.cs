@@ -25,7 +25,7 @@ public class EntityFrameworkCoreDeadLetterRepository<TDbContext> : IDeadLetterRe
     /// Initializes a new instance of the <see cref="EntityFrameworkCoreDeadLetterRepository{TDbContext}"/> class.
     /// </summary>
     /// <param name="serviceProvider">The service provider to resolve scoped DbContext instances.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="serviceProvider"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="serviceProvider"/> is <see langword="null"/></exception>
     public EntityFrameworkCoreDeadLetterRepository(IServiceProvider serviceProvider)
     {
         ArgumentNullException.ThrowIfNull(serviceProvider);

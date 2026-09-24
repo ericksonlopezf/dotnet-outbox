@@ -78,4 +78,7 @@
   <Folder Name="/benchmarks/">
     <Project Path="benchmarks/EricksonLopez.Outbox.Benchmarks/EricksonLopez.Outbox.Benchmarks.csproj" />
   </Folder>
+  <Folder Name="/samples/">
+    <Project Path="samples/Sample.OrderService/Sample.OrderService.csproj" />
+  </Folder>
 </Solution>

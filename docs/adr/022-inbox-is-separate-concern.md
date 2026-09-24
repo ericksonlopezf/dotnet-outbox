@@ -3,8 +3,10 @@
 # ADR-022 — Consumer Idempotency (Inbox) Is A Separate Concern
 
 ## Status
-
 Accepted
+
+## Date
+2026-09-04
 
 ## Context
 

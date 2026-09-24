@@ -25,7 +25,7 @@ public sealed class OutboxNotificationPublisher : INotificationPublisher
     /// </summary>
     /// <param name="outbox">The outbox instance used to persist integration messages.</param>
     /// <param name="transactionContext">The optional active transaction context.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="outbox"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="outbox"/> is <see langword="null"/></exception>
     public OutboxNotificationPublisher(
         IOutbox outbox,
         IOutboxTransactionContext? transactionContext = null)

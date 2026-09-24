@@ -21,7 +21,7 @@ public class PublishExtensions_GivenValidMessage_ShouldRouteCorrectly_Tests
     public async Task EnqueueAsync_SingleMessage_CallsStoreAsync_WithAndWithoutCancellationToken()
     {
         var msg = new TestMessage("hello");
-        
+
         // Without CT
         await _outbox.EnqueueAsync(msg, _transaction);
         await _outbox.Received(1).StoreAsync(msg, _transaction, default);
@@ -36,7 +36,7 @@ public class PublishExtensions_GivenValidMessage_ShouldRouteCorrectly_Tests
     public async Task EnqueueAsync_ReadOnlyMemory_CallsStoreAsync_WithAndWithoutCancellationToken()
     {
         var messages = new ReadOnlyMemory<TestMessage>(new[] { new TestMessage("m1"), new TestMessage("m2") });
-        
+
         // Without CT
         await _outbox.EnqueueAsync(messages, _transaction);
         await _outbox.Received(1).StoreAsync(messages, _transaction, default);
@@ -51,7 +51,7 @@ public class PublishExtensions_GivenValidMessage_ShouldRouteCorrectly_Tests
     public async Task EnqueueAsync_IEnumerable_CallsStoreAsync_WithAndWithoutCancellationToken()
     {
         IEnumerable<TestMessage> messages = new List<TestMessage> { new("m1"), new("m2") };
-        
+
         // Without CT
         await _outbox.EnqueueAsync(messages, _transaction);
         await _outbox.Received(1).StoreAsync(messages, _transaction, default);
@@ -67,7 +67,7 @@ public class PublishExtensions_GivenValidMessage_ShouldRouteCorrectly_Tests
     {
         var msg = new TestMessage("hello");
         var metadata = new OutboxMessageMetadata("corr-1", "caus-1", "TestMessageType");
-        
+
         // With default deliverAt = null and default CT
         await _outbox.EnqueueAsync(msg, _transaction, metadata);
         await _outbox.Received(1).StoreAsync(msg, _transaction, metadata, null, default);

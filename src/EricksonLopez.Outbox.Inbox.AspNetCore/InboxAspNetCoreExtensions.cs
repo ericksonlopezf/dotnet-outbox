@@ -17,7 +17,7 @@ public static class InboxAspNetCoreExtensions
     /// <param name="builder">The route handler builder.</param>
     /// <param name="headerName">The idempotency header name.</param>
     /// <returns>The route handler builder for chaining.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <see langword="null"/></exception>
     public static RouteHandlerBuilder RequireIdempotency(this RouteHandlerBuilder builder, string headerName = "Idempotency-Key")
     {
         ArgumentNullException.ThrowIfNull(builder);
@@ -31,7 +31,7 @@ public static class InboxAspNetCoreExtensions
     /// <param name="builder">The route group builder.</param>
     /// <param name="headerName">The idempotency header name.</param>
     /// <returns>The route group builder for chaining.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <see langword="null"/></exception>
     public static RouteGroupBuilder RequireIdempotency(this RouteGroupBuilder builder, string headerName = "Idempotency-Key")
     {
         ArgumentNullException.ThrowIfNull(builder);
