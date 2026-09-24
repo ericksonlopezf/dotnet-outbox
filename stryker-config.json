@@ -28,8 +28,6 @@
       "*Log*",
       "*Trace*",
       "*Debug*",
-      "*Exception*",
-      "ThrowIf*",
       "ConfigureAwait",
       "Dispose",
       "ToString",
@@ -39,6 +37,7 @@
     "ignore-mutations": [
       "Initializer",
       "String"
-    ]
+    ],
+    "concurrency": 2
   }
 }

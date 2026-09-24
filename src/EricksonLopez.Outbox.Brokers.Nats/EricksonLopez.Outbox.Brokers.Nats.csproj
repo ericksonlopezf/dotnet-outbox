@@ -3,7 +3,7 @@
 
   <PropertyGroup>
     <Description>NATS message broker transport for EricksonLopez.Outbox. Delivers high-performance, Zero-Reflection, NativeAOT-ready event publishing to NATS.</Description>
-    <PackageTags>$(CommonPackageTags);nats;nats-io;message-broker;pubsub;native-aot</PackageTags>
+    <PackageTags>$(CommonPackageTags);outbox;transactional-outbox;nats;nats-io;message-broker;pubsub;native-aot</PackageTags>
     <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
     <Nullable>enable</Nullable>
   </PropertyGroup>

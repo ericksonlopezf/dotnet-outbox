@@ -5,6 +5,9 @@
 ## Status
 Accepted — August 2026
 
+## Date
+2026-09-04
+
 ## Context
 `EricksonLopez.Outbox.Abstractions` defines `MessageMetadata` as a `readonly struct` to encapsulate database outbox message headers without allocating heap memory on high-throughput database operations.
 
@@ -25,3 +28,6 @@ Retain `EricksonLopez.Outbox.Abstractions.MessageMetadata` as an autonomous, per
 ## Consequences
 - **Zero-Allocation**: Guarantees zero heap allocation overhead during transactional outbox persistence and dispatch polling.
 - **Provider Autonomy**: Database storage drivers can serialize and query metadata without pulling in messaging abstractions.
+
+> [!NOTE]
+> **Implementation Note:** In the final codebase implementation, this struct is canonically named `OutboxMessageMetadata` (in namespace `EricksonLopez.Outbox`) to eliminate naming collisions when consuming both `EricksonLopez.Outbox` and `EricksonLopez.Messaging` in the same project.

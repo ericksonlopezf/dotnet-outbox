@@ -23,7 +23,7 @@ public sealed class OracleIdempotencyRepository : IIdempotencyRepository
     /// </summary>
     /// <param name="connectionFactory">The factory that creates Oracle connections.</param>
     /// <param name="options">The outbox runtime options.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="connectionFactory"/> or <paramref name="options"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="connectionFactory"/> or <paramref name="options"/> is <see langword="null"/></exception>
 
     public OracleIdempotencyRepository(Func<IDbConnection> connectionFactory, IOptionsMonitor<OutboxRuntimeOptions> options)
     {
@@ -79,7 +79,7 @@ public sealed class OracleIdempotencyRepository : IIdempotencyRepository
                 cmd.Transaction = tx;
             }
             // Stryker restore all
-            
+
             cmd.Parameters.Add(new OracleParameter("MessageId", OracleDbType.Varchar2) { Value = record.MessageId });
             cmd.Parameters.Add(new OracleParameter("ConsumerId", OracleDbType.Varchar2) { Value = record.ConsumerId });
             cmd.Parameters.Add(new OracleParameter("ProcessedAt", OracleDbType.TimeStampTZ) { Value = record.ProcessedAt });

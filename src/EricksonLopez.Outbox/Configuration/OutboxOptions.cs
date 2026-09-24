@@ -54,7 +54,7 @@ public sealed class OutboxOptions
     /// </summary>
     /// <param name="configure">The delegate used to configure the runtime options.</param>
     /// <returns>The current <see cref="OutboxOptions"/> instance for method chaining.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="configure"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="configure"/> is <see langword="null"/></exception>
     public OutboxOptions ConfigureRuntimeOptions(Action<OutboxRuntimeOptions> configure)
     {
         ArgumentNullException.ThrowIfNull(configure);
@@ -86,7 +86,7 @@ public sealed class OutboxOptions
     /// </remarks>
     /// <param name="configure">The delegate that registers additional services into the underlying collection.</param>
     /// <returns>The current <see cref="OutboxOptions"/> instance for method chaining.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="configure"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="configure"/> is <see langword="null"/></exception>
     [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Advanced)]
     public OutboxOptions Configure(Action<IServiceCollection> configure)
     {
@@ -104,7 +104,7 @@ public sealed class OutboxOptions
     /// </remarks>
     /// <param name="serializer">The singleton serializer instance to register.</param>
     /// <returns>The current <see cref="OutboxOptions"/> instance for method chaining.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="serializer"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="serializer"/> is <see langword="null"/></exception>
     public OutboxOptions UseSerializer(IOutboxSerializer serializer)
     {
         ArgumentNullException.ThrowIfNull(serializer);
@@ -129,7 +129,7 @@ public sealed class OutboxOptions
     /// </summary>
     /// <param name="typeResolver">The singleton type resolver instance to register.</param>
     /// <returns>The current <see cref="OutboxOptions"/> instance for method chaining.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="typeResolver"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="typeResolver"/> is <see langword="null"/></exception>
     public OutboxOptions UseTypeResolver(IOutboxMessageTypeResolver typeResolver)
     {
         ArgumentNullException.ThrowIfNull(typeResolver);
@@ -238,7 +238,7 @@ public sealed class OutboxOptions
     /// </summary>
     /// <param name="messageTypeAlias">The alias or name of the message type.</param>
     /// <returns>A builder to specify the publisher for this route.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="messageTypeAlias"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="messageTypeAlias"/> is <see langword="null"/></exception>
     public BrokerRouteBuilder Route(string messageTypeAlias)
     {
         return new BrokerRouteBuilder(this, messageTypeAlias);
@@ -249,7 +249,7 @@ public sealed class OutboxOptions
     /// </summary>
     /// <param name="messageTypeAliases">The message type aliases to route.</param>
     /// <returns>A builder to specify the publisher for this route group.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="messageTypeAliases"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="messageTypeAliases"/> is <see langword="null"/></exception>
     public BrokerRouteGroupBuilder RouteGroup(params string[] messageTypeAliases)
     {
         ArgumentNullException.ThrowIfNull(messageTypeAliases);
@@ -261,7 +261,7 @@ public sealed class OutboxOptions
     /// </summary>
     /// <param name="messageTypeAliases">The collection of message type aliases to route.</param>
     /// <returns>A builder to specify the publisher for this route group.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="messageTypeAliases"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="messageTypeAliases"/> is <see langword="null"/></exception>
     // Stryker disable all 
     public BrokerRouteGroupBuilder RouteGroup(IEnumerable<string> messageTypeAliases)
     {

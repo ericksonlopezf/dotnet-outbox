@@ -25,7 +25,7 @@ public sealed class OutboxNotificationHandler<TNotification> : INotificationHand
     /// </summary>
     /// <param name="outbox">The outbox instance used to persist messages.</param>
     /// <param name="transactionContext">The optional active transaction context.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="outbox"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="outbox"/> is <see langword="null"/></exception>
     public OutboxNotificationHandler(
         IOutbox outbox,
         IOutboxTransactionContext? transactionContext = null)

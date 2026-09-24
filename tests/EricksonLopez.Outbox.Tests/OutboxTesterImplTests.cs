@@ -15,7 +15,7 @@ public class OutboxTesterImplTests
     {
         var store = new InMemoryOutboxStore();
         await store.StoreAsync("test1", null!);
-        
+
         var tester = new OutboxTesterImpl(store);
         tester.ShouldHavePublished<string>().Once();
     }
@@ -25,7 +25,7 @@ public class OutboxTesterImplTests
     {
         var store = new InMemoryOutboxStore();
         var tester = new OutboxTesterImpl(store);
-        
+
         Assert.Throws<InvalidOperationException>(() => tester.ShouldHavePublished<string>().Once());
     }
 
@@ -35,7 +35,7 @@ public class OutboxTesterImplTests
         var store = new InMemoryOutboxStore();
         await store.StoreAsync("test1", null!);
         await store.StoreAsync("test2", null!);
-        
+
         var tester = new OutboxTesterImpl(store);
         tester.ShouldHavePublished<string>().Times(2);
     }
@@ -45,9 +45,9 @@ public class OutboxTesterImplTests
     {
         var store = new InMemoryOutboxStore();
         await store.StoreAsync("test1", null!);
-        
+
         var tester = new OutboxTesterImpl(store);
-        
+
         Assert.Throws<InvalidOperationException>(() => tester.ShouldHavePublished<string>().Times(2));
     }
 
@@ -57,7 +57,7 @@ public class OutboxTesterImplTests
         var store = new InMemoryOutboxStore();
         await store.StoreAsync("test1", null!);
         await store.StoreAsync("test2", null!);
-        
+
         var tester = new OutboxTesterImpl(store);
         tester.ShouldHavePublished<string>().AtLeastOnce();
     }
@@ -67,7 +67,7 @@ public class OutboxTesterImplTests
     {
         var store = new InMemoryOutboxStore();
         var tester = new OutboxTesterImpl(store);
-        
+
         Assert.Throws<InvalidOperationException>(() => tester.ShouldHavePublished<string>().AtLeastOnce());
     }
 
@@ -76,7 +76,7 @@ public class OutboxTesterImplTests
     {
         var store = new InMemoryOutboxStore();
         var tester = new OutboxTesterImpl(store);
-        
+
         tester.ShouldHavePublished<string>().Never();
     }
 
@@ -86,7 +86,7 @@ public class OutboxTesterImplTests
         var store = new InMemoryOutboxStore();
         await store.StoreAsync("test1", null!);
         var tester = new OutboxTesterImpl(store);
-        
+
         Assert.Throws<InvalidOperationException>(() => tester.ShouldHavePublished<string>().Never());
     }
 
@@ -96,7 +96,7 @@ public class OutboxTesterImplTests
         var store = new InMemoryOutboxStore();
         await store.StoreAsync("test1", null!);
         await store.StoreAsync("test2", null!);
-        
+
         var tester = new OutboxTesterImpl(store);
         tester.ShouldHavePublished<string>().WithCondition(x => x == "test1").Once();
     }

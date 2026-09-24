@@ -3,8 +3,10 @@
 # ADR-029 — DeadLetterRepository Standalone Transaction Boundary
 
 ## Status
-
 Accepted
+
+## Date
+2026-09-04
 
 ## Context
 

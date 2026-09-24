@@ -20,7 +20,7 @@ public sealed class OutboxPublishBehavior : Behavior<IOutgoingLogicalMessageCont
     /// Initializes a new instance of the <see cref="OutboxPublishBehavior"/> class.
     /// </summary>
     /// <param name="outbox">The outbox instance used to persist messages.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="outbox"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="outbox"/> is <see langword="null"/></exception>
     public OutboxPublishBehavior(IOutbox outbox)
     {
         _outbox = outbox ?? throw new ArgumentNullException(nameof(outbox));

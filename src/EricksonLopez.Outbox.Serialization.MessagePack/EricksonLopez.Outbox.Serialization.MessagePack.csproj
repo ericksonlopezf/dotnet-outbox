@@ -3,7 +3,7 @@
 
   <PropertyGroup>
     <Description>MessagePack binary serialization provider for EricksonLopez.Outbox. Provides ultra-fast, compact binary serialization with LZ4 compression support.</Description>
-    <PackageTags>$(CommonPackageTags);messagepack;msgpack;serialization;binary;native-aot</PackageTags>
+    <PackageTags>$(CommonPackageTags);outbox;transactional-outbox;messagepack;msgpack;serialization;binary;native-aot</PackageTags>
     <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
     <Nullable>enable</Nullable>
   </PropertyGroup>

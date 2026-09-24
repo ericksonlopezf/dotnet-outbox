@@ -16,7 +16,7 @@ namespace EricksonLopez.Outbox.Brokers.GooglePubSub;
 /// <remarks>
 /// Design decisions:
 ///   - Topic name is derived from the message type alias to allow environment-specific topic naming conventions.
-///   - Message attributes are used for metadata (CorrelationId, CausationId, MessageType).
+///   - Message attributes provide metadata (CorrelationId, CausationId, MessageType).
 ///     Attributes are indexed by Pub/Sub and support subscription filter expressions.
 ///   - PublishRawAsync sends the pre-serialized payload directly — avoids double serialization.
 ///   - Ordering keys are not set by default; enable them per-topic if strict ordering is required.
@@ -38,8 +38,8 @@ public sealed class GooglePubSubBrokerPublisher : IBrokerPublisher
     /// <param name="client">The Google Cloud Pub/Sub publisher service API client.</param>
     /// <param name="projectId">The Google Cloud project identifier containing the target topics.</param>
     /// <param name="topicNamingStrategy">An optional function that derives the topic name from the message type alias. If <see langword="null"/>, a default strategy is used.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="client"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ArgumentException"><paramref name="projectId"/> is <see langword="null"/>, empty, or consists only of white-space characters.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="client"/> is <see langword="null"/></exception>
+    /// <exception cref="ArgumentException"><paramref name="projectId"/> is <see langword="null"/>, empty, or consists only of white-space characters</exception>
     public GooglePubSubBrokerPublisher(
         PublisherServiceApiClient client,
         string projectId,

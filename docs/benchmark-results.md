@@ -2,7 +2,7 @@
 
 # Benchmark Results — EricksonLopez.Outbox
 
-> This document contains the definitive performance reference for `EricksonLopez.Outbox`, measured with **BenchmarkDotNet v0.13.12** against real competitor baselines.
+> This document contains the definitive performance reference for `EricksonLopez.Outbox`, measured with **BenchmarkDotNet v0.15.8** against real competitor baselines.
 > All results are reproducible. See [Running Benchmarks](#running-benchmarks) to reproduce on your own hardware.
 
 ---
@@ -45,7 +45,7 @@ All benchmarks are configured to be fair, deterministic, and repeatable:
 ## 1. Competitor Comparison — `StoreAsync` (single message, InMemory)
 
 ```
-BenchmarkDotNet v0.13.12, Windows 11 (10.0.26200.8875)
+BenchmarkDotNet v0.15.8, Windows 11 (10.0.26200.8875)
 .NET SDK 10.0.302
   [Host]     : .NET 10.0.10 (10.0.1026.32716), X64 RyuJIT AVX-512F+CD+BW+DQ+VL+VBMI
   DefaultJob : .NET 10.0.10 (10.0.1026.32716), X64 RyuJIT AVX-512F+CD+BW+DQ+VL+VBMI

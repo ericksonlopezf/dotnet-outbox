@@ -14,7 +14,7 @@ public static class NServiceBusOutboxExtensions
     /// </summary>
     /// <param name="endpointConfiguration">The NServiceBus endpoint configuration.</param>
     /// <returns>The endpoint configuration for chaining.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="endpointConfiguration"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="endpointConfiguration"/> is <see langword="null"/></exception>
     public static EndpointConfiguration EnableTransactionalOutbox(this EndpointConfiguration endpointConfiguration)
     {
         ArgumentNullException.ThrowIfNull(endpointConfiguration);

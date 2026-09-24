@@ -34,9 +34,9 @@ public class TransactionRollbackIntegrationTest : IAsyncLifetime, IDisposable
         await _connection.OpenAsync();
 
         var services = new ServiceCollection();
-        services.AddDbContext<SqliteTestDbContext>(options => 
+        services.AddDbContext<SqliteTestDbContext>(options =>
             options.UseSqlite(_connection));
-            
+
         services.AddOutboxEntityFrameworkCore<SqliteTestDbContext>();
         _serviceProvider = services.BuildServiceProvider();
 
@@ -81,7 +81,7 @@ public class TransactionRollbackIntegrationTest : IAsyncLifetime, IDisposable
         var count = await dbContext.Set<OutboxMessageEntity>().CountAsync();
         count.Should().Be(0);
     }
-    
+
     [Fact]
     public async Task InsertAsync_WhenTransactionCommitted_SavesToDatabase()
     {

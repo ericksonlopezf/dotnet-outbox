@@ -19,7 +19,7 @@ public sealed class OutboxPipeline
     /// </summary>
     /// <param name="middlewares">The sequence of middleware components to include in the pipeline.</param>
     /// <param name="terminal">The final delegate to execute at the end of the middleware chain.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="middlewares"/> or <paramref name="terminal"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="middlewares"/> or <paramref name="terminal"/> is <see langword="null"/></exception>
     public OutboxPipeline(
         IEnumerable<IOutboxMiddleware> middlewares,
         OutboxPipelineDelegate terminal)

@@ -17,7 +17,7 @@ public static class SqlServerOutboxSetup
     /// <param name="options">The outbox options being configured.</param>
     /// <param name="connectionFactory">A factory delegate to provide an <see cref="IDbConnection"/> based on the <see cref="IServiceProvider"/>.</param>
     /// <returns>The original <see cref="OutboxOptions"/> for method chaining.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="options"/> or <paramref name="connectionFactory"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="options"/> or <paramref name="connectionFactory"/> is <see langword="null"/></exception>
     public static OutboxOptions UseSqlServer(this OutboxOptions options, Func<IServiceProvider, IDbConnection> connectionFactory)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -33,7 +33,7 @@ public static class SqlServerOutboxSetup
             services.AddSingleton<IDeadLetterRepository, SqlServerDeadLetterRepository>();
         });
 
-        options.ConfigureRuntimeOptions(runtime => 
+        options.ConfigureRuntimeOptions(runtime =>
         {
             if (runtime.SchemaName == "outbox")
             {

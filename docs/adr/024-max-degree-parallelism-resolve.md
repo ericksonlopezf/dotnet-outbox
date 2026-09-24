@@ -3,8 +3,10 @@
 # ADR-024 — MaxDegreeOfParallelism Must Be Implemented Or Removed
 
 ## Status
-
 Accepted — Implemented
+
+## Date
+2026-09-04
 
 ## Context
 

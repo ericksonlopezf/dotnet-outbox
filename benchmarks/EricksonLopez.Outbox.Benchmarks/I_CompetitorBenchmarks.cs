@@ -67,10 +67,10 @@ public class I_CompetitorBenchmarks
         public Task ChangePublishStateToDelayedAsync(string[] messageIds) => Task.CompletedTask;
         public Task ChangeReceiveStateAsync(MediumMessage message, StatusName state) => Task.CompletedTask;
 
-        public Task<MediumMessage> StoreMessageAsync(string name, Message content, object? transaction = null) 
+        public Task<MediumMessage> StoreMessageAsync(string name, Message content, object? transaction = null)
             => Task.FromResult(new MediumMessage { DbId = "1", Content = "{}", Added = DateTime.Now, Origin = content });
         public Task StoreReceivedExceptionMessageAsync(string name, string group, string content) => Task.CompletedTask;
-        public Task<MediumMessage> StoreReceivedMessageAsync(string name, string group, Message content) 
+        public Task<MediumMessage> StoreReceivedMessageAsync(string name, string group, Message content)
             => Task.FromResult(new MediumMessage { DbId = "1", Content = "{}", Added = DateTime.Now, Origin = content });
 
         public Task<int> DeleteExpiresAsync(string table, DateTime timeout, int batchCount = 1000, CancellationToken token = default) => Task.FromResult(0);
@@ -79,7 +79,7 @@ public class I_CompetitorBenchmarks
         public Task<IEnumerable<MediumMessage>> GetPublishedMessagesOfNeedRetry(TimeSpan timeout) => Task.FromResult(Enumerable.Empty<MediumMessage>());
         public Task<IEnumerable<MediumMessage>> GetReceivedMessagesOfNeedRetry(TimeSpan timeout) => Task.FromResult(Enumerable.Empty<MediumMessage>());
         public Task ScheduleMessagesOfDelayedAsync(Func<object, IEnumerable<MediumMessage>, Task> scheduleTask, CancellationToken token = default) => Task.CompletedTask;
-        
+
         public DotNetCore.CAP.Monitoring.IMonitoringApi GetMonitoringApi() => null!;
     }
 
@@ -101,11 +101,11 @@ public class I_CompetitorBenchmarks
 #pragma warning restore CS0618
     private NsTestEvent _nsTestEvent = null!;
     private OrderCreatedEvent _testEvent = null!;
-    
+
     // --- Outbox Setup ---
     private IOutbox _outbox = null!;
     private DummyTransactionContext _transaction = new();
-    
+
     private sealed class DummyTransactionContext : IOutboxTransactionContext
     {
         public object Transaction => this;
@@ -158,14 +158,14 @@ public class I_CompetitorBenchmarks
             .ConfigureServices((context, services) =>
             {
                 services.AddLogging();
-                
+
                 // Outbox baseline setup
                 services.AddSingleton<EricksonLopez.Outbox.Persistence.IOutboxRepository, NullOutboxRepository>();
                 services.AddSingleton<EricksonLopez.Outbox.Serialization.IOutboxMessageTypeResolver, DummyTypeResolver>();
                 services.AddOutbox();
                 services.AddSingleton<EricksonLopez.Outbox.Serialization.IOutboxSerializer, EricksonLopez.Outbox.Serialization.NativeAotJsonSerializer>();
                 services.AddSingleton<System.Text.Json.Serialization.JsonSerializerContext>(BenchmarkJsonContext.Default);
-                
+
                 // CAP setup
                 services.AddCap(x =>
                 {
@@ -181,13 +181,13 @@ public class I_CompetitorBenchmarks
 
         // Resolve CAP
         _capPublisher = _host.Services.GetRequiredService<DotNetCore.CAP.ICapPublisher>();
-        
+
         _outbox = _host.Services.GetRequiredService<IOutbox>();
-        
+
         // NServiceBus setup
         var tempPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "NsBench");
         if (System.IO.Directory.Exists(tempPath)) System.IO.Directory.Delete(tempPath, true);
-        
+
         var endpointConfiguration = new EndpointConfiguration("EricksonLopez.Outbox.Benchmarks");
         var transport = new LearningTransport { StorageDirectory = tempPath };
         endpointConfiguration.UseTransport(transport);
@@ -195,7 +195,7 @@ public class I_CompetitorBenchmarks
         endpointConfiguration.UseSerialization<SystemJsonSerializer>();
         endpointConfiguration.EnableOutbox();
         endpointConfiguration.SendOnly();
-        
+
 #pragma warning disable CS0618
         _nsEndpoint = Endpoint.Start(endpointConfiguration).GetAwaiter().GetResult();
 #pragma warning restore CS0618
@@ -210,7 +210,7 @@ public class I_CompetitorBenchmarks
             await _nsEndpoint.Stop();
 #pragma warning restore CS0618
         }
-        
+
         if (_host != null)
         {
             await _host.StopAsync();
@@ -231,7 +231,7 @@ public class I_CompetitorBenchmarks
     {
         await _capPublisher.PublishAsync("order.created", _testEvent);
     }
-    
+
     /// <summary>
     /// NServiceBus framework overhead: serialization + LearningTransport (writes to temp directory).
     /// NOTE: Unlike the other two benchmarks, NServiceBus DOES perform file system I/O via
@@ -243,7 +243,7 @@ public class I_CompetitorBenchmarks
     {
         await _nsEndpoint.Publish(_nsTestEvent);
     }
-    
+
     /// <summary>
     /// EricksonLopez.Outbox framework overhead: zero-reflection serialization + null storage.
     /// Storage: NullOutboxRepository (InsertAsync = ValueTask.CompletedTask).

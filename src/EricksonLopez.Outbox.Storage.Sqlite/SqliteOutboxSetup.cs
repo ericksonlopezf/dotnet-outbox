@@ -17,7 +17,7 @@ public static class SqliteOutboxSetup
     /// <param name="options">The outbox options being configured.</param>
     /// <param name="connectionFactory">A factory delegate to provide a <see cref="SqliteConnection"/> based on the <see cref="IServiceProvider"/>.</param>
     /// <returns>The original <see cref="OutboxOptions"/> for method chaining.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="options"/> or <paramref name="connectionFactory"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="options"/> or <paramref name="connectionFactory"/> is <see langword="null"/></exception>
     public static OutboxOptions UseSqlite(this OutboxOptions options, Func<IServiceProvider, SqliteConnection> connectionFactory)
     {
         ArgumentNullException.ThrowIfNull(options);

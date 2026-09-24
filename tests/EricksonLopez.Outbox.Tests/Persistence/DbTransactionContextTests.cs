@@ -14,9 +14,9 @@ public class DbTransactionContextTests
     public void Constructor_SetsDbTransaction()
     {
         var dbTransaction = Substitute.For<DbTransaction>();
-        
+
         var sut = new DbTransactionContext(dbTransaction);
-        
+
         sut.DbTransaction.Should().BeSameAs(dbTransaction);
         sut.Transaction.Should().BeSameAs(dbTransaction);
     }
@@ -27,9 +27,9 @@ public class DbTransactionContextTests
         var dbConnection = Substitute.For<DbConnection>();
         var dbTransaction = Substitute.For<DbTransaction>();
         dbTransaction.Connection.Returns(dbConnection);
-        
+
         var sut = new DbTransactionContext(dbTransaction);
-        
+
         sut.DbConnection.Should().BeSameAs(dbConnection);
         sut.Connection.Should().BeSameAs(dbConnection);
     }
@@ -38,11 +38,11 @@ public class DbTransactionContextTests
     public void GetContext_ReturnsCorrectType()
     {
         var dbTransaction = Substitute.For<DbTransaction>();
-        
+
         var sut = new DbTransactionContext(dbTransaction);
-        
+
         var context = ((IOutboxTransactionContext)sut).GetContext<DbTransaction>();
-        
+
         context.Should().BeSameAs(dbTransaction);
     }
 
@@ -50,19 +50,28 @@ public class DbTransactionContextTests
     public void GetContext_WhenCastFails_ReturnsNull()
     {
         var dbTransaction = Substitute.For<DbTransaction>();
-        
+
         var sut = new DbTransactionContext(dbTransaction);
-        
+
         var context = ((IOutboxTransactionContext)sut).GetContext<string>();
-        
+
         context.Should().BeNull();
     }
 
     [Fact]
-    public void DbConnection_WhenTransactionIsNull_ReturnsNull()
+    public void Constructor_WhenDbTransactionIsNull_ThrowsArgumentNullException()
     {
-        var sut = new DbTransactionContext(null!);
-        
+        var act = () => new DbTransactionContext(null!);
+        act.Should().Throw<ArgumentNullException>().WithParameterName("dbTransaction");
+    }
+
+    [Fact]
+    public void DbConnection_WhenTransactionConnectionIsNull_ReturnsNull()
+    {
+        var dbTransaction = Substitute.For<DbTransaction>();
+        dbTransaction.Connection.Returns((DbConnection?)null);
+        var sut = new DbTransactionContext(dbTransaction);
+
         sut.DbConnection.Should().BeNull();
         sut.Connection.Should().BeNull();
     }

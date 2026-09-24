@@ -31,7 +31,7 @@ public sealed class MySqlDeadLetterRepository : IDeadLetterRepository
     /// </summary>
     /// <param name="connectionFactory">The factory that creates MySQL connections.</param>
     /// <param name="options">The outbox runtime options.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="connectionFactory"/> or <paramref name="options"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="connectionFactory"/> or <paramref name="options"/> is <see langword="null"/></exception>
 
     public MySqlDeadLetterRepository(Func<IDbConnection> connectionFactory, IOptionsMonitor<OutboxRuntimeOptions> options)
     {
@@ -39,8 +39,8 @@ public sealed class MySqlDeadLetterRepository : IDeadLetterRepository
         ArgumentNullException.ThrowIfNull(options);
 
         var table = options.CurrentValue.TableName + "_dead_letters";
-        var fullTableName = string.IsNullOrWhiteSpace(options.CurrentValue.SchemaName) 
-            ? $"`{table}`" 
+        var fullTableName = string.IsNullOrWhiteSpace(options.CurrentValue.SchemaName)
+            ? $"`{table}`"
             : $"`{options.CurrentValue.SchemaName}`.`{table}`";
 
         _insertSql = $@"

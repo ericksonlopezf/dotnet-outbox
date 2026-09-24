@@ -17,7 +17,7 @@ public static class PostgreSqlOutboxSetup
     /// <param name="options">The outbox options being configured.</param>
     /// <param name="dataSourceFactory">A factory delegate to provide an <see cref="NpgsqlDataSource"/> based on the <see cref="IServiceProvider"/>.</param>
     /// <returns>The original <see cref="OutboxOptions"/> for method chaining.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="options"/> or <paramref name="dataSourceFactory"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="options"/> or <paramref name="dataSourceFactory"/> is <see langword="null"/></exception>
     [CLSCompliant(false)]
     public static OutboxOptions UsePostgreSql(this OutboxOptions options, Func<IServiceProvider, NpgsqlDataSource> dataSourceFactory)
     {
@@ -43,8 +43,8 @@ public static class PostgreSqlOutboxSetup
     /// <param name="options">The outbox options being configured.</param>
     /// <param name="connectionString">The PostgreSQL connection string used to connect to the database.</param>
     /// <returns>The original <see cref="OutboxOptions"/> for method chaining.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="options"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ArgumentException"><paramref name="connectionString"/> is <see langword="null"/> or whitespace.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="options"/> is <see langword="null"/></exception>
+    /// <exception cref="ArgumentException"><paramref name="connectionString"/> is <see langword="null"/> or whitespace</exception>
     public static OutboxOptions UsePostgreSql(this OutboxOptions options, string connectionString)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -86,7 +86,7 @@ public static class PostgreSqlOutboxSetup
     /// </remarks>
     /// <param name="options">The outbox options being configured.</param>
     /// <returns>The original <see cref="OutboxOptions"/> for method chaining.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="options"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="options"/> is <see langword="null"/></exception>
     public static OutboxOptions UsePostgreSqlNotifications(this OutboxOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);

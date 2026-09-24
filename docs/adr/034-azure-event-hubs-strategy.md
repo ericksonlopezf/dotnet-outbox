@@ -3,8 +3,10 @@
 # ADR-034 — Azure Event Hubs Broker Strategy & AOT Compatibility
 
 ## Status
-
 Accepted
+
+## Date
+2026-09-04
 
 ## Context
 

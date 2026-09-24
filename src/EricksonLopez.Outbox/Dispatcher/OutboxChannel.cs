@@ -20,7 +20,7 @@ using Microsoft.Extensions.Options;
 namespace EricksonLopez.Outbox.Dispatcher;
 
 /// <summary>
-/// A bounded, back-pressure-aware channel that buffers <see cref="OutboxMessage"/> items
+/// Represents a bounded, back-pressure-aware channel that buffers <see cref="OutboxMessage"/> items
 /// fetched from the database and delivers them to the broker publisher.
 ///
 /// SingleWriter=true: Only the AdaptivePoller writes.
@@ -397,7 +397,8 @@ internal sealed class OutboxChannel
 
     internal static TimeSpan CalculateBackoffDelay(int attempt, int baseDelayMs, Func<double>? randomProvider = null)
     {
-        var exponentialMs = (double)baseDelayMs * (1 << Math.Min(attempt - 1, 10));
+        int clampedAttempt = Math.Clamp(attempt - 1, 0, 10);
+        var exponentialMs = (double)Math.Max(1, baseDelayMs) * (1 << clampedAttempt);
         var rand = randomProvider != null ? randomProvider() : Random.Shared.NextDouble();
         var jitterMs = (int)(exponentialMs * 0.25 * (2.0 * rand - 1.0));
         var delayMs = (int)Math.Max(1, exponentialMs + jitterMs);

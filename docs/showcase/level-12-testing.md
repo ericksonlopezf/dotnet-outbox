@@ -87,7 +87,7 @@ public async Task PlaceOrder_StoresOneOrderCreatedEvent()
 
 ```csharp
 // In a beforeEach / fixture cleanup:
-store.Clear(); // Removes all captured messages
+store.Reset(); // Removes all captured messages
 ```
 
 ### `InMemoryOutboxStore` Direct API
@@ -95,7 +95,7 @@ store.Clear(); // Removes all captured messages
 | Method | Returns | Description |
 |---|---|---|
 | `GetPublishedMessages<TMessage>()` | `IReadOnlyList<TMessage>` | All captured messages of type `TMessage`. |
-| `Clear()` | `void` | Clears all captured messages. |
+| `Reset()` | `void` | Clears all captured messages, resetting the store state. |
 | `StoreAsync<TMessage>(message, tx, ct)` | `ValueTask` | Captures the message (ignores transaction context). |
 | `StoreAsync<TMessage>(ReadOnlyMemory<TMessage>, tx, ct)` | `ValueTask` | Captures all messages in the batch. |
 | `Publish<TMessage>(message)` | `OutboxMessageBuilder<TMessage>` | Returns a builder (finalizes on `StoreAsync`). |

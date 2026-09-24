@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.0] - 2026-09-24
+
 ### Breaking Changes
 
 - **[BC-018] Introduction of Strict Null Guard in `DbTransactionContext` Constructor**:
@@ -267,6 +269,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   prevents the STJ source generator from processing output from another generator in the same pass. The template
   class name was standardized to `OutboxGeneratedJsonContext` for clarity.
 
-[Unreleased]: https://github.com/ericksonlopezf/dotnet-outbox/compare/v2.0.0...HEAD
+[Unreleased]: https://github.com/ericksonlopezf/dotnet-outbox/compare/v3.0.0...HEAD
+[3.0.0]: https://github.com/ericksonlopezf/dotnet-outbox/compare/v2.0.0...v3.0.0
 [2.0.0]: https://github.com/ericksonlopezf/dotnet-outbox/compare/v1.0.0...v2.0.0
 [1.0.0]: https://github.com/ericksonlopezf/dotnet-outbox/releases/tag/v1.0.0

@@ -1,5 +1,11 @@
 # ADR-008: `ref struct OutboxMessageBuilder` for a Zero-Allocation Fluent API
 
+## Status
+Superseded by ADR-037
+
+## Date
+2026-09-04
+
 ## 1. Title and Status
 **Zero-Allocation Fluent Builder (HISTORICAL)**
 *Status:* ~~Approved and Implemented~~ **SUPERSEDED by [ADR-037](037-outboxmessagebuilder-sealed-class-rationale.md)**

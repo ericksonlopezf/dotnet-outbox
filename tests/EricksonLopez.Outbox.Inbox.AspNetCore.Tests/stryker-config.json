@@ -1,6 +1,6 @@
 {
   "stryker-config": {
-    "concurrency": 4,
+    "concurrency": 2,
     "thresholds": {
       "high": 100,
       "low": 98,

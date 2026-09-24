@@ -11,8 +11,13 @@ using EricksonLopez.Outbox.Persistence;
 using EricksonLopez.Outbox.Pipeline;
 using EricksonLopez.Outbox.Storage.PostgreSql;
 using EricksonLopez.Result;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Npgsql;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
@@ -29,11 +34,11 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
-    c.SwaggerDoc("v1", new() 
-    { 
-        Title = "EricksonLopez.Outbox Showcase", 
+    c.SwaggerDoc("v1", new()
+    {
+        Title = "EricksonLopez.Outbox Showcase",
         Version = "v1",
-        Description = "The ultimate guide project to use the Outbox library, from scratch to advanced." 
+        Description = "The ultimate guide project to use the Outbox library, from scratch to advanced."
     });
 });
 
@@ -134,7 +139,7 @@ builder.Services.AddScoped<ManualOutboxDispatcher>();
 // UseSerializer(new NativeAotJsonSerializer(...)) registers the STJ-based serializer.
 builder.Services.AddOutbox(options =>
 {
-    options.UseGeneratedTypes(); 
+    options.UseGeneratedTypes();
     options.UseSerializer(new EricksonLopez.Outbox.Serialization.NativeAotJsonSerializer(OutboxJsonContext.Default));
 });
 
@@ -214,8 +219,18 @@ app.MapLevel8Customization();
 app.MapLevel9Extensions();
 app.MapLevel10InboxIdempotency();
 app.MapLevel11Administration();
+app.MapLevel12ComprehensiveCoverage();
+
+if (args.Contains("--showcase"))
+{
+    Console.WriteLine("Executing Outbox Showcase Verification Mode...");
+    await Level12_ComprehensiveApiCoverage.RunAsync();
+    Console.WriteLine("[SHOWCASE PASSED] All Public API Methods Executed Cleanly.");
+    return 0;
+}
 
 app.Run();
+return 0;
 
 
 

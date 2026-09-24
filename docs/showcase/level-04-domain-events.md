@@ -63,13 +63,13 @@ public record OrderCreatedEventV2(Guid OrderId, string CustomerId, decimal Total
 
 ## Message Metadata
 
-Every outbox message carries structured metadata. The `MessageMetadata` type is a **readonly struct** — it must be constructed via its constructor, not an object initializer:
+Every outbox message carries structured metadata. The `OutboxMessageMetadata` type is a **readonly struct** — it must be constructed via its constructor, not an object initializer:
 
 ```csharp
 using EricksonLopez.Outbox;
 
-// MessageMetadata is a readonly struct. Use the constructor:
-var metadata = new MessageMetadata(
+// OutboxMessageMetadata is a readonly struct. Use the constructor:
+var metadata = new OutboxMessageMetadata(
     correlationId: correlationId,  // Optional: W3C correlation ID for distributed tracing
     causationId: causationId,      // Optional: ID of the event/command that triggered this
     messageType: null              // Leave null — overridden by IOutbox during processing

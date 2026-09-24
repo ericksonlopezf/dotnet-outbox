@@ -18,7 +18,7 @@ public sealed class OutboxTesterImpl : IOutboxTester
     /// Initializes a new instance of the <see cref="OutboxTesterImpl"/> class.
     /// </summary>
     /// <param name="store">The in-memory outbox store that collects published messages.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="store"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="store"/> is <see langword="null"/></exception>
     public OutboxTesterImpl(InMemoryOutboxStore store)
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));

@@ -24,7 +24,7 @@ public class EntityFrameworkCoreIdempotencyRepository<TDbContext> : IIdempotency
     /// Initializes a new instance of the <see cref="EntityFrameworkCoreIdempotencyRepository{TDbContext}"/> class.
     /// </summary>
     /// <param name="serviceProvider">The service provider to resolve scoped DbContext instances.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="serviceProvider"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="serviceProvider"/> is <see langword="null"/></exception>
     public EntityFrameworkCoreIdempotencyRepository(IServiceProvider serviceProvider)
     {
         ArgumentNullException.ThrowIfNull(serviceProvider);

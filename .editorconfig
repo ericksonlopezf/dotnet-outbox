@@ -64,6 +64,9 @@ csharp_space_around_binary_operators = before_and_after
 dotnet_diagnostic.CS0618.severity = error
 dotnet_diagnostic.CS0619.severity = error
 
+# Flow Control & Scope Rules (Invalid goto label)
+dotnet_diagnostic.CS0159.severity = error
+
 # XML Documentation on Public API
 dotnet_diagnostic.CS1591.severity = warning
 

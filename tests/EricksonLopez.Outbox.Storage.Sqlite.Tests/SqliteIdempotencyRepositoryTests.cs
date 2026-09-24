@@ -44,7 +44,7 @@ public class SqliteIdempotencyRepositoryTests : IDisposable
     {
         var mockedOptions = Substitute.For<IOptionsMonitor<OutboxRuntimeOptions>>();
         mockedOptions.CurrentValue.Returns(customOptions ?? _options);
-            
+
         return new SqliteIdempotencyRepository(() => new SqliteConnection(_connectionString), mockedOptions);
     }
 
@@ -71,7 +71,8 @@ public class SqliteIdempotencyRepositoryTests : IDisposable
         SqliteConnection? createdConn = null;
         var mockedOptions = Substitute.For<IOptionsMonitor<OutboxRuntimeOptions>>();
         mockedOptions.CurrentValue.Returns(_options);
-        var sut = new SqliteIdempotencyRepository(() => {
+        var sut = new SqliteIdempotencyRepository(() =>
+        {
             createdConn = new SqliteConnection(_connectionString);
             return createdConn;
         }, mockedOptions);
@@ -108,7 +109,7 @@ public class SqliteIdempotencyRepositoryTests : IDisposable
         var result = await sut.TryInsertAsync(record);
 
         result.Should().BeFalse();
-        
+
         await using var connection = new SqliteConnection(_connectionString);
         var count = await connection.ExecuteScalarAsync<int>("SELECT COUNT(1) FROM messages_idempotency WHERE message_id = @MessageId AND consumer_id = @ConsumerId", new { record.MessageId, record.ConsumerId });
         count.Should().Be(1);
@@ -149,7 +150,7 @@ public class SqliteIdempotencyRepositoryTests : IDisposable
         await using var connection = new SqliteConnection(_connectionString);
         var staleCount = await connection.ExecuteScalarAsync<int>("SELECT COUNT(1) FROM messages_idempotency WHERE message_id = @MessageId", new { staleRecord.MessageId });
         var freshCount = await connection.ExecuteScalarAsync<int>("SELECT COUNT(1) FROM messages_idempotency WHERE message_id = @MessageId", new { freshRecord.MessageId });
-        
+
         staleCount.Should().Be(0);
         freshCount.Should().Be(1);
     }

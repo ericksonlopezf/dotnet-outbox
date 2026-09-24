@@ -25,12 +25,12 @@ public class AdaptivePollerFastPathTests
     {
         var services = new ServiceCollection();
         var repo = Substitute.For<IOutboxRepository>();
-        
+
         var message = new OutboxMessage(Guid.NewGuid(), "Test", default, null, null, System.Text.Encoding.UTF8.GetBytes("{}"), DateTimeOffset.UtcNow, null, null, 0, 0, null);
-        
+
         var fullBatch = new List<OutboxMessage>();
-        for(int i = 0; i < 5; i++) fullBatch.Add(message);
-        
+        for (int i = 0; i < 5; i++) fullBatch.Add(message);
+
         var emptyBatch = new List<OutboxMessage>();
 
         var secondCallTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -38,14 +38,15 @@ public class AdaptivePollerFastPathTests
 
         // Return full batch first, then empty batch to break the adaptive loop
         repo.FetchPendingAsync(Arg.Any<int>(), Arg.Any<CancellationToken>())
-            .Returns(_ => {
+            .Returns(_ =>
+            {
                 var current = Interlocked.Increment(ref callCount);
                 if (current >= 2) secondCallTcs.TrySetResult();
-                return current == 1 
-                    ? new ValueTask<IReadOnlyList<OutboxMessage>>(fullBatch) 
+                return current == 1
+                    ? new ValueTask<IReadOnlyList<OutboxMessage>>(fullBatch)
                     : new ValueTask<IReadOnlyList<OutboxMessage>>(emptyBatch);
             });
-            
+
         services.AddScoped(_ => repo);
         var provider = services.BuildServiceProvider();
 

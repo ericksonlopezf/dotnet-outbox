@@ -30,6 +30,7 @@ Messages stored in the outbox are plain C# types. We recommend using `record` ty
 
 ```csharp
 using EricksonLopez.Outbox;
+using EricksonLopez.Outbox.Contracts;
 
 [OutboxMessage("user-registered")]
 public record UserRegisteredEvent(Guid UserId, string Email);

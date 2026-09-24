@@ -43,7 +43,7 @@ The outbox library is optimized to avoid `O(N^2)` operations in all critical pat
 
 - **`AdaptivePoller`**: Highly cohesive. Contains only state related to polling delays, cancellation, and metrics. LCOM is near `0.2` as all methods mutate or read the internal cancellation token and delay state.
 - **`OutboxChannel`**: Moderate cohesion (LCOM ~ `0.4`). It depends on the `IOutboxRepository`, `IBrokerPublisher`, and `OutboxMetrics`. Dependency injection keeps coupling low.
-- **`OutboxMessageBuilder<T>`**: High cohesion (LCOM = `0`). A struct-based builder pattern ensuring zero allocations.
+- **`OutboxMessageBuilder<T>`**: High cohesion (LCOM = `0`). A sealed class builder implementing `IDisposable` (ADR-037) for rented `ArrayPool` buffer management with zero-allocation fast path.
 
 ## 4. Assessment vs Ecosystem
 

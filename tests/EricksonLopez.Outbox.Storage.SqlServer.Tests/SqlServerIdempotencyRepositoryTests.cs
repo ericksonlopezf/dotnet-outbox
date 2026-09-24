@@ -158,11 +158,11 @@ public class SqlServerIdempotencyRepositoryTests : IAsyncLifetime
     {
         var sut = CreateSut();
         var now = DateTimeOffset.UtcNow;
-        
+
         var r1 = new IdempotencyRecord(Guid.NewGuid().ToString(), "c1", now.AddDays(-2));
         var r2 = new IdempotencyRecord(Guid.NewGuid().ToString(), "c2", now.AddDays(-1));
         var r3 = new IdempotencyRecord(Guid.NewGuid().ToString(), "c3", now);
-        
+
         await sut.TryInsertAsync(r1);
         await sut.TryInsertAsync(r2);
         await sut.TryInsertAsync(r3);

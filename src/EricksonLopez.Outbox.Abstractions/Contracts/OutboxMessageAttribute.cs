@@ -18,7 +18,7 @@ public sealed class OutboxMessageAttribute : Attribute
     /// Initializes a new instance of the <see cref="OutboxMessageAttribute"/> class.
     /// </summary>
     /// <param name="alias">The stable string alias identifying the message type.</param>
-    /// <exception cref="ArgumentException"><paramref name="alias"/> is <see langword="null"/> or white space.</exception>
+    /// <exception cref="ArgumentException"><paramref name="alias"/> is <see langword="null"/> or white space</exception>
     public OutboxMessageAttribute(string alias)
     {
         if (string.IsNullOrWhiteSpace(alias))

@@ -24,7 +24,7 @@ public sealed class OutboxMessageProducer : IAmAMessageProducerAsync
     /// </summary>
     /// <param name="outbox">The outbox instance.</param>
     /// <param name="transactionContext">The active transaction context.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="outbox"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="outbox"/> is <see langword="null"/></exception>
     public OutboxMessageProducer(IOutbox outbox, IOutboxTransactionContext? transactionContext = null)
     {
         _outbox = outbox ?? throw new ArgumentNullException(nameof(outbox));

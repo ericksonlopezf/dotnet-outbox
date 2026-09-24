@@ -55,9 +55,9 @@ public class OutboxExtensionsTests
         var outbox = Substitute.For<IOutbox>();
         var transaction = Substitute.For<IOutboxTransactionContext>();
         var cancellationToken = new CancellationToken();
-        
+
         var messages = new List<string> { "msg1", "msg2" };
-        
+
         await outbox.StoreAsync<string>(messages, transaction, cancellationToken);
 
         await outbox.Received(1).StoreAsync(
@@ -72,9 +72,9 @@ public class OutboxExtensionsTests
         var outbox = Substitute.For<IOutbox>();
         var transaction = Substitute.For<IOutboxTransactionContext>();
         var cancellationToken = new CancellationToken();
-        
+
         IEnumerable<string> messages = Enumerable.Range(1, 2).Select(i => $"msg{i}");
-        
+
         await outbox.StoreAsync<string>(messages, transaction, cancellationToken);
 
         await outbox.Received(1).StoreAsync(

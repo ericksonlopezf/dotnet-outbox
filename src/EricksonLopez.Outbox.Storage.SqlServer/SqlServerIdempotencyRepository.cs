@@ -24,7 +24,7 @@ public sealed class SqlServerIdempotencyRepository : IIdempotencyRepository
     /// </summary>
     /// <param name="connectionFactory">The factory that creates SQL Server connections.</param>
     /// <param name="options">The outbox runtime options.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="connectionFactory"/> or <paramref name="options"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="connectionFactory"/> or <paramref name="options"/> is <see langword="null"/></exception>
 
     public SqlServerIdempotencyRepository(Func<IDbConnection> connectionFactory, IOptionsMonitor<OutboxRuntimeOptions> options)
     {

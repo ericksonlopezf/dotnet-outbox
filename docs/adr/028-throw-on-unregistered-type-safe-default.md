@@ -3,8 +3,10 @@
 # ADR-028 — Safe Default For ThrowOnUnregisteredType
 
 ## Status
-
 Accepted
+
+## Date
+2026-09-04
 
 ## Context
 

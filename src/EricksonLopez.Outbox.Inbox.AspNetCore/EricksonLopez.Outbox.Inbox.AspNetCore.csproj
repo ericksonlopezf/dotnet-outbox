@@ -4,7 +4,7 @@
   <PropertyGroup>
     <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
     <Description>ASP.NET Core integration for HTTP Idempotency-Key header support backed by EricksonLopez.Outbox.Inbox deduplication store.</Description>
-    <PackageTags>$(CommonPackageTags);aspnetcore;inbox;idempotency;http;api;native-aot</PackageTags>
+    <PackageTags>$(CommonPackageTags);aspnetcore;inbox;idempotency;idempotency-key;endpoint-filter;native-aot</PackageTags>
   </PropertyGroup>
 
   <ItemGroup>

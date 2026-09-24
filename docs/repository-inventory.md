@@ -44,9 +44,9 @@ This document provides a comprehensive inventory of all projects, target framewo
 | `EricksonLopez.Outbox.Brokers.Kafka` | `net8.0;net9.0;net10.0` | `Confluent.Kafka` 2.x | **Infrastructure** |
 | `EricksonLopez.Outbox.Brokers.AzureServiceBus` | `net8.0;net9.0;net10.0` | `Azure.Messaging.ServiceBus` 7.x | **Infrastructure** |
 | `EricksonLopez.Outbox.Brokers.AzureEventHubs` | `net8.0;net9.0;net10.0` | `Azure.Messaging.EventHubs` 5.x | **Infrastructure** |
-| `EricksonLopez.Outbox.Brokers.AwsSqs` | `net8.0;net9.0;net10.0` | `AWSSDK.SQS` 3.x | **Infrastructure** |
+| `EricksonLopez.Outbox.Brokers.AwsSqs` | `net8.0;net9.0;net10.0` | `AWSSDK.SQS` 4.x | **Infrastructure** |
 | `EricksonLopez.Outbox.Brokers.GooglePubSub` | `net8.0;net9.0;net10.0` | `Google.Cloud.PubSub.V1` 3.x | **Infrastructure** |
-| `EricksonLopez.Outbox.Brokers.Nats` | `net8.0;net9.0;net10.0` | `NATS.Client.Core` 2.x | **Infrastructure** |
+| `EricksonLopez.Outbox.Brokers.Nats` | `net8.0;net9.0;net10.0` | `NATS.Client.Core` 3.x | **Infrastructure** |
 | `EricksonLopez.Outbox.Brokers.RedisStreams` | `net8.0;net9.0;net10.0` | `StackExchange.Redis` 2.x | **Infrastructure** |
 
 ---
@@ -55,10 +55,10 @@ This document provides a comprehensive inventory of all projects, target framewo
 
 | Project | Target Framework(s) | Integration Target | Classification |
 | :--- | :--- | :--- | :--- |
-| `EricksonLopez.Outbox.MassTransit` | `net8.0;net9.0;net10.0` | MassTransit 8.x (`IPublishEndpoint`, `InboxIdempotencyFilter`) | **Infrastructure** |
+| `EricksonLopez.Outbox.MassTransit` | `net8.0;net9.0;net10.0` | MassTransit 9.x (`IPublishEndpoint`, `InboxIdempotencyFilter`) | **Infrastructure** |
 | `EricksonLopez.Outbox.Mediator` | `net8.0;net9.0;net10.0` | `EricksonLopez.Mediator` zero-allocation mediator | **Infrastructure** |
-| `EricksonLopez.Outbox.MediatR` | `net8.0;net9.0;net10.0` | MediatR 12.x/14.x notification publisher | **Infrastructure** |
-| `EricksonLopez.Outbox.NServiceBus` | `net8.0;net9.0;net10.0` | NServiceBus 8.x/10.x pipeline behavior | **Infrastructure** |
+| `EricksonLopez.Outbox.MediatR` | `net8.0;net9.0;net10.0` | MediatR 14.x notification publisher | **Infrastructure** |
+| `EricksonLopez.Outbox.NServiceBus` | `net8.0;net9.0;net10.0` | NServiceBus 9.x pipeline behavior | **Infrastructure** |
 | `EricksonLopez.Outbox.Rebus` | `net8.0;net9.0;net10.0` | Rebus 8.x outgoing pipeline step | **Infrastructure** |
 | `EricksonLopez.Outbox.Brighter` | `net8.0;net9.0;net10.0` | Paramore.Brighter command processor | **Infrastructure** |
 | `EricksonLopez.Outbox.Dapr` | `net8.0;net9.0;net10.0` | Dapr Pub/Sub component integration | **Infrastructure** |
@@ -144,6 +144,8 @@ This document provides a comprehensive inventory of all projects, target framewo
 | :--- | :--- | :--- |
 | **Code Coverage** | `coverlet.runsettings` | Line Coverage ≥ 90%, Branch Coverage ≥ 80% |
 | **Mutation Testing** | `mutation-testing.yml` + 34 Stryker configs | Break Gate < 95%, Low Threshold ≥ 98%, High Target = 100% |
+| **Benchmark Regression Gate** | `benchmark-regression-gate.yml` + `scripts/verify-benchmark-gate.ps1` | Zero heap allocations (0 B invariant), <5% latency regression |
+| **Repository Compliance Gate** | `repo-compliance.yml` + `scripts/verify-compliance.js` | Enforces ADR registry, license headers, naming, and architecture invariants |
 | **Release Mutation Gate** | `scripts/verify-mutation-gate.js` | Enforces 95% threshold before packaging & release |
 | **Roslyn Analyzers** | `EricksonLopez.Outbox.Analyzers` | Build-time errors (`OUTBOX001`–`OUTBOX013`) |
 | **Code Style** | `EnforceCodeStyleInBuild=true` in `Directory.Build.props` | All IDE style rules strictly enforced |

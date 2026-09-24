@@ -3,8 +3,10 @@
 # ADR-023 — Outbox Serialization Is Pluggable, AOT-First
 
 ## Status
-
 Accepted
+
+## Date
+2026-09-04
 
 ## Context
 

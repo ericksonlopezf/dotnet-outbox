@@ -3,8 +3,10 @@
 # ADR-016 — Outbox Is Not An Event Bus
 
 ## Status
-
 Accepted
+
+## Date
+2026-09-04
 
 ## Context
 

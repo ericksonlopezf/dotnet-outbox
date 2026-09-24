@@ -45,7 +45,7 @@ public sealed class AwsSqsBrokerPublisher : IBrokerPublisher
         {
             var request = CreateSendMessageRequest(message);
             var response = await _sqsClient.SendMessageAsync(request, context.CancellationToken);
-            
+
             return DispatchResult.Ok();
         }
         catch (AmazonSQSException ex) when (ex.StatusCode >= System.Net.HttpStatusCode.InternalServerError || ex.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
@@ -62,11 +62,11 @@ public sealed class AwsSqsBrokerPublisher : IBrokerPublisher
     public async ValueTask<IReadOnlyList<DispatchResult>> PublishBatchAsync<T>(IReadOnlyList<MessageEnvelope<T>> messages, DispatchContext context) where T : notnull
     {
         var results = new List<DispatchResult>(messages.Count);
-        
+
         try
         {
             var entries = new List<SendMessageBatchRequestEntry>(messages.Count);
-            
+
             for (int i = 0; i < messages.Count; i++)
             {
                 var msg = messages[i];
@@ -132,7 +132,7 @@ public sealed class AwsSqsBrokerPublisher : IBrokerPublisher
         {
             // In FIFO queues, MessageGroupId is mandatory.
             request.MessageGroupId = message.Metadata.CorrelationId ?? "default-group";
-            
+
             // Outbox inherently provides idempotency, but SQS needs a Deduplication ID if content-based deduplication is off.
             // We use a combination of CausationId and CorrelationId or just a random GUID for safety if not provided.
             request.MessageDeduplicationId = message.Metadata.CausationId ?? Guid.NewGuid().ToString();
@@ -142,7 +142,7 @@ public sealed class AwsSqsBrokerPublisher : IBrokerPublisher
         {
             request.MessageAttributes["CorrelationId"] = new MessageAttributeValue { DataType = "String", StringValue = message.Metadata.CorrelationId };
         }
-        
+
         if (!string.IsNullOrEmpty(message.Metadata.MessageType))
         {
             request.MessageAttributes["MessageType"] = new MessageAttributeValue { DataType = "String", StringValue = message.Metadata.MessageType };
