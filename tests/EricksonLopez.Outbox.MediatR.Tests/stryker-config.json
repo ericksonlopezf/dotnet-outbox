@@ -1,7 +1,7 @@
 {
   "stryker-config": {
     "project": "EricksonLopez.Outbox.MediatR.csproj",
-    "concurrency": 8,
+    "concurrency": 2,
     "thresholds": {
       "high": 100,
       "low": 98,
@@ -21,8 +21,6 @@
       "*Log*",
       "*Trace*",
       "*Debug*",
-      "*Exception*",
-      "ThrowIf*",
       "ConfigureAwait",
       "ToString",
       "GetHashCode",

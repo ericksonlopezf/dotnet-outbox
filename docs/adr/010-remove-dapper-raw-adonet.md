@@ -5,6 +5,9 @@
 ## Status
 Accepted
 
+## Date
+2026-09-04
+
 ## Context
 Originally, the storage layer for relational databases (e.g., SQLite, MySQL, Oracle, SQL Server, PostgreSQL) relied heavily on Dapper for data access. Dapper provided a convenient and fast micro-ORM abstraction for mapping queries to objects.
 

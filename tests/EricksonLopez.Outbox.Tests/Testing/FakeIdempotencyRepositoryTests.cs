@@ -16,7 +16,7 @@ public class FakeIdempotencyRepositoryTests
     public async Task TryInsertAsync_InsertsRecord()
     {
         var record = new IdempotencyRecord("msg1", "cons1", DateTimeOffset.UtcNow);
-        
+
         var result1 = await _repo.TryInsertAsync(record);
         result1.Should().BeTrue();
         _repo.Count.Should().Be(1);

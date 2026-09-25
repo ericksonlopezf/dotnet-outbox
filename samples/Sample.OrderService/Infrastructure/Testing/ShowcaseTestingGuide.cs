@@ -2,11 +2,11 @@
 using System;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using EricksonLopez.Outbox;
 using EricksonLopez.Outbox.Persistence;
 using EricksonLopez.Outbox.Testing;
 using Sample.OrderService.Domain.Aggregates.OrderAggregate;
-using System.Threading.Tasks;
 
 namespace Sample.OrderService.Infrastructure.Testing;
 
@@ -31,17 +31,17 @@ public static class ShowcaseTestingGuide
         SimulateBusinessOperation(inMemoryStore);
 
         // 3. ASSERTIONS: We use the fluent assertion API.
-        
+
         // Option A: Direct assertions on the store using extension methods
         var publishedEvents = inMemoryStore.ShouldHavePublished<OrderCreatedEvent>();
-        
+
         if (publishedEvents.Count != 1)
         {
             return "Test Failed: Expected 1 OrderCreatedEvent.";
         }
 
         var orderEvent = inMemoryStore.ShouldHavePublishedOnce<OrderCreatedEvent>();
-        
+
         if (orderEvent.Total != 150m)
         {
             return "Test Failed: Total didn't match.";

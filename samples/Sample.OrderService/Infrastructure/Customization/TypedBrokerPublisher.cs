@@ -48,7 +48,7 @@ public sealed class TypedBrokerPublisher : ITypedBrokerPublisher
         DispatchContext context) where T : notnull
     {
         _logger.LogInformation("Typed Publisher: Batch dispatch of {Count} messages.", messages.Count);
-        
+
         var results = new DispatchResult[messages.Count];
         for (int i = 0; i < messages.Count; i++)
         {

@@ -1,6 +1,10 @@
-<!-- Copyright © Erickson Lopez. MIT License. -->
-
 # ADR-006: Asynchronous Dispatch with Bounded Channels
+
+## Status
+Accepted
+
+## Date
+2026-09-04
 
 ## 1. Title and Status
 **Background Event Dispatcher using `System.Threading.Channels`**

@@ -26,6 +26,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\EricksonLopez.Inbox\EricksonLopez.Inbox.csproj" />
+    <ProjectReference Include="..\..\src\EricksonLopez.Inbox.Abstractions\EricksonLopez.Inbox.Abstractions.csproj" />
   </ItemGroup>
 
 </Project>

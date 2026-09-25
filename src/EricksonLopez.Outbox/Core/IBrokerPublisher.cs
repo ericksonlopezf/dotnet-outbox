@@ -11,7 +11,7 @@ namespace EricksonLopez.Outbox;
 /// </summary>
 /// <remarks>
 /// <para>
-/// All broker adapters (RabbitMQ, Kafka, Azure Service Bus, etc.) implement this interface.
+/// All broker adapters implement this contract.
 /// </para>
 /// <para>
 /// <b>Design rationale:</b><br/>

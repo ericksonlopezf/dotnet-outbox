@@ -173,6 +173,6 @@ public class OutboxActivitySourceTests
         OutboxActivitySource.SourceName.Should().Be("EricksonLopez.Outbox");
         OutboxActivitySource.OutboxSystemName.Should().Be("outbox");
         OutboxActivitySource.Source.Name.Should().Be("EricksonLopez.Outbox");
-        OutboxActivitySource.Source.Version.Should().Be("2.0.0");
+        OutboxActivitySource.Source.Version.Should().Be("3.0.0");
     }
 }

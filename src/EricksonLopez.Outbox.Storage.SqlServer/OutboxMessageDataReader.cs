@@ -14,7 +14,7 @@ internal sealed class OutboxMessageDataReader : IDataReader, IDataRecord
 
     public int FieldCount => 10;
     public bool Read() => ++_currentIndex < _records.Length;
-    
+
     public object GetValue(int i)
     {
         var r = _records.Span[_currentIndex];
@@ -34,14 +34,36 @@ internal sealed class OutboxMessageDataReader : IDataReader, IDataRecord
         };
     }
 
-    public string GetName(int i) => i switch {
-        0 => "id", 1 => "type", 2 => "payload", 3 => "correlation_id", 4 => "causation_id", 5 => "headers_json", 6 => "state", 7 => "created_at", 8 => "updated_at", 9 => "deliver_at", _ => throw new ArgumentOutOfRangeException(nameof(i))
+    public string GetName(int i) => i switch
+    {
+        0 => "id",
+        1 => "type",
+        2 => "payload",
+        3 => "correlation_id",
+        4 => "causation_id",
+        5 => "headers_json",
+        6 => "state",
+        7 => "created_at",
+        8 => "updated_at",
+        9 => "deliver_at",
+        _ => throw new ArgumentOutOfRangeException(nameof(i))
     };
 
-    public int GetOrdinal(string name) => name switch {
-        "id" => 0, "type" => 1, "payload" => 2, "correlation_id" => 3, "causation_id" => 4, "headers_json" => 5, "state" => 6, "created_at" => 7, "updated_at" => 8, "deliver_at" => 9, _ => -1
+    public int GetOrdinal(string name) => name switch
+    {
+        "id" => 0,
+        "type" => 1,
+        "payload" => 2,
+        "correlation_id" => 3,
+        "causation_id" => 4,
+        "headers_json" => 5,
+        "state" => 6,
+        "created_at" => 7,
+        "updated_at" => 8,
+        "deliver_at" => 9,
+        _ => -1
     };
-    
+
     public void Close() { }
     public void Dispose() { }
     public int Depth => 0;

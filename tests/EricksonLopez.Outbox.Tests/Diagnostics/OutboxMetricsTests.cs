@@ -17,7 +17,7 @@ public class OutboxMetricsTests
 
         metrics.Meter.Should().NotBeNull();
         metrics.Meter.Name.Should().Be(OutboxMetrics.MeterName);
-        metrics.Meter.Version.Should().Be("2.0.0");
+        metrics.Meter.Version.Should().Be("3.0.0");
 
         metrics.MessagesDispatched.Should().NotBeNull();
         metrics.MessagesDispatched.Name.Should().Be("messaging.outbox.messages.dispatched");
@@ -80,7 +80,7 @@ public class OutboxMetricsTests
         using var metrics = new OutboxMetrics(factory);
 
         metrics.Meter.Should().BeSameAs(customMeter);
-        factory.Received(1).Create(Arg.Is<MeterOptions>(o => o.Name == OutboxMetrics.MeterName && o.Version == "2.0.0"));
+        factory.Received(1).Create(Arg.Is<MeterOptions>(o => o.Name == OutboxMetrics.MeterName && o.Version == "3.0.0"));
     }
 
     [Fact]

@@ -25,16 +25,16 @@ public class OutboxTests
         // Assert
         await outboxMock.Received(1).StoreAsync(message, transaction, cancellationToken);
     }
-    
+
     [Fact]
     public async Task StoreAsync_BatchMessages_ShouldCallUnderlyingStoreMethod()
     {
         // Arrange
         var outboxMock = Substitute.For<IOutbox>();
-        var messages = new List<object> 
-        { 
-            new { Id = Guid.NewGuid(), Data = "Item 1" }, 
-            new { Id = Guid.NewGuid(), Data = "Item 2" } 
+        var messages = new List<object>
+        {
+            new { Id = Guid.NewGuid(), Data = "Item 1" },
+            new { Id = Guid.NewGuid(), Data = "Item 2" }
         };
         var transaction = Substitute.For<EricksonLopez.Outbox.Persistence.IOutboxTransactionContext>();
         var cancellationToken = CancellationToken.None;

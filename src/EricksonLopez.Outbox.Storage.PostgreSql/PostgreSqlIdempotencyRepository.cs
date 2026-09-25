@@ -22,7 +22,7 @@ public sealed class PostgreSqlIdempotencyRepository : IIdempotencyRepository
     /// </summary>
     /// <param name="dataSource">The PostgreSQL data source.</param>
     /// <param name="options">The outbox runtime options.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="dataSource"/> or <paramref name="options"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="dataSource"/> or <paramref name="options"/> is <see langword="null"/></exception>
     [CLSCompliant(false)]
 
     public PostgreSqlIdempotencyRepository(NpgsqlDataSource dataSource, IOptionsMonitor<OutboxRuntimeOptions> options)

@@ -37,7 +37,6 @@ flowchart TD
         Poller["AdaptivePoller / BackgroundService"]
         Channel["Channel<OutboxMessage> (Backpressure)"]
         Pipeline["OutboxPipeline (Middlewares)"]
-        RateLimiter["RateLimiter / LeakyBucket"]
     end
 
     subgraph TransportLayer["Transport & Broker Layer"]

@@ -6,7 +6,7 @@
     <Nullable>enable</Nullable>
     <RootNamespace>Sample.OrderService</RootNamespace>
     <AssemblyName>Sample.OrderService</AssemblyName>
-    <NoWarn>$(NoWarn);CS1591;IL2026;IL3050</NoWarn>
+    <NoWarn>$(NoWarn);CS1591;IL2026;IL3050;CA1707</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
@@ -32,8 +32,37 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\EricksonLopez.Outbox\EricksonLopez.Outbox.csproj" />
+    <ProjectReference Include="..\..\src\EricksonLopez.Outbox.Abstractions\EricksonLopez.Outbox.Abstractions.csproj" />
+    <ProjectReference Include="..\..\src\EricksonLopez.Inbox\EricksonLopez.Inbox.csproj" />
+    <ProjectReference Include="..\..\src\EricksonLopez.Inbox.Abstractions\EricksonLopez.Inbox.Abstractions.csproj" />
+    <ProjectReference Include="..\..\src\EricksonLopez.Outbox.Inbox\EricksonLopez.Outbox.Inbox.csproj" />
+    <ProjectReference Include="..\..\src\EricksonLopez.Outbox.Inbox.AspNetCore\EricksonLopez.Outbox.Inbox.AspNetCore.csproj" />
+    <ProjectReference Include="..\..\src\EricksonLopez.Outbox.Inbox.Events\EricksonLopez.Outbox.Inbox.Events.csproj" />
+    <ProjectReference Include="..\..\src\EricksonLopez.Outbox.Events\EricksonLopez.Outbox.Events.csproj" />
+    <ProjectReference Include="..\..\src\EricksonLopez.Outbox.MediatR\EricksonLopez.Outbox.MediatR.csproj" />
+    <ProjectReference Include="..\..\src\EricksonLopez.Outbox.Mediator\EricksonLopez.Outbox.Mediator.csproj" />
+    <ProjectReference Include="..\..\src\EricksonLopez.Outbox.Brighter\EricksonLopez.Outbox.Brighter.csproj" />
+    <ProjectReference Include="..\..\src\EricksonLopez.Outbox.Dapr\EricksonLopez.Outbox.Dapr.csproj" />
+    <ProjectReference Include="..\..\src\EricksonLopez.Outbox.MassTransit\EricksonLopez.Outbox.MassTransit.csproj" />
+    <ProjectReference Include="..\..\src\EricksonLopez.Outbox.NServiceBus\EricksonLopez.Outbox.NServiceBus.csproj" />
+    <ProjectReference Include="..\..\src\EricksonLopez.Outbox.Rebus\EricksonLopez.Outbox.Rebus.csproj" />
+    <ProjectReference Include="..\..\src\EricksonLopez.Outbox.Serialization.MessagePack\EricksonLopez.Outbox.Serialization.MessagePack.csproj" />
+    <ProjectReference Include="..\..\src\EricksonLopez.Outbox.Serialization.Protobuf\EricksonLopez.Outbox.Serialization.Protobuf.csproj" />
+    <ProjectReference Include="..\..\src\EricksonLopez.Outbox.Storage.MariaDb\EricksonLopez.Outbox.Storage.MariaDb.csproj" />
+    <ProjectReference Include="..\..\src\EricksonLopez.Outbox.Storage.MongoDb\EricksonLopez.Outbox.Storage.MongoDb.csproj" />
+    <ProjectReference Include="..\..\src\EricksonLopez.Outbox.Storage.MySql\EricksonLopez.Outbox.Storage.MySql.csproj" />
+    <ProjectReference Include="..\..\src\EricksonLopez.Outbox.Storage.Oracle\EricksonLopez.Outbox.Storage.Oracle.csproj" />
     <ProjectReference Include="..\..\src\EricksonLopez.Outbox.Storage.PostgreSql\EricksonLopez.Outbox.Storage.PostgreSql.csproj" />
+    <ProjectReference Include="..\..\src\EricksonLopez.Outbox.Storage.SqlServer\EricksonLopez.Outbox.Storage.SqlServer.csproj" />
+    <ProjectReference Include="..\..\src\EricksonLopez.Outbox.Storage.Sqlite\EricksonLopez.Outbox.Storage.Sqlite.csproj" />
+    <ProjectReference Include="..\..\src\EricksonLopez.Outbox.Brokers.AwsSqs\EricksonLopez.Outbox.Brokers.AwsSqs.csproj" />
+    <ProjectReference Include="..\..\src\EricksonLopez.Outbox.Brokers.AzureEventHubs\EricksonLopez.Outbox.Brokers.AzureEventHubs.csproj" />
+    <ProjectReference Include="..\..\src\EricksonLopez.Outbox.Brokers.AzureServiceBus\EricksonLopez.Outbox.Brokers.AzureServiceBus.csproj" />
+    <ProjectReference Include="..\..\src\EricksonLopez.Outbox.Brokers.GooglePubSub\EricksonLopez.Outbox.Brokers.GooglePubSub.csproj" />
+    <ProjectReference Include="..\..\src\EricksonLopez.Outbox.Brokers.Kafka\EricksonLopez.Outbox.Brokers.Kafka.csproj" />
+    <ProjectReference Include="..\..\src\EricksonLopez.Outbox.Brokers.Nats\EricksonLopez.Outbox.Brokers.Nats.csproj" />
     <ProjectReference Include="..\..\src\EricksonLopez.Outbox.Brokers.RabbitMQ\EricksonLopez.Outbox.Brokers.RabbitMQ.csproj" />
+    <ProjectReference Include="..\..\src\EricksonLopez.Outbox.Brokers.RedisStreams\EricksonLopez.Outbox.Brokers.RedisStreams.csproj" />
     <ProjectReference Include="..\..\src\EricksonLopez.Outbox.SourceGenerators\EricksonLopez.Outbox.SourceGenerators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\..\src\EricksonLopez.Outbox.EntityFrameworkCore\EricksonLopez.Outbox.EntityFrameworkCore.csproj" />
   </ItemGroup>

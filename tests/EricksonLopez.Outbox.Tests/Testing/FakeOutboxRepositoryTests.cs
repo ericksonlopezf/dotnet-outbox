@@ -37,7 +37,7 @@ public class FakeOutboxRepositoryTests
 
         await _repo.MarkAsFailedAsync(new[] { msg }, "error", false);
         await _repo.ReclaimStaleMessagesAsync(TimeSpan.Zero);
-        
+
         await _repo.MarkAsDispatchedAsync(new[] { msg });
 
         var purged = await _repo.PurgeDispatchedMessagesAsync(DateTimeOffset.UtcNow.AddMinutes(1));

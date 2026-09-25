@@ -3,7 +3,7 @@
 
   <PropertyGroup>
     <Description>Google Cloud Pub/Sub message broker transport for EricksonLopez.Outbox. Delivers high-performance, Zero-Reflection, NativeAOT-ready event publishing to Google Cloud Pub/Sub.</Description>
-    <PackageTags>$(CommonPackageTags);gcp;google-cloud;google-pubsub;pubsub;native-aot</PackageTags>
+    <PackageTags>$(CommonPackageTags);outbox;transactional-outbox;google-cloud;gcp;pubsub;google-pubsub;native-aot</PackageTags>
     <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
     <Nullable>enable</Nullable>
   </PropertyGroup>

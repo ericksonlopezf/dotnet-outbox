@@ -3,8 +3,10 @@
 # ADR-020 — Core Outbox Does Not Depend On Specific Brokers
 
 ## Status
-
 Accepted
+
+## Date
+2026-09-04
 
 ## Context
 

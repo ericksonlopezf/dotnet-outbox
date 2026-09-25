@@ -14,7 +14,7 @@ public static class ProtobufOutboxSerializationExtensions
     /// </summary>
     /// <param name="options">The outbox options builder.</param>
     /// <returns>The outbox options builder for method chaining.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="options"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="options"/> is <see langword="null"/></exception>
     public static OutboxOptions UseProtobufSerializer(this OutboxOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);

@@ -23,7 +23,7 @@ public sealed class SqliteIdempotencyRepository : IIdempotencyRepository
     /// </summary>
     /// <param name="connectionFactory">The factory that creates SQLite connections.</param>
     /// <param name="options">The outbox runtime options.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="connectionFactory"/> or <paramref name="options"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="connectionFactory"/> or <paramref name="options"/> is <see langword="null"/></exception>
 
     public SqliteIdempotencyRepository(Func<IDbConnection> connectionFactory, IOptionsMonitor<OutboxRuntimeOptions> options)
     {
@@ -64,7 +64,7 @@ public sealed class SqliteIdempotencyRepository : IIdempotencyRepository
             using var cmd = new SqliteCommand(_insertSql, conn, tx);
             cmd.Parameters.AddWithValue("@MessageId", record.MessageId);
             cmd.Parameters.AddWithValue("@ConsumerId", record.ConsumerId);
-            
+
             // Format DateTimeOffset as ISO 8601 for SQLite since it lacks a native datetime type
             cmd.Parameters.AddWithValue("@ProcessedAt", record.ProcessedAt.ToString("O"));
 

@@ -1,6 +1,11 @@
-<!-- Copyright © Erickson Lopez. MIT License. -->
-
 # Architectural Decision Record: REJECT-005
+
+## Status
+Rejected
+
+## Date
+2026-09-04
+
 ## Rejection of Merging Outbox and Inbox into a Monolithic Messaging Package
 
 ### Status

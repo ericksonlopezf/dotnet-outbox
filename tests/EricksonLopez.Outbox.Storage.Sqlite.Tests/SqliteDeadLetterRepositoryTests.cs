@@ -45,7 +45,7 @@ public class SqliteDeadLetterRepositoryTests : IDisposable
     {
         var mockedOptions = Substitute.For<IOptionsMonitor<OutboxRuntimeOptions>>();
         mockedOptions.CurrentValue.Returns(customOptions ?? _options);
-            
+
         return new SqliteDeadLetterRepository(() => new SqliteConnection(_connectionString), mockedOptions);
     }
 
@@ -79,12 +79,14 @@ public class SqliteDeadLetterRepositoryTests : IDisposable
         SqliteConnection? createdConn = null;
         var mockedOptions = Substitute.For<IOptionsMonitor<OutboxRuntimeOptions>>();
         mockedOptions.CurrentValue.Returns(_options);
-        var sut = new SqliteDeadLetterRepository(() => {
+        var sut = new SqliteDeadLetterRepository(() =>
+        {
             createdConn = new SqliteConnection(_connectionString);
             return createdConn;
         }, mockedOptions);
 
-        var msg = _autoFixture.Create<DeadLetterMessage>() with { 
+        var msg = _autoFixture.Create<DeadLetterMessage>() with
+        {
             Payload = "{}"u8.ToArray(),
             Headers = "{}"u8.ToArray()
         };
@@ -97,7 +99,8 @@ public class SqliteDeadLetterRepositoryTests : IDisposable
     public async Task InsertAsync_WhenValidMessage_PersistsDeadLetter()
     {
         var sut = CreateSut();
-        var msg = _autoFixture.Create<DeadLetterMessage>() with { 
+        var msg = _autoFixture.Create<DeadLetterMessage>() with
+        {
             Payload = "{}"u8.ToArray(),
             Headers = "{}"u8.ToArray()
         };
@@ -113,7 +116,8 @@ public class SqliteDeadLetterRepositoryTests : IDisposable
     public async Task InsertAsync_WithNullReason_DefaultsToUnknown()
     {
         var sut = CreateSut();
-        var msg = _autoFixture.Create<DeadLetterMessage>() with { 
+        var msg = _autoFixture.Create<DeadLetterMessage>() with
+        {
             Payload = "{}"u8.ToArray(),
             Headers = "{}"u8.ToArray(),
             Reason = null!
@@ -130,7 +134,8 @@ public class SqliteDeadLetterRepositoryTests : IDisposable
     public async Task InsertAsync_WhenMessageAlreadyExists_IgnoresDuplicateWithoutThrowing()
     {
         var sut = CreateSut();
-        var msg = _autoFixture.Create<DeadLetterMessage>() with { 
+        var msg = _autoFixture.Create<DeadLetterMessage>() with
+        {
             Payload = "{}"u8.ToArray(),
             Headers = "{}"u8.ToArray()
         };
@@ -147,7 +152,8 @@ public class SqliteDeadLetterRepositoryTests : IDisposable
     public async Task InsertAsync_WhenTransactionRolledBack_RollsBackInsertion()
     {
         var sut = CreateSut();
-        var msg = _autoFixture.Create<DeadLetterMessage>() with { 
+        var msg = _autoFixture.Create<DeadLetterMessage>() with
+        {
             Payload = "{}"u8.ToArray(),
             Headers = "{}"u8.ToArray()
         };
@@ -169,7 +175,8 @@ public class SqliteDeadLetterRepositoryTests : IDisposable
     public async Task GetAsync_WhenMessagesExist_ReturnsAllWithProperMapping()
     {
         var sut = CreateSut();
-        var msg1 = _autoFixture.Create<DeadLetterMessage>() with { 
+        var msg1 = _autoFixture.Create<DeadLetterMessage>() with
+        {
             Payload = "{}"u8.ToArray(),
             Headers = "{}"u8.ToArray(),
             CorrelationId = null,
@@ -177,7 +184,8 @@ public class SqliteDeadLetterRepositoryTests : IDisposable
             LastError = null,
             Reason = "ExplicitReason"
         };
-        var msg2 = _autoFixture.Create<DeadLetterMessage>() with { 
+        var msg2 = _autoFixture.Create<DeadLetterMessage>() with
+        {
             Payload = System.Text.Encoding.UTF8.GetBytes("{\"sqlite\":\"custom_data\"}"),
             Headers = System.Text.Encoding.UTF8.GetBytes("{\"sqlite\":\"custom_headers\"}"),
             CorrelationId = "corr",
@@ -190,7 +198,7 @@ public class SqliteDeadLetterRepositoryTests : IDisposable
         await sut.InsertAsync(msg2);
 
         var results = await sut.GetAsync(10);
-        
+
         results.Should().Contain(m => m.Id == msg1.Id);
         results.Should().Contain(m => m.Id == msg2.Id);
 
@@ -239,7 +247,8 @@ public class SqliteDeadLetterRepositoryTests : IDisposable
     {
         var sut = CreateSut();
         var targetDate = DateTimeOffset.UtcNow.AddDays(-2);
-        var msg = _autoFixture.Create<DeadLetterMessage>() with { 
+        var msg = _autoFixture.Create<DeadLetterMessage>() with
+        {
             Payload = "{}"u8.ToArray(),
             Headers = "{}"u8.ToArray(),
             DeadLetteredAt = targetDate
@@ -257,7 +266,8 @@ public class SqliteDeadLetterRepositoryTests : IDisposable
     public async Task DeleteAsync_WhenMessageExists_DeletesFromDatabase()
     {
         var sut = CreateSut();
-        var msg = _autoFixture.Create<DeadLetterMessage>() with { 
+        var msg = _autoFixture.Create<DeadLetterMessage>() with
+        {
             Payload = "{}"u8.ToArray(),
             Headers = "{}"u8.ToArray()
         };
@@ -273,12 +283,14 @@ public class SqliteDeadLetterRepositoryTests : IDisposable
     public async Task PurgeAsync_WhenOldMessagesExist_DeletesOlderThanCutoff()
     {
         var sut = CreateSut();
-        var oldMsg = _autoFixture.Create<DeadLetterMessage>() with { 
+        var oldMsg = _autoFixture.Create<DeadLetterMessage>() with
+        {
             Payload = "{}"u8.ToArray(),
             Headers = "{}"u8.ToArray(),
             DeadLetteredAt = DateTimeOffset.UtcNow.AddDays(-5)
         };
-        var newMsg = _autoFixture.Create<DeadLetterMessage>() with { 
+        var newMsg = _autoFixture.Create<DeadLetterMessage>() with
+        {
             Payload = "{}"u8.ToArray(),
             Headers = "{}"u8.ToArray(),
             DeadLetteredAt = DateTimeOffset.UtcNow.AddDays(5)

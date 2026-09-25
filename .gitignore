@@ -4,7 +4,17 @@
 [Bb]in/
 [Oo]bj/
 [Pp]ublish/
+[Aa]rtifacts/
 [Bb]uild[Aa]rtifacts/
+*.azure-pipelines.yml.bak
+
+# Compilation & Cache
+*.cache
+*.FileListAbsolute.txt
+*.incremental
+_UpgradeReport_Files/
+[Uu]pgrade[Ll]og.XML
+[Uu]pgrade[Ll]og.htm
 
 # NuGet Packages & Tooling
 *.nupkg
@@ -14,10 +24,13 @@ packages/
 *.nuget.targets
 project.lock.json
 project.assets.json
+.tools/
+.dotnet/
 
-# Source Generators intermediate outputs (if emitted)
+# Source Generators intermediate outputs (if emitted to disk)
 Generated_Files/
 [Gg]enerated/
+*.generated.cs
 
 # ====================================================================
 # Visual Studio & Windows Development
@@ -33,6 +46,7 @@ Generated_Files/
 *.vspscc
 *.pidb
 *.aps
+*.dbmdl
 
 # ====================================================================
 # Visual Studio Code
@@ -68,6 +82,7 @@ local-test-results/
 check_cov/
 *.trx
 *.coverage
+*.coveragexml
 *.cobertura.xml
 *coverage*.xml
 *_missing.txt
@@ -77,9 +92,14 @@ missing_*.txt
 [Ss]tryker[Oo]utput/
 .stryker/
 stryker_survivors/
+stryker.log
+stryker-debug.log
+stryker-report.html
+stryker-report.json
 
 # Benchmarks (BenchmarkDotNet)
 BenchmarkDotNet.Artifacts/
+!benchmarks/results/baseline.json
 
 # ====================================================================
 # Code Quality & Static Analysis (SonarQube / SonarCloud)
@@ -109,7 +129,30 @@ secrets.json
 !*.snk
 
 # ====================================================================
-# Temporary & Diagnostic Scratch Files
+# Databases & Local Persistence (SQLite / LocalDB / Mongo Temp)
+# ====================================================================
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+*.sqlite-shm
+*.sqlite-wal
+*.mdf
+*.ldf
+
+# ====================================================================
+# Node / NPM / JavaScript Tooling
+# ====================================================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.npm/
+
+# ====================================================================
+# Temporary, Diagnostic Scratch Files & Drafts
 # ====================================================================
 [Ss]cratch/
 [Ss]cratch[Tt]est/
@@ -119,10 +162,35 @@ secrets.json
 *.log
 *.orig
 *.dmp
+*.dump
+*.crash
+core.*
+vgcore.*
+logs/
+log/
+tmp/
+temp/
 
 # Internal Audit / Review drafts
-AUDIT.md
-REVIEW.md
+/AUDIT.md
+/AUDIT_*.md
+/*AUDIT*.md
+/REVIEW.md
+/REVIEW_*.md
+/*REVIEW*.md
+/*TODO*.md
+/*DRAFT*.md
+*.draft.md
+drafts/
+!docs/complexity-audit.md
+
+# ====================================================================
+# AI & Modern IDE Tooling Artifacts
+# ====================================================================
+.claude/
+.cursor/
+.copilot/
+.antigravity/
 
 # ====================================================================
 # Operating System Artifacts

@@ -45,7 +45,7 @@ public sealed partial class PostgreSqlOutboxRepository : IOutboxRepository
     /// </summary>
     /// <param name="dataSource">The PostgreSQL data source.</param>
     /// <param name="options">The runtime options containing thresholds and configurations.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="dataSource"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="dataSource"/> is <see langword="null"/></exception>
     [CLSCompliant(false)]
 
     public PostgreSqlOutboxRepository(NpgsqlDataSource dataSource, IOptions<OutboxRuntimeOptions>? options = null)
@@ -55,7 +55,7 @@ public sealed partial class PostgreSqlOutboxRepository : IOutboxRepository
 
         var schema = _options.SchemaName;
         var table = _options.TableName;
-        
+
         if (!SchemaNameRegex().IsMatch(schema))
             throw new ArgumentException("Schema name contains invalid characters.", nameof(options));
         if (!SchemaNameRegex().IsMatch(table))
@@ -454,7 +454,7 @@ public sealed partial class PostgreSqlOutboxRepository : IOutboxRepository
                 continue;
             }
             // Stryker restore all
-            
+
 
             var error = reader.IsDBNull(errorOrd) ? null : reader.GetString(errorOrd);
             var retryCount = reader.GetInt32(retryCountOrd);

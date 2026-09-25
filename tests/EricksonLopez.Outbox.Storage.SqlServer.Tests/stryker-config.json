@@ -1,6 +1,6 @@
 {
   "stryker-config": {
-    "concurrency": 1,
+    "concurrency": 2,
     "additional-timeout": 30000,
     "coverage-analysis": "all",
     "thresholds": {

@@ -84,7 +84,7 @@ public class OutboxDispatcherBackgroundServiceTests
 
         using var cts = new CancellationTokenSource();
         var startTask = service.StartAsync(cts.Token);
-        
+
         await service.WaitForRunningAsync(cts.Token);
         service.IsRunning.Should().BeTrue();
 
@@ -179,7 +179,8 @@ public class OutboxDispatcherBackgroundServiceTests
         int processedCount = 0;
         var processedTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         publisher.PublishRawAsync(Arg.Any<OutboxMessage>(), Arg.Any<OutboxMessageMetadata>(), Arg.Any<DispatchContext>())
-            .Returns(_ => {
+            .Returns(_ =>
+            {
                 if (Interlocked.Increment(ref processedCount) >= 3) processedTcs.TrySetResult();
                 return ValueTask.FromResult(DispatchResult.Ok());
             });
@@ -241,7 +242,8 @@ public class OutboxDispatcherBackgroundServiceTests
         int pubCount = 0;
         var pubCountTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         publisher.PublishRawAsync(Arg.Any<OutboxMessage>(), Arg.Any<OutboxMessageMetadata>(), Arg.Any<DispatchContext>())
-            .Returns<ValueTask<DispatchResult>>(_ => {
+            .Returns<ValueTask<DispatchResult>>(_ =>
+            {
                 pubCount++;
                 pubCountTcs.TrySetResult();
                 throw new InvalidOperationException("Simulated publisher crash");
@@ -372,7 +374,8 @@ public class OutboxDispatcherBackgroundServiceTests
     {
         var scopeFactory = Substitute.For<IServiceScopeFactory>();
         int scopeCount = 0;
-        scopeFactory.CreateScope().Returns(_ => {
+        scopeFactory.CreateScope().Returns(_ =>
+        {
             scopeCount++;
             if (scopeCount == 1) throw new InvalidOperationException("Fatal scope crash");
             var scope = Substitute.For<IServiceScope>();

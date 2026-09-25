@@ -38,7 +38,7 @@ public partial class AdaptivePollerTests
                 cts.Cancel();
                 return new ValueTask<IReadOnlyList<OutboxMessage>>(new List<OutboxMessage> { message });
             });
-        
+
         harness.Repository.ReclaimStaleMessagesAsync(Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>())
             .Returns(ValueTask.FromResult(5));
 
@@ -57,11 +57,12 @@ public partial class AdaptivePollerTests
         var repo = Substitute.For<IOutboxRepository>();
         using var cts = new CancellationTokenSource();
         repo.FetchPendingAsync(Arg.Any<int>(), Arg.Any<CancellationToken>())
-            .Returns(_ => {
+            .Returns(_ =>
+            {
                 cts.Cancel();
                 return new ValueTask<IReadOnlyList<OutboxMessage>>(Array.Empty<OutboxMessage>());
             });
-            
+
         services.AddScoped(_ => repo);
         var provider = services.BuildServiceProvider();
 
@@ -89,16 +90,17 @@ public partial class AdaptivePollerTests
         var services = new ServiceCollection();
         var repo = Substitute.For<IOutboxRepository>();
         using var cts = new CancellationTokenSource();
-        
+
         repo.FetchPendingAsync(Arg.Any<int>(), Arg.Any<CancellationToken>())
-            .Returns(_ => {
+            .Returns(_ =>
+            {
                 cts.Cancel();
                 return new ValueTask<IReadOnlyList<OutboxMessage>>(Array.Empty<OutboxMessage>());
             });
-        
+
         repo.ReclaimStaleMessagesAsync(Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>())
             .Returns(ValueTask.FromResult(0)); // reclaimed = 0
-            
+
         services.AddScoped(_ => repo);
         var provider = services.BuildServiceProvider();
 
@@ -126,7 +128,8 @@ public partial class AdaptivePollerTests
         var repo = Substitute.For<IOutboxRepository>();
         using var cts = new CancellationTokenSource();
         repo.FetchPendingAsync(Arg.Any<int>(), Arg.Any<CancellationToken>())
-            .Returns(_ => {
+            .Returns(_ =>
+            {
                 cts.Cancel();
                 return new ValueTask<IReadOnlyList<OutboxMessage>>(Array.Empty<OutboxMessage>());
             });

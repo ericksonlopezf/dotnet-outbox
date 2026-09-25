@@ -54,7 +54,7 @@ internal sealed class OutboxStartupValidator : IHostedService
     /// </summary>
     /// <param name="cancellationToken">A cancellation token that indicates when the start process should abort.</param>
     /// <returns>A completed task if validation succeeds.</returns>
-    /// <exception cref="InvalidOperationException">One or more critical dependencies are missing from the DI container.</exception>
+    /// <exception cref="InvalidOperationException">One or more critical dependencies are missing from the DI container</exception>
     public Task StartAsync(CancellationToken cancellationToken)
     {
         ValidateCriticalDependencies();

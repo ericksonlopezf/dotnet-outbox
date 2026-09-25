@@ -140,7 +140,7 @@ public class TestingOutboxExtensionsTests
     {
         var store = new InMemoryOutboxStore();
         PublishToStore(store, new TestMessage { Id = 1 });
-        
+
         Action act = () => store.ShouldNotHavePublished<TestMessage>();
         act.Should().Throw<InvalidOperationException>();
     }
@@ -150,7 +150,7 @@ public class TestingOutboxExtensionsTests
     {
         var store = new InMemoryOutboxStore();
         PublishToStore(store, new TestMessage { Id = 1 });
-        
+
         Action act = () => store.ShouldNotHavePublished<TestMessage>(m => m.Id == 2);
         act.Should().NotThrow();
     }
@@ -160,7 +160,7 @@ public class TestingOutboxExtensionsTests
     {
         var store = new InMemoryOutboxStore();
         PublishToStore(store, new TestMessage { Id = 1 });
-        
+
         Action act = () => store.ShouldNotHavePublished<TestMessage>(m => m.Id == 1);
         act.Should().Throw<InvalidOperationException>();
     }
@@ -184,7 +184,7 @@ public class TestingOutboxExtensionsTests
 
         Action act = () => tester.ShouldNotHavePublished<TestMessage>();
         act.Should().NotThrow();
-        
+
         PublishToStore(store, new TestMessage());
         Action act2 = () => tester.ShouldNotHavePublished<TestMessage>();
         act2.Should().Throw<InvalidOperationException>();
@@ -211,7 +211,7 @@ public class TestingOutboxExtensionsTests
         var tester = new OutboxTesterImpl(store);
 
         PublishToStore(store, new TestMessage { Id = 1 });
-        
+
         Action act = () => tester.ShouldHavePublishedOnce<TestMessage>(m => m.Id == 1);
         act.Should().NotThrow();
 
@@ -226,7 +226,7 @@ public class TestingOutboxExtensionsTests
         var tester = new OutboxTesterImpl(store);
 
         PublishToStore(store, new TestMessage { Id = 1 });
-        
+
         Action act = () => tester.ShouldHavePublished<TestMessage>(m => m.Id == 1);
         act.Should().NotThrow();
 
@@ -241,7 +241,7 @@ public class TestingOutboxExtensionsTests
         var tester = new OutboxTesterImpl(store);
 
         PublishToStore(store, new TestMessage { Id = 1 });
-        
+
         Action act = () => tester.ShouldHavePublishedTimes<TestMessage>(1);
         act.Should().NotThrow();
 

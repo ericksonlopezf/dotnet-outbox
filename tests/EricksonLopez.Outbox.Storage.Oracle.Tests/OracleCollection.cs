@@ -2,6 +2,7 @@
 using Xunit;
 
 namespace EricksonLopez.Outbox.Storage.Oracle.Tests;
+
 [CollectionDefinition("Oracle")]
 public class OracleCollection : ICollectionFixture<OracleContainerFixture>
 {

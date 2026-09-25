@@ -26,7 +26,7 @@ public sealed class MongoDbDeadLetterRepository : IDeadLetterRepository
     /// Initializes a new instance of the <see cref="MongoDbDeadLetterRepository"/> class.
     /// </summary>
     /// <param name="database">The MongoDB database instance.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="database"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="database"/> is <see langword="null"/></exception>
     public MongoDbDeadLetterRepository(IMongoDatabase database)
     {
         ArgumentNullException.ThrowIfNull(database);

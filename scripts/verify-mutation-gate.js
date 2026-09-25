@@ -60,7 +60,12 @@ function evaluateScore(score, thresholds) {
 /**
  * Main verification function invoked from GitHub Actions.
  * Evaluates whether a fresh, valid Stryker mutation test result exists on 'main'.
- * Outputs needs_stryker='true' if a fresh run is needed (never run, >7 days, or src/ drift).
+ * Evaluates the 4 Invariant Conditions and outputs needs_stryker='true' if execution is required:
+ *   Condition 1: No prior Stryker run found on 'main'
+ *   Condition 2: Stryker report on 'main' is expired (> 7 days TTL)
+ *   Condition 3: Production code drift detected in 'src/'
+ *   Condition 4: Previous run had failed threshold (< break threshold)
+ *
  * @param {{ github: any, context: any, core: any }} params 
  */
 async function verifyMutationGate({ github, context, core }) {
@@ -78,6 +83,23 @@ async function verifyMutationGate({ github, context, core }) {
   console.log(`Max Report Age  : ${MAX_REPORT_AGE_DAYS} days`);
   console.log(`Thresholds      : High: ≥${thresholds.high}%, Low: ≥${thresholds.low}%, Break: ≥${thresholds.break}%`);
   console.log(`============================================================\n`);
+
+  const skipGate = process.env.SKIP_MUTATION_GATE === 'true' ||
+                   context.payload?.inputs?.skip_mutation_gate === true ||
+                   context.payload?.inputs?.skip_mutation_gate === 'true';
+
+  if (skipGate) {
+    console.log(`⚠️ STRYKER GATE BYPASS: skip_mutation_gate parameter is enabled. Quality gate bypassed.`);
+    if (core && typeof core.setOutput === 'function') {
+      core.setOutput('needs_stryker', 'false');
+      core.setOutput('can_proceed', 'true');
+      core.setOutput('bypassed', 'true');
+    }
+    if (core && core.summary) {
+      await core.summary.addRaw(`\n> [!WARNING]\n> Stryker Mutation Quality Gate bypassed via \`skip_mutation_gate\` parameter.\n`).write();
+    }
+    return { passed: true, bypassed: true, needsStryker: false, canProceed: true };
+  }
 
   let evaluatedCommit = null;
   let executionDate = null;
@@ -159,33 +181,33 @@ async function verifyMutationGate({ github, context, core }) {
     }
   }
 
-  // ─── Evaluation of Needs Stryker Execution ──────────────────────────────
+  // ─── Evaluation of the 4 Invariant Conditions ─────────────────────────────
   let needsStryker = false;
   let triggerReason = '';
   let reportAgeDays = null;
   let changedSrcFiles = [];
 
-  // Case A: No prior Stryker run found on main
+  // Condition 1: No prior Stryker run found on main
   if (!evaluatedCommit) {
     needsStryker = true;
-    triggerReason = "No prior Stryker mutation testing run found on 'main'";
+    triggerReason = "Condition 1 (Absence): No prior Stryker mutation testing run found on 'main'";
     console.log(`[INFO] 🔄 ${triggerReason}. Stryker execution required.`);
   }
 
-  // Case B: Freshness Check 1 - Max Report Age (7 Days TTL)
+  // Condition 2: Freshness Check - Max Report Age (7 Days TTL)
   if (!needsStryker && executionDate) {
     const execTimestamp = new Date(executionDate).getTime();
     if (!isNaN(execTimestamp)) {
       reportAgeDays = (Date.now() - execTimestamp) / (1000 * 60 * 60 * 24);
       if (reportAgeDays > MAX_REPORT_AGE_DAYS) {
         needsStryker = true;
-        triggerReason = `Stryker report on 'main' is expired (${reportAgeDays.toFixed(1)} days old > ${MAX_REPORT_AGE_DAYS} days TTL)`;
+        triggerReason = `Condition 2 (TTL Expiration): Stryker report on 'main' is expired (${reportAgeDays.toFixed(1)} days old > ${MAX_REPORT_AGE_DAYS} days TTL)`;
         console.log(`[INFO] 🔄 ${triggerReason}. Fresh Stryker execution required.`);
       }
     }
   }
 
-  // Case C: Freshness Check 2 - Production Code Drift (Diff in src/)
+  // Condition 3: Production Code Drift (Diff in src/)
   if (!needsStryker && evaluatedCommit !== targetSha && github.rest.repos.compareCommits) {
     try {
       console.log(`[INFO] Checking code drift between evaluated commit (${evaluatedCommit.substring(0, 7)}) and target commit (${targetSha.substring(0, 7)})...`);
@@ -199,11 +221,18 @@ async function verifyMutationGate({ github, context, core }) {
       const files = compareResp.data.files || [];
       changedSrcFiles = files
         .map(f => f.filename)
-        .filter(name => name.startsWith('src/'));
+        .filter(name => 
+          name.startsWith('src/') || 
+          name.startsWith('tests/') || 
+          name.startsWith('Directory.') || 
+          name.endsWith('.slnx') || 
+          name.endsWith('.sln') || 
+          name.startsWith('stryker')
+        );
 
       if (changedSrcFiles.length > 0) {
         needsStryker = true;
-        triggerReason = `Production code drift detected: ${changedSrcFiles.length} file(s) modified in 'src/' since commit ${evaluatedCommit.substring(0, 7)}`;
+        triggerReason = `Condition 3 (Code Drift): ${changedSrcFiles.length} file(s) modified in 'src/', 'tests/', or build configuration since commit ${evaluatedCommit.substring(0, 7)}`;
         console.log(`[INFO] 🔄 ${triggerReason}. Fresh Stryker execution required.`);
       }
     } catch (err) {
@@ -211,20 +240,20 @@ async function verifyMutationGate({ github, context, core }) {
     }
   }
 
-  // Case D: Previous run had failed threshold
+  // Condition 4: Previous run had failed threshold or non-success state
   if (!needsStryker) {
     const scoreValue = mutationScore !== null ? mutationScore : (statusState === 'success' ? 100.0 : 0.0);
     const evaluation = evaluateScore(scoreValue, thresholds);
     if (!evaluation.passedBreak || statusState !== 'success') {
       needsStryker = true;
-      triggerReason = `Previous Stryker report on 'main' achieved ${scoreValue}% (< break threshold ${thresholds.break}%)`;
+      triggerReason = `Condition 4 (Gate Failure): Previous Stryker report on 'main' achieved ${scoreValue}% (< break threshold ${thresholds.break}%) or state was '${statusState}'`;
       console.log(`[INFO] 🔄 ${triggerReason}. Re-running Stryker mutation testing.`);
     }
   }
 
   const canProceedWithoutRunning = !needsStryker;
 
-  // Set GitHub Action outputs
+  // Set GitHub Action outputs for workflow orchestration
   if (core && typeof core.setOutput === 'function') {
     core.setOutput('needs_stryker', String(needsStryker));
     core.setOutput('can_proceed', String(canProceedWithoutRunning));

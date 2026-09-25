@@ -1,6 +1,10 @@
-<!-- Copyright © Erickson Lopez. MIT License. -->
-
 # ADR-012: Breaking Change Risk — OutboxMessage Positional Record Constructor
+
+## Status
+Accepted
+
+## Date
+2026-09-04
 
 ## 1. Title and Status
 

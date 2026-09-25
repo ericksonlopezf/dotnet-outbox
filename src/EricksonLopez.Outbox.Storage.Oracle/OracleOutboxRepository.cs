@@ -37,7 +37,7 @@ public sealed class OracleOutboxRepository : IOutboxRepository
     /// </summary>
     /// <param name="connectionFactory">The factory that creates Oracle connections.</param>
     /// <param name="options">The runtime options containing thresholds and configurations.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="connectionFactory"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="connectionFactory"/> is <see langword="null"/></exception>
 
     public OracleOutboxRepository(Func<IDbConnection> connectionFactory, IOptions<OutboxRuntimeOptions>? options = null)
     {
@@ -46,7 +46,7 @@ public sealed class OracleOutboxRepository : IOutboxRepository
 
         var schema = _options.SchemaName;
         var table = _options.TableName;
-        
+
         // Stryker disable all 
         if (!string.IsNullOrEmpty(schema) && !System.Text.RegularExpressions.Regex.IsMatch(schema, "^[a-zA-Z0-9_]+$", System.Text.RegularExpressions.RegexOptions.None, TimeSpan.FromSeconds(1)))
             throw new ArgumentException("Schema name contains invalid characters.", nameof(options));
@@ -96,7 +96,7 @@ public sealed class OracleOutboxRepository : IOutboxRepository
 
         _updateClaimedSql = $@"
             UPDATE {_fullTableName} 
-            SET state = 1, updated_at = SYSTIMESTAMP, owner_id = HEXTORAW('{_options.InstanceId}') 
+            SET state = 1, updated_at = SYSTIMESTAMP, owner_id = :OwnerId 
             WHERE id IN ({{0}})";
 
         _hydrateSql = $@"
@@ -156,10 +156,10 @@ public sealed class OracleOutboxRepository : IOutboxRepository
     {
         if (records.IsEmpty) return;
         var conn = transaction.Connection as OracleConnection ?? throw new InvalidOperationException("Not an OracleConnection");
-        
+
         var span = records.Span;
         var count = span.Length;
-        
+
         var idArray = new byte[count][];
         var typeArray = new string[count];
         var payloadArray = new byte[count][];
@@ -168,7 +168,7 @@ public sealed class OracleOutboxRepository : IOutboxRepository
         var headersArray = new byte[count][];
         var createdArray = new DateTime[count];
         var deliverArray = new object[count];
-        
+
         for (int i = 0; i < count; i++)
         {
             var r = span[i];
@@ -246,7 +246,7 @@ public sealed class OracleOutboxRepository : IOutboxRepository
             {
                 var pName = "Id" + i.ToString(System.Globalization.CultureInfo.InvariantCulture);
                 inClause.Append(i == 0 ? ":" : ", :").Append(pName);
-                
+
                 var pId = updateCmd.CreateParameter();
                 pId.ParameterName = pName;
                 pId.Value = claimedIds[i];
@@ -254,6 +254,27 @@ public sealed class OracleOutboxRepository : IOutboxRepository
             }
 
             updateCmd.CommandText = _updateClaimedSql.Replace("{0}", inClause.ToString(), StringComparison.Ordinal);
+
+            var pOwner = updateCmd.CreateParameter();
+            pOwner.ParameterName = "OwnerId";
+            byte[] ownerBytes;
+            if (Guid.TryParse(_options.InstanceId, out var instanceGuid))
+            {
+                ownerBytes = instanceGuid.ToByteArray();
+            }
+            else
+            {
+                try
+                {
+                    ownerBytes = Convert.FromHexString(_options.InstanceId.Replace("-", string.Empty));
+                }
+                catch
+                {
+                    ownerBytes = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(_options.InstanceId))[..16];
+                }
+            }
+            pOwner.Value = ownerBytes;
+            updateCmd.Parameters.Add(pOwner);
 
             await updateCmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         }
@@ -278,7 +299,7 @@ public sealed class OracleOutboxRepository : IOutboxRepository
             hydrateCmd.CommandText = _hydrateSql.Replace("{0}", inClause.ToString(), StringComparison.Ordinal);
 
             using var reader = await hydrateCmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-            
+
             var idOrd = reader.GetOrdinal("id");
             var messageTypeOrd = reader.GetOrdinal("type");
             var payloadOrd = reader.GetOrdinal("payload");

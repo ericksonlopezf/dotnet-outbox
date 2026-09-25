@@ -6,7 +6,7 @@ using System.Collections.Generic;
 namespace EricksonLopez.Outbox.Persistence;
 
 /// <summary>
-/// A zero-allocation, stack-allocated <see cref="IEnumerable{T}"/> wrapper around a single <see cref="OutboxMessage"/>.
+/// Represents a zero-allocation, stack-allocated <see cref="IEnumerable{T}"/> wrapper around a single <see cref="OutboxMessage"/>.
 /// </summary>
 internal readonly struct SingleOutboxMessageList : IReadOnlyList<OutboxMessage>
 {
@@ -31,7 +31,7 @@ internal readonly struct SingleOutboxMessageList : IReadOnlyList<OutboxMessage>
         => new Enumerator(_message);
 
     /// <summary>
-    /// A struct-based enumerator for a single <see cref="OutboxMessage"/> — no heap allocation.
+    /// Enumerates a single <see cref="OutboxMessage"/> without heap allocations.
     /// </summary>
     public struct Enumerator : IEnumerator<OutboxMessage>
     {

@@ -404,6 +404,43 @@ namespace Test {
     }
 
     [Fact]
+    public async Task ReclaimTimeout_LessThan_30s_Should_Report_OUTBOX011()
+    {
+        var source = @"
+using System;
+namespace Test {
+    public class OutboxDispatcherOptions { public TimeSpan ReclaimTimeout { get; set; } }
+    public class Usage {
+        public void Configure() {
+            var opts = new OutboxDispatcherOptions();
+            opts.ReclaimTimeout = TimeSpan.FromSeconds(10);
+        }
+    }
+}";
+        var diags = await GetDiagnosticsAsync(source);
+        diags.Should().Contain(d => d.Id == "OUTBOX011");
+    }
+
+    [Fact]
+    public async Task ReclaimTimeout_30s_Or_More_Should_Not_Report_OUTBOX011()
+    {
+        var source = @"
+using System;
+namespace Test {
+    public class OutboxDispatcherOptions { public TimeSpan ReclaimTimeout { get; set; } }
+    public class Usage {
+        public void Configure() {
+            var opts = new OutboxDispatcherOptions();
+            opts.ReclaimTimeout = TimeSpan.FromSeconds(30);
+            opts.ReclaimTimeout = TimeSpan.FromMinutes(5);
+        }
+    }
+}";
+        var diags = await GetDiagnosticsAsync(source);
+        diags.Where(d => d.Id == "OUTBOX011").Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task MissingIntegrationEventAlias_Should_Report_OUTBOX006()
     {
         var source = @"
@@ -843,11 +880,11 @@ namespace Test {
     public void SupportedDiagnostics_Should_Contain_All_Descriptors()
     {
         var analyzer = new OutboxMessageAnalyzer();
-        analyzer.SupportedDiagnostics.Should().HaveCount(11);
+        analyzer.SupportedDiagnostics.Should().HaveCount(12);
         var expectedIds = new[]
         {
             "OUTBOX001", "OUTBOX002", "OUTBOX003", "OUTBOX004", "OUTBOX005",
-            "OUTBOX006", "OUTBOX007", "OUTBOX008", "OUTBOX009", "OUTBOX012", "OUTBOX013"
+            "OUTBOX006", "OUTBOX007", "OUTBOX008", "OUTBOX009", "OUTBOX011", "OUTBOX012", "OUTBOX013"
         };
         foreach (var id in expectedIds)
         {

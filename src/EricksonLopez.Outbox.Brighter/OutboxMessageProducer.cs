@@ -24,7 +24,7 @@ public sealed class OutboxMessageProducer : IAmAMessageProducerAsync
     /// </summary>
     /// <param name="outbox">The outbox instance.</param>
     /// <param name="transactionContext">The active transaction context.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="outbox"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="outbox"/> is <see langword="null"/></exception>
     public OutboxMessageProducer(IOutbox outbox, IOutboxTransactionContext? transactionContext = null)
     {
         _outbox = outbox ?? throw new ArgumentNullException(nameof(outbox));
@@ -54,9 +54,10 @@ public sealed class OutboxMessageProducer : IAmAMessageProducerAsync
 
         if (_transactionContext != null)
         {
-            var body = message.Body?.Bytes;
-            if (body != null && body.Length > 0)
+            var memory = message.Body?.Memory;
+            if (memory.HasValue && !memory.Value.IsEmpty)
             {
+                var body = ExtractBytes(memory.Value);
                 await _outbox.StoreAsync(body, _transactionContext, cancellationToken).ConfigureAwait(false);
             }
         }
@@ -69,9 +70,10 @@ public sealed class OutboxMessageProducer : IAmAMessageProducerAsync
 
         if (_transactionContext != null)
         {
-            var body = message.Body?.Bytes;
-            if (body != null && body.Length > 0)
+            var memory = message.Body?.Memory;
+            if (memory.HasValue && !memory.Value.IsEmpty)
             {
+                var body = ExtractBytes(memory.Value);
                 var builder = _outbox.Publish(body)
                     .WithTransaction(_transactionContext);
 
@@ -83,6 +85,19 @@ public sealed class OutboxMessageProducer : IAmAMessageProducerAsync
                 await builder.StoreAsync(cancellationToken).ConfigureAwait(false);
             }
         }
+    }
+
+    private static byte[] ExtractBytes(ReadOnlyMemory<byte> memory)
+    {
+        if (System.Runtime.InteropServices.MemoryMarshal.TryGetArray(memory, out var segment) &&
+            segment.Array != null &&
+            segment.Offset == 0 &&
+            segment.Count == segment.Array.Length)
+        {
+            return segment.Array;
+        }
+
+        return memory.ToArray();
     }
 
     /// <inheritdoc/>

@@ -6,7 +6,7 @@
     <AssemblyName>EricksonLopez.Inbox</AssemblyName>
     <RootNamespace>EricksonLopez.Inbox</RootNamespace>
     <Description>Core Inbox and deduplication engine for idempotent message consumption in .NET applications. Provides in-memory store, background cleanup workers, and pipeline filters.</Description>
-    <PackageTags>$(CommonPackageTags);inbox;inbox-pattern;idempotency;deduplication;consumer;native-aot</PackageTags>
+    <PackageTags>$(CommonPackageTags);inbox;inbox-pattern;idempotency;deduplication;message-consumer;native-aot</PackageTags>
     <IsPackable>true</IsPackable>
     <IsAotCompatible>true</IsAotCompatible>
     <IsTrimmable>true</IsTrimmable>

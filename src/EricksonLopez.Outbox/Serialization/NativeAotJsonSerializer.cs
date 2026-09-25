@@ -52,7 +52,7 @@ public sealed class NativeAotJsonSerializer : IOutboxSerializer
     /// <inheritdoc/>
     public ReadOnlyMemory<byte> Serialize<TMessage>(TMessage message)
     {
-        var typeInfo = TypeInfoCache<TMessage>.GetOrAdd(_context);
+        var typeInfo = GetTypeInfo<TMessage>();
         return JsonSerializer.SerializeToUtf8Bytes(message, typeInfo);
     }
 
@@ -67,7 +67,7 @@ public sealed class NativeAotJsonSerializer : IOutboxSerializer
     /// </remarks>
     public void Serialize<TMessage>(TMessage message, IBufferWriter<byte> buffer)
     {
-        var typeInfo = TypeInfoCache<TMessage>.GetOrAdd(_context);
+        var typeInfo = GetTypeInfo<TMessage>();
 
         var writer = _writerPool.Get();
         try
@@ -85,33 +85,23 @@ public sealed class NativeAotJsonSerializer : IOutboxSerializer
     /// <inheritdoc/>
     public TMessage Deserialize<TMessage>(ReadOnlySpan<byte> data)
     {
-        var typeInfo = TypeInfoCache<TMessage>.GetOrAdd(_context);
+        var typeInfo = GetTypeInfo<TMessage>();
         return JsonSerializer.Deserialize(data, typeInfo)!;
+    }
+
+    private JsonTypeInfo<TMessage> GetTypeInfo<TMessage>()
+    {
+        var typeInfo = _context.GetTypeInfo(typeof(TMessage)) as JsonTypeInfo<TMessage>;
+        if (typeInfo is null)
+            throw new InvalidOperationException($"Type {typeof(TMessage).Name} is not registered in the JsonSerializerContext.");
+
+        return typeInfo;
     }
 
     internal sealed class Utf8JsonWriterPooledObjectPolicy : Microsoft.Extensions.ObjectPool.PooledObjectPolicy<Utf8JsonWriter>
     {
         public override Utf8JsonWriter Create() => new Utf8JsonWriter(System.IO.Stream.Null);
         public override bool Return(Utf8JsonWriter obj) => true;
-    }
-
-    // Generic static cache eliminates the O(1) dictionary lookup overhead of `context.GetTypeInfo(typeof(T))`.
-    private static class TypeInfoCache<TMessage>
-    {
-        private static volatile JsonTypeInfo<TMessage>? s_typeInfo;
-
-        public static JsonTypeInfo<TMessage> GetOrAdd(JsonSerializerContext context)
-        {
-            var cached = s_typeInfo;
-            if (cached is not null) return cached;
-
-            var typeInfo = context.GetTypeInfo(typeof(TMessage)) as JsonTypeInfo<TMessage>;
-            if (typeInfo is null)
-                throw new InvalidOperationException($"Type {typeof(TMessage).Name} is not registered in the JsonSerializerContext.");
-
-            s_typeInfo = typeInfo;
-            return typeInfo;
-        }
     }
 }
 

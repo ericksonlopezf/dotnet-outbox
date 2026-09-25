@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Tasks;
 using EricksonLopez.Outbox;
 using EricksonLopez.Outbox.Persistence;
 using Microsoft.AspNetCore.Builder;
@@ -10,7 +11,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Npgsql;
 using Sample.OrderService.Domain.Aggregates.OrderAggregate;
-using System.Threading.Tasks;
 
 namespace Sample.OrderService.Endpoints;
 

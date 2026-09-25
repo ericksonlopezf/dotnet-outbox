@@ -79,6 +79,48 @@ public class OutboxMessageProducerTests
     }
 
     [Fact]
+    public async Task SendAsync_WithSlicedMemoryBody_ExtractsExactSliceBytes()
+    {
+        var outbox = Substitute.For<IOutbox>();
+        var txContext = Substitute.For<IOutboxTransactionContext>();
+        var producer = new OutboxMessageProducer(outbox, txContext);
+
+        var fullBuffer = new byte[] { 99, 10, 20, 30, 99 };
+        var slice = new ReadOnlyMemory<byte>(fullBuffer, 1, 3);
+        var message = new Message(
+            new MessageHeader(new Id(Guid.NewGuid().ToString()), new RoutingKey("test.topic"), MessageType.MT_EVENT),
+            new MessageBody(slice));
+
+        await producer.SendAsync(message, CancellationToken.None);
+
+        await outbox.Received(1).StoreAsync(
+            Arg.Is<byte[]>(b => System.Linq.Enumerable.SequenceEqual(b, new byte[] { 10, 20, 30 })),
+            txContext,
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SendAsync_WithZeroOffsetSubarrayMemoryBody_ExtractsExactSliceBytes()
+    {
+        var outbox = Substitute.For<IOutbox>();
+        var txContext = Substitute.For<IOutboxTransactionContext>();
+        var producer = new OutboxMessageProducer(outbox, txContext);
+
+        var fullBuffer = new byte[] { 10, 20, 30, 99, 99 };
+        var slice = new ReadOnlyMemory<byte>(fullBuffer, 0, 3);
+        var message = new Message(
+            new MessageHeader(new Id(Guid.NewGuid().ToString()), new RoutingKey("test.topic"), MessageType.MT_EVENT),
+            new MessageBody(slice));
+
+        await producer.SendAsync(message, CancellationToken.None);
+
+        await outbox.Received(1).StoreAsync(
+            Arg.Is<byte[]>(b => System.Linq.Enumerable.SequenceEqual(b, new byte[] { 10, 20, 30 })),
+            txContext,
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task SendAsync_WithNullOrEmptyBody_DoesNotStoreInOutbox()
     {
         var outbox = Substitute.For<IOutbox>();
