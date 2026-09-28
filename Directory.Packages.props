@@ -8,7 +8,7 @@
     <PackageVersion Include="AwesomeAssertions" Version="9.6.0" />
     <PackageVersion Include="EricksonLopez.Result" Version="3.0.0" />
     <PackageVersion Include="EricksonLopez.Idempotency.Abstractions" Version="2.0.0" />
-    <PackageVersion Include="coverlet.msbuild" Version="10.0.1">
+    <PackageVersion Include="coverlet.msbuild" Version="10.1.0">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageVersion>
